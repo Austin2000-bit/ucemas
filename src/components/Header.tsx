@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -26,7 +27,9 @@ const Header = () => {
           
           {/* Desktop Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            <Button variant="outline">Sign In</Button>
+            <Link to="/login">
+              <Button variant="outline">Sign In</Button>
+            </Link>
             <Button>Sign Up</Button>
           </div>
           
@@ -54,7 +57,9 @@ const Header = () => {
             <a href="#" className="block px-3 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-md">Contact</a>
             
             <div className="pt-4 flex flex-col space-y-2">
-              <Button variant="outline" className="w-full">Sign In</Button>
+              <Link to="/login">
+                <Button variant="outline" className="w-full">Sign In</Button>
+              </Link>
               <Button className="w-full">Sign Up</Button>
             </div>
           </div>
