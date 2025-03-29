@@ -12,6 +12,7 @@ import Complaint from "./pages/Complaint";
 import ComplaintList from "./pages/ComplaintList";
 import Helper from "./pages/Helper";
 import Student from "./pages/Student";
+import RideBooking from "./pages/RideBooking";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/student" element={<Student />} />
           <Route path="/complaint" element={<Complaint />} />
           <Route path="/complaint/list" element={<ComplaintList />} />
+          <Route path="/book-ride" element={<RideBooking />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

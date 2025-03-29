@@ -78,6 +78,14 @@ const Student = () => {
             <div className="w-4 h-4 rounded-full bg-blue-500"></div>
             <span className="text-blue-500">Daily confirmation</span>
           </div>
+          
+          <div className="mt-auto">
+            <Link to="/book-ride">
+              <Button className="w-full bg-blue-500 hover:bg-blue-600">
+                Book Free Ride
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Right Panel - User Profile and OTP */}
