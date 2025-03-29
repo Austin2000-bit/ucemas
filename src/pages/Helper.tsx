@@ -75,6 +75,7 @@ const Helper = () => {
             <Link to="/book-ride" className="px-4 py-2 whitespace-nowrap">Book ride</Link>
             <Link to="/admin" className="px-4 py-2 whitespace-nowrap">Admin</Link>
             <Link to="/complaint" className="px-4 py-2 whitespace-nowrap">Complaint</Link>
+            <Link to="/student" className="px-4 py-2 whitespace-nowrap">Student</Link>
           </div>
         </div>
       </div>
