@@ -9,6 +9,7 @@ import Register from "./pages/Register";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import Complaint from "./pages/Complaint";
+import ComplaintList from "./pages/ComplaintList";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/register" element={<Register />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/complaint" element={<Complaint />} />
+          <Route path="/complaint/list" element={<ComplaintList />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
