@@ -9,18 +9,6 @@ type NavbarProps = {
 const Navbar = ({ title = "USNMS" }: NavbarProps) => {
   return (
     <>
-<<<<<<< HEAD
-      {/* Top navigation */}
-      <div className="bg-card text-card-foreground">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-12">
-            <div className="font-medium font-poppins">{title}</div>
-          </div>
-        </div>
-      </div>
-      
-=======
->>>>>>> master
       {/* Menu navigation */}
       <div className="bg-blue-500 dark:bg-blue-700 text-white">
         <div className="container mx-auto px-4">
