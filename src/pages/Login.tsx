@@ -3,6 +3,8 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import Footer from "@/components/Footer";
+import Navbar from "@/components/Navbar";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -15,34 +17,13 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Top navigation */}
-      <div className="bg-blue-400 text-white">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-12">
-            <div className="font-medium">Login</div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Menu navigation */}
-      <div className="bg-blue-500 text-white">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center h-12 overflow-x-auto">
-            <Link to="/" className="px-4 py-2 whitespace-nowrap">USNMS</Link>
-            <Link to="/register" className="px-4 py-2 whitespace-nowrap">Register</Link>
-            <Link to="/admin" className="px-4 py-2 whitespace-nowrap">Admin</Link>
-            <Link to="/helper" className="px-4 py-2 whitespace-nowrap">Helper</Link>
-            <Link to="/book-ride" className="px-4 py-2 whitespace-nowrap">Book ride</Link>
-            <Link to="/complaint" className="px-4 py-2 whitespace-nowrap">Complaint</Link>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
+      <Navbar title="Login" />
       
       {/* Login form */}
-      <div className="flex flex-col items-center justify-center px-4 py-16">
-        <div className="w-full max-w-md bg-white p-8 rounded shadow-sm">
-          <h2 className="text-center text-xl font-medium mb-8">Welcome Back!</h2>
+      <div className="flex flex-col items-center justify-center px-4 py-16 flex-grow">
+        <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded shadow-sm">
+          <h2 className="text-center text-xl font-medium mb-8 dark:text-white">Welcome Back!</h2>
           
           <div className="flex justify-center mb-8">
             <img 
@@ -77,17 +58,19 @@ const Login = () => {
             
             <Button 
               type="submit" 
-              className="w-full bg-blue-500 hover:bg-blue-600"
+              className="w-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
             >
               Login
             </Button>
             
-            <p className="text-center text-sm mt-4">
-              Don't have an account? <Link to="/register" className="text-blue-500 hover:underline">Sign Up</Link>
+            <p className="text-center text-sm mt-4 dark:text-gray-300">
+              Don't have an account? <Link to="/register" className="text-blue-500 hover:underline dark:text-blue-400">Sign Up</Link>
             </p>
           </form>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 };

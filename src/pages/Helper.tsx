@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
@@ -11,6 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 const Helper = () => {
   const [selectedHelper, setSelectedHelper] = useState<string>("");
@@ -55,34 +56,12 @@ const Helper = () => {
   };
   
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Top navigation */}
-      <div className="bg-gray-200 text-gray-600">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-12">
-            <div className="font-medium">Helper Dashboard</div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Menu navigation */}
-      <div className="bg-blue-500 text-white">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center h-12 overflow-x-auto">
-            <Link to="/" className="px-4 py-2 whitespace-nowrap">USNMS</Link>
-            <Link to="/register" className="px-4 py-2 whitespace-nowrap">Register</Link>
-            <Link to="/helper" className="px-4 py-2 whitespace-nowrap font-medium">Helper</Link>
-            <Link to="/book-ride" className="px-4 py-2 whitespace-nowrap">Book ride</Link>
-            <Link to="/admin" className="px-4 py-2 whitespace-nowrap">Admin</Link>
-            <Link to="/complaint" className="px-4 py-2 whitespace-nowrap">Complaint</Link>
-            <Link to="/student" className="px-4 py-2 whitespace-nowrap">Student</Link>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
+      <Navbar title="Helper Dashboard" />
 
-      <div className="flex flex-col md:flex-row">
+      <div className="flex flex-col md:flex-row flex-grow">
         {/* User Profile Section */}
-        <div className="md:w-1/3 bg-blue-400 p-6 flex flex-col items-center">
+        <div className="md:w-1/3 bg-blue-400 dark:bg-blue-600 p-6 flex flex-col items-center">
           <div className="rounded-full overflow-hidden w-32 h-32 border-4 border-white mb-4">
             <img 
               src="/lovable-uploads/4099645c-e8d9-40ed-9964-383c8452c070.png" 
@@ -103,7 +82,7 @@ const Helper = () => {
         </div>
 
         {/* Help Confirmation Section */}
-        <div className="flex-1 p-6 flex flex-col items-center">
+        <div className="flex-1 p-6 flex flex-col items-center dark:text-white">
           <h1 className="text-xl font-medium mb-8">Sign to confirm help provision</h1>
           
           <div className="max-w-md w-full mb-8">
@@ -152,6 +131,8 @@ const Helper = () => {
           </div>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 };

@@ -11,6 +11,7 @@ import {
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import { Link } from "react-router-dom";
 
 const Student = () => {
@@ -46,10 +47,10 @@ const Student = () => {
   };
   
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       <Navbar title="Student Dashboard" />
       
-      <div className="flex flex-col md:flex-row">
+      <div className="flex flex-col md:flex-row flex-grow">
         {/* Left Panel - Help Confirmation */}
         <div className="md:w-1/3 bg-gray-300 dark:bg-gray-800 p-6 flex flex-col">
           <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-6">HELP CONFIRMATION</h2>
@@ -122,6 +123,8 @@ const Student = () => {
           </div>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 };
