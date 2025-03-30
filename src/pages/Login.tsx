@@ -17,13 +17,13 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
+    <div className="min-h-screen flex flex-col bg-background">
       <Navbar title="Login" />
       
       {/* Login form */}
       <div className="flex flex-col items-center justify-center px-4 py-16 flex-grow">
-        <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded shadow-sm">
-          <h2 className="text-center text-xl font-medium mb-8 dark:text-white">Welcome Back!</h2>
+        <div className="w-full max-w-md bg-card text-card-foreground p-8 rounded shadow-sm">
+          <h2 className="text-center text-xl font-medium mb-8">Welcome Back!</h2>
           
           <div className="flex justify-center mb-8">
             <img 
@@ -58,13 +58,13 @@ const Login = () => {
             
             <Button 
               type="submit" 
-              className="w-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+              className="w-full bg-blue-500 hover:bg-blue-600"
             >
               Login
             </Button>
             
-            <p className="text-center text-sm mt-4 dark:text-gray-300">
-              Don't have an account? <Link to="/register" className="text-blue-500 hover:underline dark:text-blue-400">Sign Up</Link>
+            <p className="text-center text-sm mt-4">
+              Don't have an account? <Link to="/register" className="text-blue-500 hover:underline">Sign Up</Link>
             </p>
           </form>
         </div>
