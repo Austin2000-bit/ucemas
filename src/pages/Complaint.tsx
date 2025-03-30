@@ -58,12 +58,9 @@ const Complaint = () => {
       {/* Top navigation */}
       <div className="bg-gray-200 text-gray-600">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-12">
-            <div className="font-medium">Complaint Management</div>
-          </div>
         </div>
       </div>
-      
+     
       {/* Menu navigation */}
       <div className="bg-blue-500 text-white">
         <div className="container mx-auto px-4">

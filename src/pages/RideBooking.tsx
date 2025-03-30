@@ -67,16 +67,13 @@ const RideBooking = () => {
       {/* Top navigation */}
       <div className="bg-gray-200 text-gray-600">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-12">
-            <div className="font-medium">Ride Booking</div>
-          </div>
         </div>
       </div>
       
       {/* Menu navigation */}
       <div className="bg-blue-500 text-white">
         <div className="container mx-auto px-4">
-          <div className="flex items-center h-12 overflow-x-auto">
+          <div className="flex items-center h-12 overflow-x-auto justify-center">
             <Link to="/" className="px-4 py-2 whitespace-nowrap">USNMS</Link>
             <Link to="/register" className="px-4 py-2 whitespace-nowrap">Register</Link>
             <Link to="/helper" className="px-4 py-2 whitespace-nowrap">Helper</Link>
