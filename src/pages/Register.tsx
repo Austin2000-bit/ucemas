@@ -1,4 +1,4 @@
-
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -39,19 +39,25 @@ const Register = () => {
       
       {/* Menu navigation */}
 
-      <div className="bg-blue-500 text-white justify-center">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center h-12 justify-center overflow-x-auto">
-          <Link to="/" className="px-4 py-2 whitespace-nowrap">USNMS</Link>
-
-            <Link to="/register" className="px-4 py-2 whitespace-nowrap">Register</Link>
-            <Link to="/admin" className="px-4 py-2 whitespace-nowrap">Admin</Link>
-            <Link to="/helper" className="px-4 py-2 whitespace-nowrap">Helper</Link>
-            <Link to="/book-ride" className="px-4 py-2 whitespace-nowrap">Book ride</Link>
-            <Link to="/complaint" className="px-4 py-2 whitespace-nowrap">complaint</Link>
-          </div>
-        </div>
-      </div>
+     <div className="bg-blue-500 text-white">
+             <div className="container mx-auto px-4">
+                 <div className="flex items-center justify-between">
+                 <div className="flex">
+                   <Link to="/" className="px-4 py-2 whitespace-nowrap align-items-left">USNMS</Link>
+                   </div>
+                   <div>
+                   <Link to="/register" className="px-4 py-2 whitespace-nowrap">Register</Link>
+                   <Link to="/helper" className="px-4 py-2 whitespace-nowrap">Helper</Link>
+                   <Link to="/book-ride" className="px-4 py-2 whitespace-nowrap">Book ride</Link>
+                   <Link to="/admin" className="px-4 py-2 whitespace-nowrap">Admin</Link>
+                   <Link to="/complaint" className="px-4 py-2 whitespace-nowrap font-medium">Complaint</Link>
+                 </div>
+                 <div>
+                   <ThemeToggle />
+                 </div>
+                 </div>
+             </div>
+           </div>
       
       {/* Registration form */}
       <div className="flex flex-col items-center justify-center px-4 py-8">
@@ -60,49 +66,71 @@ const Register = () => {
           
           <div className="flex justify-center mb-8">
             <img 
-              src="/lovable-uploads/71e25707-92bf-4510-b0d5-2d6d0a94b783.png" 
+              src="/undraw_sign-up_z2ku.png" 
               alt="Registration illustration" 
-              className="h-24"
+              className="h-24 rounded-full"
             />
           </div>
           
           <form onSubmit={handleRegister} className="space-y-4">
             <div>
-              <Select onValueChange={(value) => handleSelectChange("firstname", value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Firstname" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="john">John</SelectItem>
-                  <SelectItem value="jane">Jane</SelectItem>
-                  <SelectItem value="alex">Alex</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                type="text"
+                name="firstname"
+                placeholder="Firstname"
+                value={formData.firstname}
+                onChange={handleChange}
+                className="w-full"
+                required
+              />
             </div>
             
             <div>
-              <Select onValueChange={(value) => handleSelectChange("lastname", value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="lastname" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="doe">Doe</SelectItem>
-                  <SelectItem value="smith">Smith</SelectItem>
-                  <SelectItem value="johnson">Johnson</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                type="text"
+                name="lastname"
+                placeholder="Lastname"
+                value={formData.lastname}
+                onChange={handleChange}
+                className="w-full"
+                required
+              />
             </div>
-            
             <div>
-              <Select onValueChange={(value) => handleSelectChange("email", value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="email" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user@example.com">user@example.com</SelectItem>
-                  <SelectItem value="test@example.com">test@example.com</SelectItem>
-                </SelectContent>
-              </Select>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Profile Picture
+              </label>
+              <Input
+                type="file"
+                name="profilePicture"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const maxSize = 2 * 1024 * 1024; // 2MB
+                    const img = new Image();
+                    img.onload = () => {
+                      if (file.size > maxSize || img.width > 1024 || img.height > 1024) {
+                        alert("Image must be less than 2MB and dimensions within 1024x1024.");
+                        e.target.value = ""; // Reset the input
+                      }
+                    };
+                    img.src = URL.createObjectURL(file);
+                  }
+                }}
+                className="w-full"
+              />
+            </div>
+            <div>
+              <Input
+                type="email"
+                name="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full"
+                required
+              />
             </div>
             
             <div>
@@ -112,22 +140,44 @@ const Register = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="staff">Staff</SelectItem>
-                  <SelectItem value="visitor">Visitor</SelectItem>
+                  <SelectItem value="Helper">Helper</SelectItem>
+                  <SelectItem value="Admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            
+            {formData.role === "Helper" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Upload Helper Application Letter (PDF, max 2MB)
+                </label>
+                <Input
+                  type="file"
+                  name="helperApplicationLetter"
+                  accept="application/pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const maxSize = 2 * 1024 * 1024; // 2MB
+                      if (file.size > maxSize) {
+                        alert("File must be less than 2MB.");
+                        e.target.value = ""; // Reset the input
+                      }
+                    }
+                  }}
+                  className="w-full"
+                />
+              </div>
+            )}
             <div>
-              <Select onValueChange={(value) => handleSelectChange("phone", value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="phone" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="123-456-7890">123-456-7890</SelectItem>
-                  <SelectItem value="234-567-8901">234-567-8901</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                type="tel"
+                name="phone"
+                placeholder="Phone"
+                value={formData.phone}
+                onChange={handleChange}
+                className="w-full"
+                required
+              />
             </div>
             
             <div>
@@ -143,6 +193,27 @@ const Register = () => {
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                If the disability is hard to explain, upload a short video (max 5MB, MP4 format)
+              </label>
+              <Input
+                type="file"
+                name="disabilityVideo"
+                accept="video/mp4"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const maxSize = 5 * 1024 * 1024; // 5MB
+                    if (file.size > maxSize) {
+                      alert("Video must be less than 5MB.");
+                      e.target.value = ""; // Reset the input
+                    }
+                  }
+                }}
+                className="w-full"
+              />
             </div>
             
             <Button 

@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+
 
 const Helper = () => {
   const [selectedHelper, setSelectedHelper] = useState<string>("");
@@ -57,7 +57,7 @@ const Helper = () => {
   
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-      <Navbar title="Helper Dashboard" />
+      <Navbar  />
 
       <div className="flex flex-col md:flex-row flex-grow">
         {/* User Profile Section */}
@@ -89,12 +89,12 @@ const Helper = () => {
             <div className="flex justify-center mb-6">
               <div className="relative">
                 <img 
-                  src="/public/placeholder.svg" 
+                  src="/undraw_business-deal_nx2n.png" 
                   alt="Devices illustration" 
-                  className="w-60 h-40 object-contain"
+                  className="w-60 h-40 object-contain rounded-full"
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-blue-500 text-xl">Devices Illustration</span>
+                 
                 </div>
               </div>
             </div>
@@ -103,7 +103,7 @@ const Helper = () => {
               <div className="space-y-2">
                 <Select value={selectedHelper} onValueChange={setSelectedHelper}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select assigned helper" />
+                    <SelectValue placeholder="Select assigned student" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="john">John Smith</SelectItem>
@@ -131,8 +131,6 @@ const Helper = () => {
           </div>
         </div>
       </div>
-      
-      <Footer />
     </div>
   );
 };

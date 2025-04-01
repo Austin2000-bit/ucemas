@@ -3,8 +3,8 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
+import { ClerkProvider, useSignIn } from "@clerk/clerk-react";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -12,24 +12,45 @@ const Login = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
     console.log("Login attempt with:", username, password);
+
+    // Example Clerk integration for role-based authentication
+
+    const { signIn } = useSignIn();
+
+    signIn.create({
+      identifier: username,
+      password: password,
+    }).then((response) => {
+      const userRole = response.user?.publicMetadata?.role;
+      if (userRole === "admin") {
+        console.log("Admin login successful");
+        // Redirect to admin dashboard
+      } else if (userRole === "user") {
+        console.log("User login successful");
+        // Redirect to user dashboard
+      } else {
+        console.log("Unknown role");
+      }
+    }).catch((error) => {
+      console.error("Login failed:", error);
+    });console.log("Login attempt with:", username, password);
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Navbar title="Login" />
+      <Navbar  />
       
       {/* Login form */}
       <div className="flex flex-col items-center justify-center px-4 py-16 flex-grow">
-        <div className="w-full max-w-md bg-card text-card-foreground p-8 rounded shadow-sm">
+        <div className="w-full max-w-md bg-card text-card-foreground p-8 rounded shadow-md">
           <h2 className="text-center text-xl font-medium mb-8">Welcome Back!</h2>
           
           <div className="flex justify-center mb-8">
             <img 
-              src="/lovable-uploads/38718d37-4552-47c1-bb5e-f38e5f251984.png" 
+              src="/undraw_access-account_aydp.png" 
               alt="Login illustration" 
-              className="h-24"
+              className="h-24 rounded-full"
             />
           </div>
           
@@ -70,7 +91,6 @@ const Login = () => {
         </div>
       </div>
       
-      <Footer />
     </div>
   );
 };

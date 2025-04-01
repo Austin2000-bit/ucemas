@@ -14,6 +14,8 @@ import ComplaintList from "./pages/ComplaintList";
 import Helper from "./pages/Helper";
 import Student from "./pages/Student";
 import RideBooking from "./pages/RideBooking";
+import Footer from "./components/Footer";
+import Navbar from "./components/Navbar";
 
 const queryClient = new QueryClient();
 
@@ -36,10 +38,14 @@ const App = () => (
             <Route path="/book-ride" element={<RideBooking />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <Footer />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   </ThemeProvider>
+  
 );
 
 export default App;
+
+
