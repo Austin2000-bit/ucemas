@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { 
   FileText, 
@@ -7,6 +7,8 @@ import {
   Layout,
   Search,
   Filter,
+  Download,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,41 +28,91 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import Navbar from "@/components/Navbar";
 
-// Sample complaint data
-const sampleComplaints = [
-  { id: "C1", name: "Founder Break-Even Calculator", issueCategory: "Compatible", created: "21.03.2021" },
-  { id: "C2", name: "Founder Break-Even Calculator", issueCategory: "Merger", created: "21.03.2021" },
-  { id: "C3", name: "Founder Break-Even Calculator", issueCategory: "Compatible", created: "21.03.2021" },
-  { id: "C4", name: "Founder Break-Even Calculator", issueCategory: "Compatible", created: "21.03.2021" },
-  { id: "C5", name: "Founder Break-Even Calculator", issueCategory: "Merger", created: "21.03.2021" },
-  { id: "C6", name: "Founder Break-Even Calculator", issueCategory: "Compatible", created: "21.03.2021" },
-  { id: "C7", name: "Founder Break-Even Calculator", issueCategory: "Compatible", created: "21.03.2021" },
-  { id: "C8", name: "Founder Break-Even Calculator", issueCategory: "Merger", created: "21.03.2021" },
-  { id: "C9", name: "Founder Break-Even Calculator", issueCategory: "Compatible", created: "21.03.2021" },
-];
+// Define complaint type
+interface Complaint {
+  id: string;
+  name: string;
+  email: string;
+  issueCategory: string;
+  description: string;
+  created: string;
+  status: string;
+  feedback: string;
+  followUp: string;
+}
 
 const ComplaintList = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
+  const [isViewOpen, setIsViewOpen] = useState(false);
   
   const filters = ["All", "Pending", "Resolved", "Rejected", "Created"];
   
-  const filteredComplaints = sampleComplaints.filter(complaint => {
+  // Load complaints from localStorage
+  useEffect(() => {
+    const storedComplaints = JSON.parse(localStorage.getItem("complaints") || "[]");
+    setComplaints(storedComplaints);
+  }, []);
+  
+  const filteredComplaints = complaints.filter(complaint => {
     // Apply search filter
     if (searchQuery && !complaint.name.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
     
-    // Apply status filter (for demo purposes, we're not filtering by status since we don't have that field)
-    if (activeFilter !== "All") {
-      // In a real application, you would filter by the status field
-      return true;
+    // Apply status filter
+    if (activeFilter !== "All" && complaint.status !== activeFilter) {
+      return false;
     }
     
     return true;
   });
+
+  // Handle view complaint details
+  const handleViewComplaint = (complaint: Complaint) => {
+    setSelectedComplaint(complaint);
+    setIsViewOpen(true);
+  };
+
+  // Export complaints to CSV
+  const exportToCSV = () => {
+    const headers = ["ID", "Name", "Email", "Category", "Description", "Created", "Status"];
+    const csvContent = [
+      headers.join(","),
+      ...filteredComplaints.map(c => 
+        [
+          c.id,
+          `"${c.name}"`,
+          `"${c.email}"`,
+          `"${c.issueCategory}"`,
+          `"${c.description.replace(/"/g, '""')}"`,
+          c.created,
+          c.status
+        ].join(",")
+      )
+    ].join("\n");
+    
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "complaints.csv");
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
   
   return (
     <div className="min-h-screen bg-background">
@@ -91,7 +143,7 @@ const ComplaintList = () => {
                 <span>Complaint List</span>
               </Link>
               <Link 
-                to="/admin/section" 
+                to="/admin" 
                 className="flex items-center gap-3 px-4 py-2.5 text-foreground hover:bg-accent rounded-md transition-colors font-poppins"
               >
                 <Layout className="h-5 w-5" />
@@ -103,7 +155,14 @@ const ComplaintList = () => {
 
         {/* Main content */}
         <div className="flex-1 p-6">
-          <h1 className="text-2xl font-semibold mb-6 font-poppins">Complaint List</h1>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-semibold font-poppins">Complaint List</h1>
+            
+            <Button onClick={exportToCSV} variant="outline" size="sm" className="flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              <span>Export</span>
+            </Button>
+          </div>
           
           {/* Search bar */}
           <div className="flex items-center mb-6 max-w-md relative">
@@ -123,7 +182,7 @@ const ComplaintList = () => {
           </div>
           
           {/* Filter tabs */}
-          <div className="flex items-center border-b mb-6">
+          <div className="flex items-center border-b mb-6 overflow-x-auto">
             {filters.map((filter) => (
               <button
                 key={filter}
@@ -144,72 +203,136 @@ const ComplaintList = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-24 font-poppins">Complaint ID</TableHead>
+                  <TableHead className="w-24 font-poppins">ID</TableHead>
                   <TableHead className="font-poppins">Name</TableHead>
-                  <TableHead className="font-poppins">Issue category</TableHead>
+                  <TableHead className="font-poppins">Category</TableHead>
                   <TableHead className="w-32 font-poppins">Created</TableHead>
+                  <TableHead className="w-24 font-poppins">Status</TableHead>
                   <TableHead className="w-24 text-right font-poppins">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredComplaints.map((complaint) => (
-                  <TableRow key={complaint.id}>
-                    <TableCell className="font-medium font-poppins">{complaint.id}</TableCell>
-                    <TableCell className="font-poppins">{complaint.name}</TableCell>
-                    <TableCell className="font-poppins">{complaint.issueCategory}</TableCell>
-                    <TableCell className="font-poppins">{complaint.created}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="sm">
-                        <svg 
-                          width="16" 
-                          height="16" 
-                          viewBox="0 0 16 16" 
-                          fill="none" 
-                          xmlns="http://www.w3.org/2000/svg"
+                {filteredComplaints.length > 0 ? (
+                  filteredComplaints.map((complaint) => (
+                    <TableRow key={complaint.id}>
+                      <TableCell className="font-medium font-poppins">{complaint.id}</TableCell>
+                      <TableCell className="font-poppins">{complaint.name}</TableCell>
+                      <TableCell className="font-poppins">{complaint.issueCategory}</TableCell>
+                      <TableCell className="font-poppins">{complaint.created}</TableCell>
+                      <TableCell className="font-poppins">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          complaint.status === "Pending" ? "bg-yellow-100 text-yellow-800" :
+                          complaint.status === "Resolved" ? "bg-green-100 text-green-800" :
+                          complaint.status === "Rejected" ? "bg-red-100 text-red-800" :
+                          "bg-gray-100 text-gray-800"
+                        }`}>
+                          {complaint.status}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleViewComplaint(complaint)}
                         >
-                          <path 
-                            d="M2 14H14M8 2V11M8 11L4 7M8 11L12 7" 
-                            stroke="currentColor" 
-                            strokeWidth="2" 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </Button>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      No complaints found. <Link to="/complaint" className="text-blue-500 hover:underline">Submit a complaint</Link>
                     </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </div>
           
           {/* Pagination */}
-          <div className="mt-6">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious href="#" />
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#" isActive>1</PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#">2</PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#">3</PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationEllipsis />
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationNext href="#" />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
+          {filteredComplaints.length > 0 && (
+            <div className="mt-6">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious href="#" />
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationLink href="#" isActive>1</PaginationLink>
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationNext href="#" />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Complaint Detail Dialog */}
+      {selectedComplaint && (
+        <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Complaint Details</DialogTitle>
+              <DialogDescription>
+                ID: {selectedComplaint.id} • {selectedComplaint.created}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium mb-1">Submitted By</p>
+                  <p className="text-sm">{selectedComplaint.name}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium mb-1">Email</p>
+                  <p className="text-sm">{selectedComplaint.email}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1">Category</p>
+                <p className="text-sm">{selectedComplaint.issueCategory}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1">Description</p>
+                <p className="text-sm whitespace-pre-wrap">{selectedComplaint.description}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1">Status</p>
+                <p className="text-sm">
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    selectedComplaint.status === "Pending" ? "bg-yellow-100 text-yellow-800" :
+                    selectedComplaint.status === "Resolved" ? "bg-green-100 text-green-800" :
+                    selectedComplaint.status === "Rejected" ? "bg-red-100 text-red-800" :
+                    "bg-gray-100 text-gray-800"
+                  }`}>
+                    {selectedComplaint.status}
+                  </span>
+                </p>
+              </div>
+              {selectedComplaint.feedback && (
+                <div>
+                  <p className="text-sm font-medium mb-1">Admin Feedback</p>
+                  <p className="text-sm whitespace-pre-wrap">{selectedComplaint.feedback}</p>
+                </div>
+              )}
+              {selectedComplaint.followUp && (
+                <div>
+                  <p className="text-sm font-medium mb-1">Follow-up Information</p>
+                  <p className="text-sm whitespace-pre-wrap">{selectedComplaint.followUp}</p>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

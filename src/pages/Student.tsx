@@ -10,25 +10,22 @@ import {
 } from "@/components/ui/input-otp";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
-import { Calendar, CheckCircle2 } from "lucide-react";
+import { Calendar, CheckCircle2, Clock } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Link } from "react-router-dom";
-
-interface HelpConfirmation {
-  date: string;
-  helperId: string;
-}
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { db, StudentOtp, StudentConfirmation } from "@/lib/supabase";
+import { useAuth } from "@/utils/auth";
 
 const Student = () => {
-  const [currentDate] = useState(new Date().toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  }).replace(/\//g, '-'));
+  const { user } = useAuth();
+  const studentId = user?.id || "";
+  const [currentDate] = useState(new Date().toISOString().split('T')[0]);
   
   const [todayConfirmed, setTodayConfirmed] = useState(false);
-  const [recentConfirmations, setRecentConfirmations] = useState<HelpConfirmation[]>([]);
+  const [recentConfirmations, setRecentConfirmations] = useState<StudentConfirmation[]>([]);
+  const [pendingOtp, setPendingOtp] = useState<StudentOtp | null>(null);
   
   const form = useForm({
     defaultValues: {
@@ -36,22 +33,58 @@ const Student = () => {
     }
   });
 
-  // Check if student has already confirmed help today
+  // Check if student has already confirmed help today and if there's a pending OTP
   useEffect(() => {
-    const storedConfirmations = localStorage.getItem('studentHelpConfirmations');
-    const confirmations: HelpConfirmation[] = storedConfirmations 
-      ? JSON.parse(storedConfirmations) 
-      : [];
+    const loadData = async () => {
+      if (!studentId) return;
+
+      // Get student's confirmations
+      const confirmations = await db.getStudentConfirmationsByStudent(studentId);
+      setRecentConfirmations(confirmations);
+      
+      // Check if there's a confirmation for today
+      const today = new Date().toISOString().split('T')[0];
+      const todayConfirm = confirmations.find(conf => conf.date === today);
+      setTodayConfirmed(!!todayConfirm);
+      
+      // Check if there's a pending OTP for this student
+      if (!todayConfirm) {
+        const studentOtp = await db.getStudentOtp(studentId);
+        setPendingOtp(studentOtp);
+        
+        // Auto-fill the OTP field if there's a pending OTP
+        if (studentOtp?.otp) {
+          form.setValue("otp", studentOtp.otp);
+        }
+      } else {
+        setPendingOtp(null);
+      }
+    };
     
-    setRecentConfirmations(confirmations);
+    loadData();
     
-    // Check if there's a confirmation for today
-    const today = new Date().toISOString().split('T')[0];
-    const todayConfirm = confirmations.find(conf => conf.date === today);
-    setTodayConfirmed(!!todayConfirm);
-  }, []);
+    // Set up an interval to check for new OTPs every 10 seconds
+    const interval = setInterval(async () => {
+      if (!studentId || todayConfirmed) return;
+      
+      const studentOtp = await db.getStudentOtp(studentId);
+      
+      if (studentOtp && (!pendingOtp || studentOtp.timestamp !== pendingOtp.timestamp)) {
+        setPendingOtp(studentOtp);
+        form.setValue("otp", studentOtp.otp);
+        
+        // Show toast notification for new OTP
+        toast({
+          title: "New OTP Received",
+          description: `Helper ${studentOtp.helperName} has sent you a verification code.`,
+        });
+      }
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [form, pendingOtp, todayConfirmed, studentId]);
   
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const otpValue = form.getValues("otp");
     if (otpValue.length < 4) {
       toast({
@@ -62,9 +95,8 @@ const Student = () => {
       return;
     }
     
-    // Verify OTP from localStorage (in a real app, this would be server-side)
-    const storedOTP = localStorage.getItem('currentHelperOTP');
-    const helperId = localStorage.getItem('currentHelperId');
+    // Verify OTP from Supabase
+    const { otp: storedOTP, helperId } = await db.getCurrentHelperOtp();
     
     if (otpValue !== storedOTP) {
       toast({
@@ -75,22 +107,16 @@ const Student = () => {
       return;
     }
     
-    // Save confirmation
+    // Save confirmation to Supabase
     const today = new Date().toISOString().split('T')[0];
-    const newConfirmation: HelpConfirmation = {
+    const newConfirmation: StudentConfirmation = {
       date: today,
-      helperId: helperId || 'unknown'
+      helperId: helperId || 'unknown',
+      student: studentId,
     };
     
-    // Get existing confirmations
-    const storedConfirmations = localStorage.getItem('studentHelpConfirmations');
-    const confirmations: HelpConfirmation[] = storedConfirmations 
-      ? JSON.parse(storedConfirmations) 
-      : [];
-    
     // Prevent multiple confirmations for the same day
-    const existingTodayConfirmation = confirmations.find(conf => conf.date === today);
-    if (existingTodayConfirmation) {
+    if (todayConfirmed) {
       toast({
         title: "Already Confirmed",
         description: "You have already confirmed help for today",
@@ -99,16 +125,26 @@ const Student = () => {
       return;
     }
     
-    // Add new confirmation and save
-    confirmations.push(newConfirmation);
-    localStorage.setItem('studentHelpConfirmations', JSON.stringify(confirmations));
+    // Add new confirmation to Supabase
+    const success = await db.addStudentConfirmation(newConfirmation);
     
-    // Clear the current OTP
-    localStorage.removeItem('currentHelperOTP');
+    if (!success) {
+      toast({
+        title: "Error",
+        description: "Failed to save confirmation. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Clear the current OTP and student's pending OTP
+    await db.deleteCurrentHelperOtp();
+    await db.deleteStudentOtp(studentId);
     
     // Update state
     setTodayConfirmed(true);
-    setRecentConfirmations(confirmations);
+    setRecentConfirmations(prev => [newConfirmation, ...prev]);
+    setPendingOtp(null);
     
     toast({
       title: "Help confirmed",
@@ -130,6 +166,10 @@ const Student = () => {
     return helperMap[helperId] || 'Unknown Helper';
   };
   
+  const formatTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  };
+  
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       <Navbar />
@@ -149,7 +189,7 @@ const Student = () => {
             
             {recentConfirmations.length > 0 ? (
               <div className="space-y-2">
-                {recentConfirmations.slice(-3).reverse().map((conf, idx) => (
+                {recentConfirmations.slice(0, 3).map((conf, idx) => (
                   <div 
                     key={idx} 
                     className="flex items-center justify-between bg-white dark:bg-gray-700 p-3 rounded shadow-sm"
@@ -192,13 +232,24 @@ const Student = () => {
             <p className="text-gray-500 dark:text-gray-400 mb-4">Any dishonesty will not be forgiven</p>
             
             <div className="flex items-center gap-2 mb-6">
-              <span className="font-medium">{currentDate}</span>
+              <span className="font-medium">{new Date(currentDate).toLocaleDateString()}</span>
               <span className="text-gray-500 dark:text-gray-400">
                 {todayConfirmed 
                   ? "You've confirmed help for today" 
                   : "confirm if your helper has assisted you today"}
               </span>
             </div>
+            
+            {pendingOtp && !todayConfirmed && (
+              <Alert className="mb-6 border-blue-500 bg-blue-50 dark:bg-blue-900/20 w-full max-w-md">
+                <Clock className="h-4 w-4 text-blue-500" />
+                <AlertTitle className="text-blue-700 dark:text-blue-400">New OTP Received</AlertTitle>
+                <AlertDescription className="text-blue-600 dark:text-blue-300">
+                  Helper {pendingOtp.helperName} has sent you a verification code at {formatTime(pendingOtp.timestamp)}. 
+                  The code has been automatically filled in for you.
+                </AlertDescription>
+              </Alert>
+            )}
             
             {todayConfirmed ? (
               <div className="flex flex-col items-center justify-center mb-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg w-full max-w-xs">
@@ -231,7 +282,11 @@ const Student = () => {
                 </Form>
                 
                 <div className="text-center mb-6">
-                  <span className="text-blue-500 dark:text-blue-400">Enter OTP provided by helper</span>
+                  <span className="text-blue-500 dark:text-blue-400">
+                    {pendingOtp 
+                      ? "OTP automatically filled from helper" 
+                      : "Enter OTP provided by helper"}
+                  </span>
                 </div>
                 
                 <Button 
@@ -245,8 +300,6 @@ const Student = () => {
           </div>
         </div>
       </div>
-      
-      <Footer />
     </div>
   );
 };

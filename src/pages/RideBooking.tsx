@@ -1,10 +1,11 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MapPin, Clock, Navigation, X } from "lucide-react";
+import Navbar from "@/components/Navbar";
+import { useAuth } from "@/utils/auth";
 
 const RideBooking = () => {
   const [pickupLocation, setPickupLocation] = useState("");
@@ -12,6 +13,7 @@ const RideBooking = () => {
   const [isRouteSelected, setIsRouteSelected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [estimatedTime, setEstimatedTime] = useState("5-7");
+  const { user } = useAuth();
   
   // Predefined locations for the demo
   const locations = [
@@ -63,30 +65,11 @@ const RideBooking = () => {
   };
   
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Top navigation */}
-      <div className="bg-gray-200 text-gray-600">
-        <div className="container mx-auto px-4">
-        </div>
-      </div>
-      
-      {/* Menu navigation */}
-      <div className="bg-blue-500 text-white">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center h-12 overflow-x-auto justify-center">
-            <Link to="/" className="px-4 py-2 whitespace-nowrap">USNMS</Link>
-            <Link to="/register" className="px-4 py-2 whitespace-nowrap">Register</Link>
-            <Link to="/helper" className="px-4 py-2 whitespace-nowrap">Helper</Link>
-            <Link to="/student" className="px-4 py-2 whitespace-nowrap">Student</Link>
-            <Link to="/book-ride" className="px-4 py-2 whitespace-nowrap font-bold">Book ride</Link>
-            <Link to="/admin" className="px-4 py-2 whitespace-nowrap">Admin</Link>
-            <Link to="/complaint" className="px-4 py-2 whitespace-nowrap">Complaint</Link>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+      <Navbar title="Book Ride" />
       
       <div className="container mx-auto p-4">
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
           <div className="bg-blue-500 text-white p-4 text-center text-xl font-bold">
             BOOK RIDE
           </div>
@@ -94,7 +77,7 @@ const RideBooking = () => {
           <div className="p-4">
             {!isRouteSelected ? (
               <div className="space-y-4">
-                <h2 className="font-bold text-gray-700 flex justify-between items-center">
+                <h2 className="font-bold text-gray-700 dark:text-gray-300 flex justify-between items-center">
                   Your route
                   {pickupLocation && destination && (
                     <button onClick={handleCancel} className="text-red-500">
@@ -145,9 +128,9 @@ const RideBooking = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                <h2 className="font-bold text-gray-700">Ride details</h2>
+                <h2 className="font-bold text-gray-700 dark:text-gray-300">Ride details</h2>
                 
-                <div className="bg-gray-100 rounded-lg p-4 space-y-3">
+                <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 space-y-3">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       <MapPin size={18} className="text-blue-500" />
@@ -155,7 +138,7 @@ const RideBooking = () => {
                     </div>
                   </div>
                   
-                  <div className="border-l-2 border-dashed border-gray-300 h-6 ml-[9px]"></div>
+                  <div className="border-l-2 border-dashed border-gray-300 dark:border-gray-600 h-6 ml-[9px]"></div>
                   
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
@@ -165,7 +148,7 @@ const RideBooking = () => {
                   </div>
                 </div>
                 
-                <div className="flex justify-between items-center bg-gray-100 rounded-lg p-4">
+                <div className="flex justify-between items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
                   <div className="flex items-center gap-2">
                     <Clock size={18} />
                     <span className="text-sm font-medium">Estimated arrival time</span>
@@ -173,7 +156,7 @@ const RideBooking = () => {
                   <span className="text-sm font-bold">{estimatedTime} min</span>
                 </div>
                 
-                <div className="flex justify-between items-center bg-gray-100 rounded-lg p-4">
+                <div className="flex justify-between items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
                   <div className="flex items-center gap-2">
                     <Navigation size={18} />
                     <span className="text-sm font-medium">Vehicle type</span>
@@ -181,7 +164,7 @@ const RideBooking = () => {
                   <span className="text-sm font-bold">Bajaj</span>
                 </div>
                 
-                <div className="flex justify-between items-center bg-gray-100 rounded-lg p-4">
+                <div className="flex justify-between items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">Cost</span>
                   </div>
@@ -213,3 +196,4 @@ const RideBooking = () => {
 };
 
 export default RideBooking;
+
