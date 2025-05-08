@@ -1,5 +1,4 @@
 
-
 export interface User {
   id: string;
   email: string;
@@ -40,7 +39,7 @@ export interface StudentOtp {
   timestamp: number;
   helperName: string;
   studentId: string;
-  helperId: string;  // Added this missing property
+  helperId: string;  // This property was missing
 }
 
 export interface AdminMessage {
@@ -97,4 +96,3 @@ export interface GadgetLoan {
   dateReturned?: string;
   status: 'active' | 'returned';
 }
-

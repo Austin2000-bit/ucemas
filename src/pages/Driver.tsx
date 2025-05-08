@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
@@ -39,32 +38,34 @@ const Driver = () => {
   const { user } = useAuth();
   const [rideRequests, setRideRequests] = useState<LocalRideRequest[]>([]);
 
+  // Helper function to safely convert status string to the allowed literal types
+  const validateStatus = (status: string): "pending" | "accepted" | "completed" | "declined" => {
+    if (status === "accepted") return "accepted";
+    if (status === "completed") return "completed";
+    if (status === "declined") return "declined";
+    return "pending"; // Default fallback
+  };
+
+  // Helper function to process ride requests from localStorage
+  const processRideRequests = (storedRequests: any[]): LocalRideRequest[] => {
+    return storedRequests.map(request => ({
+      id: request.id,
+      studentName: request.studentName,
+      studentEmail: request.studentEmail,
+      pickupLocation: request.pickupLocation,
+      destination: request.destination,
+      date: request.date,
+      time: request.time,
+      status: validateStatus(request.status),
+      disabilityType: request.disabilityType,
+      additionalNotes: request.additionalNotes
+    }));
+  };
+
   useEffect(() => {
     // Load ride requests from localStorage
     const storedRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
-    
-    // Map and cast each request to ensure proper typing
-    const typedRequests: LocalRideRequest[] = storedRequests.map((request: any) => {
-      // First determine the correct status value
-      let validStatus: "pending" | "accepted" | "completed" | "declined" = "pending";
-      if (request.status === "accepted") validStatus = "accepted";
-      else if (request.status === "completed") validStatus = "completed"; 
-      else if (request.status === "declined") validStatus = "declined";
-      
-      return {
-        id: request.id,
-        studentName: request.studentName,
-        studentEmail: request.studentEmail,
-        pickupLocation: request.pickupLocation,
-        destination: request.destination,
-        date: request.date,
-        time: request.time,
-        status: validStatus,
-        disabilityType: request.disabilityType,
-        additionalNotes: request.additionalNotes
-      };
-    });
-    
+    const typedRequests = processRideRequests(storedRequests);
     setRideRequests(typedRequests);
   }, []);
 
@@ -144,27 +145,7 @@ const Driver = () => {
                 <Button variant="outline" className="w-full" onClick={() => {
                   // Refresh ride requests
                   const storedRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
-                  // Map and cast each request to ensure proper typing
-                  const typedRequests: LocalRideRequest[] = storedRequests.map((request: any) => {
-                    // First determine the correct status value
-                    let validStatus: "pending" | "accepted" | "completed" | "declined" = "pending";
-                    if (request.status === "accepted") validStatus = "accepted";
-                    else if (request.status === "completed") validStatus = "completed"; 
-                    else if (request.status === "declined") validStatus = "declined";
-                    
-                    return {
-                      id: request.id,
-                      studentName: request.studentName,
-                      studentEmail: request.studentEmail,
-                      pickupLocation: request.pickupLocation,
-                      destination: request.destination,
-                      date: request.date,
-                      time: request.time,
-                      status: validStatus,
-                      disabilityType: request.disabilityType,
-                      additionalNotes: request.additionalNotes
-                    };
-                  });
+                  const typedRequests = processRideRequests(storedRequests);
                   setRideRequests(typedRequests);
                 }}>
                   Refresh Requests
