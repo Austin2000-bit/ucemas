@@ -43,7 +43,14 @@ const Driver = () => {
   useEffect(() => {
     // Load ride requests from localStorage
     const storedRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
-    setRideRequests(storedRequests);
+    
+    // Ensure each item conforms to the LocalRideRequest type
+    const typedRequests = storedRequests.map((request: any) => ({
+      ...request,
+      status: request.status as "pending" | "accepted" | "completed" | "declined"
+    }));
+    
+    setRideRequests(typedRequests);
   }, []);
 
   const handleRideAction = (requestId: string, action: "accept" | "decline" | "complete") => {
@@ -122,7 +129,11 @@ const Driver = () => {
                 <Button variant="outline" className="w-full" onClick={() => {
                   // Refresh ride requests
                   const storedRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
-                  setRideRequests(storedRequests);
+                  const typedRequests = storedRequests.map((request: any) => ({
+                    ...request,
+                    status: request.status as "pending" | "accepted" | "completed" | "declined"
+                  }));
+                  setRideRequests(typedRequests);
                 }}>
                   Refresh Requests
                 </Button>

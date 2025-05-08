@@ -28,7 +28,6 @@ import { useAuth } from "@/utils/auth";
 import { supabase } from "@/lib/supabase";
 import { User, SignInRecord, HelpConfirmation } from "@/types";
 
-
 const Helper = () => {
   const [selectedStudent, setSelectedStudent] = useState<string>("");
   const [description, setDescription] = useState<string>("");
@@ -104,7 +103,7 @@ const Helper = () => {
       timestamp: Date.now(),
       expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
       helperId: user.id,
-      helperName: `${user.firstName} ${user.lastName}`
+      helperName: `${user.first_name} ${user.last_name}`
     };
     otps.push(newOtpEntry);
     
@@ -116,7 +115,7 @@ const Helper = () => {
     
     toast({
       title: "OTP Generated",
-      description: `OTP has been sent to ${selectedStudentData.firstName} ${selectedStudentData.lastName}`,
+      description: `OTP has been sent to ${selectedStudentData.first_name} ${selectedStudentData.last_name}`,
     });
   };
 
@@ -257,7 +256,7 @@ const Helper = () => {
                   <SelectContent>
                     {assignedStudents.map((student) => (
                       <SelectItem key={student.id} value={student.id}>
-                        {student.firstName} {student.lastName}
+                        {student.first_name} {student.last_name}
                       </SelectItem>
                     ))}
                   </SelectContent>

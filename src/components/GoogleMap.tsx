@@ -15,11 +15,19 @@ interface GoogleMapProps {
   onRouteCalculated?: (duration: string, distance: string) => void;
 }
 
+// Define required types from Google Maps API
+type GoogleMap = google.maps.Map;
+type DirectionsService = google.maps.DirectionsService;
+type DirectionsRenderer = google.maps.DirectionsRenderer;
+type DirectionsRequest = google.maps.DirectionsRequest;
+type TravelMode = google.maps.TravelMode;
+type DirectionsStatus = google.maps.DirectionsStatus;
+
 const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService | null>(null);
-  const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);
+  const [map, setMap] = useState<GoogleMap | null>(null);
+  const [directionsService, setDirectionsService] = useState<DirectionsService | null>(null);
+  const [directionsRenderer, setDirectionsRenderer] = useState<DirectionsRenderer | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -75,10 +83,10 @@ const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMap
   useEffect(() => {
     if (directionsService && directionsRenderer && pickupLocation && destination) {
       console.log('Calculating route...', { pickupLocation, destination });
-      const request: google.maps.DirectionsRequest = {
+      const request: DirectionsRequest = {
         origin: pickupLocation,
         destination: destination,
-        travelMode: window.google.maps.TravelMode.DRIVING
+        travelMode: window.google.maps.TravelMode.DRIVING as TravelMode
       };
 
       directionsService.route(request, (result, status) => {
