@@ -39,7 +39,7 @@ export interface StudentOtp {
   timestamp: number;
   helperName: string;
   studentId: string;
-  helperId: string;
+  helperId: string;  // Added this missing property
 }
 
 export interface AdminMessage {

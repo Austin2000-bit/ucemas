@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
@@ -44,10 +43,18 @@ const Driver = () => {
     // Load ride requests from localStorage
     const storedRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
     
-    // Ensure each item conforms to the LocalRideRequest type
-    const typedRequests = storedRequests.map((request: any) => ({
-      ...request,
-      status: request.status as "pending" | "accepted" | "completed" | "declined"
+    // Ensure each item conforms to the LocalRideRequest type by explicitly casting
+    const typedRequests: LocalRideRequest[] = storedRequests.map((request: any) => ({
+      id: request.id,
+      studentName: request.studentName,
+      studentEmail: request.studentEmail,
+      pickupLocation: request.pickupLocation,
+      destination: request.destination,
+      date: request.date,
+      time: request.time,
+      status: request.status as "pending" | "accepted" | "completed" | "declined",
+      disabilityType: request.disabilityType,
+      additionalNotes: request.additionalNotes
     }));
     
     setRideRequests(typedRequests);
@@ -129,9 +136,17 @@ const Driver = () => {
                 <Button variant="outline" className="w-full" onClick={() => {
                   // Refresh ride requests
                   const storedRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
-                  const typedRequests = storedRequests.map((request: any) => ({
-                    ...request,
-                    status: request.status as "pending" | "accepted" | "completed" | "declined"
+                  const typedRequests: LocalRideRequest[] = storedRequests.map((request: any) => ({
+                    id: request.id,
+                    studentName: request.studentName,
+                    studentEmail: request.studentEmail,
+                    pickupLocation: request.pickupLocation,
+                    destination: request.destination,
+                    date: request.date,
+                    time: request.time,
+                    status: request.status as "pending" | "accepted" | "completed" | "declined",
+                    disabilityType: request.disabilityType,
+                    additionalNotes: request.additionalNotes
                   }));
                   setRideRequests(typedRequests);
                 }}>
