@@ -1,19 +1,23 @@
-import { ReactNode, createContext, useContext, useState, useEffect } from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { toast } from "@/hooks/use-toast";
-import { SystemLogs } from "@/utils/systemLogs";
-import { User, UserRole } from "@/lib/supabase";
-import { signIn, signOut, getCurrentUser } from "@/lib/supabase";
+
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { Navigate } from "react-router-dom";
+import { User } from "@/types";
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
-  isAuthenticated: boolean;
-  hasRole: (roles: string[]) => boolean;
+  isLoading: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  login: async () => ({ success: false, message: "AuthContext not initialized" }),
+  logout: async () => {},
+  isLoading: true,
+});
+
+export const useAuth = () => useContext(AuthContext);
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -23,191 +27,78 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Check if user is already logged in
   useEffect(() => {
-    // Check for existing session
-    const checkSession = async () => {
+    const storedUser = localStorage.getItem("currentUser");
+    if (storedUser) {
       try {
-        const { success, user: currentUser } = await getCurrentUser();
-        if (success && currentUser) {
-          setUser(currentUser);
-        }
+        setUser(JSON.parse(storedUser));
       } catch (error) {
-        console.error('Error checking session:', error);
-      } finally {
-        setIsLoading(false);
+        console.error("Failed to parse user from localStorage:", error);
+        localStorage.removeItem("currentUser");
       }
-    };
-
-    checkSession();
+    }
+    setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string) => {
     try {
-      setIsLoading(true);
-      const { success, user: loggedInUser, error } = await signIn(email, password);
+      // Get users from localStorage
+      const users = JSON.parse(localStorage.getItem("users") || "[]");
+      const foundUser = users.find(
+        (u: User) => u.email === email
+      );
 
-      if (success && loggedInUser) {
-        setUser(loggedInUser);
-        
-        // Log the login
-        SystemLogs.addLog(
-          "User Login",
-          `User ${loggedInUser.first_name} ${loggedInUser.last_name} logged in`,
-          loggedInUser.id,
-          loggedInUser.role
-        );
-        
-        toast({
-          title: "Login Successful",
-          description: `Welcome back, ${loggedInUser.first_name}!`,
-        });
-        
-        return true;
+      if (!foundUser) {
+        return { success: false, message: "User not found" };
       }
       
-      if (error) {
-        toast({
-          title: "Login Failed",
-          description: error.message || "Invalid email or password.",
-          variant: "destructive",
-        });
-      }
+      // For demo purposes, assume the password is valid
+      // In a real app, you would compare hashed passwords
       
-      return false;
+      // Store current user in localStorage
+      localStorage.setItem("currentUser", JSON.stringify(foundUser));
+      setUser(foundUser);
+      
+      return { success: true, message: "Login successful" };
     } catch (error) {
       console.error("Login error:", error);
-      toast({
-        title: "Login Error",
-        description: "An error occurred during login. Please try again.",
-        variant: "destructive",
-      });
-      return false;
-    } finally {
-      setIsLoading(false);
+      return { success: false, message: "An error occurred during login" };
     }
   };
 
   const logout = async () => {
-    try {
-      const { success, error } = await signOut();
-      
-      if (success) {
-        if (user) {
-          SystemLogs.addLog(
-            "User Logout",
-            `User ${user.first_name} ${user.last_name} logged out`,
-            user.id,
-            user.role
-          );
-        }
-        setUser(null);
-      } else if (error) {
-        toast({
-          title: "Logout Error",
-          description: error.message || "Failed to log out.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Logout error:", error);
-      toast({
-        title: "Logout Error",
-        description: "An error occurred during logout.",
-        variant: "destructive",
-      });
-    }
+    // Remove user from localStorage
+    localStorage.removeItem("currentUser");
+    setUser(null);
   };
-
-  const hasRole = (roles: string[]): boolean => {
-    return user ? roles.includes(user.role) : false;
-  };
-
-  if (isLoading) {
-    return null; // or a loading spinner
-  }
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      login, 
-      logout, 
-      isAuthenticated: !!user,
-      hasRole
-    }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
-
-// Protected route component
-type ProtectedRouteProps = {
+interface ProtectedRouteProps {
   children: ReactNode;
-  requiredRoles?: UserRole[];
-  redirectTo?: string;
-};
+  requiredRoles?: string[];
+}
 
-export const ProtectedRoute = ({ 
-  children, 
-  requiredRoles = [], 
-  redirectTo = "/login" 
-}: ProtectedRouteProps) => {
-  const { isAuthenticated, hasRole, user } = useAuth();
-  const location = useLocation();
+export const ProtectedRoute = ({ children, requiredRoles }: ProtectedRouteProps) => {
+  const { user, isLoading } = useAuth();
   
-  if (!isAuthenticated) {
-    return <Navigate to={redirectTo} state={{ from: location }} replace />;
+  if (isLoading) {
+    return <div>Loading...</div>;
   }
   
-  if (requiredRoles.length > 0 && !hasRole(requiredRoles)) {
-    toast({
-      title: "Access Denied",
-      description: "You don't have permission to access this page.",
-      variant: "destructive",
-    });
-    
-    // Redirect to appropriate page based on role
-    let redirectPath = "/login";
-    
-    if (user) {
-      switch(user.role) {
-        case "admin":
-          redirectPath = "/admin";
-          break;
-        case "helper":
-          redirectPath = "/helper";
-          break;
-        case "student":
-          redirectPath = "/student";
-          break;
-        case "driver":
-          redirectPath = "/driver";
-          break;
-        default:
-          redirectPath = "/login";
-      }
-    }
-    
-    return <Navigate to={redirectPath} replace />;
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
   
-  return <>{children}</>;
-};
-
-export const PublicRoute = ({ children }: { children: ReactNode }) => {
-  const { isAuthenticated, user } = useAuth();
-  const location = useLocation();
-  
-  // If authenticated, redirect based on role
-  if (isAuthenticated && user) {
-    switch(user.role) {
+  if (requiredRoles && !requiredRoles.includes(user.role)) {
+    // Redirect based on role
+    switch (user.role) {
       case "admin":
         return <Navigate to="/admin" replace />;
       case "helper":
@@ -221,6 +112,35 @@ export const PublicRoute = ({ children }: { children: ReactNode }) => {
     }
   }
   
-  // If not authenticated, show the children (login page)
+  return <>{children}</>;
+};
+
+interface PublicRouteProps {
+  children: ReactNode;
+}
+
+export const PublicRoute = ({ children }: PublicRouteProps) => {
+  const { user, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+  
+  if (user) {
+    // Redirect based on role
+    switch (user.role) {
+      case "admin":
+        return <Navigate to="/admin" replace />;
+      case "helper":
+        return <Navigate to="/helper" replace />;
+      case "student":
+        return <Navigate to="/student" replace />;
+      case "driver":
+        return <Navigate to="/driver" replace />;
+      default:
+        return <Navigate to="/" replace />;
+    }
+  }
+  
   return <>{children}</>;
 };

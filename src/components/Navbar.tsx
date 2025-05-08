@@ -31,7 +31,7 @@ interface NavbarProps {
 // Main Navbar component with mobile responsiveness
 const Navbar = ({ title = "EduWE Student Portal" }: NavbarProps) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
 
@@ -40,7 +40,7 @@ const Navbar = ({ title = "EduWE Student Portal" }: NavbarProps) => {
   };
 
   const handleSignOut = async () => {
-    await signOut();
+    await logout();
     navigate("/login");
   };
 
@@ -72,7 +72,7 @@ const Navbar = ({ title = "EduWE Student Portal" }: NavbarProps) => {
                 <DropdownMenuTrigger asChild>
                   <div className="flex items-center gap-2 cursor-pointer">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.profile_picture || "/default-avatar.png"} alt={`${user.first_name} ${user.last_name}`} />
+                      <AvatarImage src={user.photo || "/default-avatar.png"} alt={`${user.first_name} ${user.last_name}`} />
                       <AvatarFallback>
                         {user.first_name?.[0]}{user.last_name?.[0]}
                       </AvatarFallback>
@@ -201,7 +201,7 @@ const Navbar = ({ title = "EduWE Student Portal" }: NavbarProps) => {
                   {/* User info */}
                   <div className="flex items-center gap-2 px-2 py-2">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.profile_picture || "/default-avatar.png"} alt={`${user.first_name} ${user.last_name}`} />
+                      <AvatarImage src={user.photo || "/default-avatar.png"} alt={`${user.first_name} ${user.last_name}`} />
                       <AvatarFallback>
                         {user.first_name?.[0]}{user.last_name?.[0]}
                       </AvatarFallback>

@@ -17,9 +17,9 @@ interface GoogleMapProps {
 
 const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService | null>(null);
-  const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);
+  const [map, setMap] = useState<any | null>(null);
+  const [directionsService, setDirectionsService] = useState<any | null>(null);
+  const [directionsRenderer, setDirectionsRenderer] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -89,7 +89,9 @@ const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMap
           
           // Calculate and format duration
           const duration = result.routes[0].legs[0].duration?.text || '5-7';
-          onRouteCalculated?.(duration);
+          if (onRouteCalculated) {
+            onRouteCalculated(duration);
+          }
         } else {
           console.error('Failed to calculate route:', status);
           setError('Failed to calculate route');
