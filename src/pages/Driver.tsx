@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
-import { RideRequest } from "@/types";
 
 // Define a new type for the local storage ride requests
 interface LocalRideRequest {
@@ -52,7 +52,8 @@ const Driver = () => {
       destination: request.destination,
       date: request.date,
       time: request.time,
-      status: request.status as "pending" | "accepted" | "completed" | "declined",
+      // Explicitly cast the status to ensure it's one of the allowed values
+      status: (request.status as "pending" | "accepted" | "completed" | "declined") || "pending",
       disabilityType: request.disabilityType,
       additionalNotes: request.additionalNotes
     }));
@@ -144,7 +145,8 @@ const Driver = () => {
                     destination: request.destination,
                     date: request.date,
                     time: request.time,
-                    status: request.status as "pending" | "accepted" | "completed" | "declined",
+                    // Explicitly cast the status to ensure it's one of the allowed values
+                    status: (request.status as "pending" | "accepted" | "completed" | "declined") || "pending",
                     disabilityType: request.disabilityType,
                     additionalNotes: request.additionalNotes
                   }));
