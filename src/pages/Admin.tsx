@@ -127,14 +127,14 @@ const Admin = () => {
 
       // Create user in supabase (mocked for now)
       const userId = uuidv4();
-      const createdUser: User = {
+      const createdUser = {
         id: userId,
         first_name: newUser.first_name,
         last_name: newUser.last_name,
         email: newUser.email,
         role: newUser.role,
         photo: `/default-avatar.png`
-      };
+      } as User;
 
       // Update local storage
       const updatedUsers = [...users, createdUser];
