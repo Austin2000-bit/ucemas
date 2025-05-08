@@ -2,10 +2,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { User } from "@/types";
+import { signIn, signOut, getCurrentUser } from "@/lib/supabase";
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   isLoading: boolean;
   signOut?: () => Promise<void>; // Add signOut as alias for logout
@@ -13,7 +14,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  login: async () => ({ success: false, message: "AuthContext not initialized" }),
+  login: async () => false,
   logout: async () => {},
   isLoading: true,
 });
@@ -39,32 +40,93 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         localStorage.removeItem("currentUser");
       }
     }
+    
+    // Initialize demo users if they don't exist
+    initializeDefaultUsers();
+    
     setIsLoading(false);
   }, []);
 
+  const initializeDefaultUsers = () => {
+    // Check if users array exists in localStorage
+    if (!localStorage.getItem("users")) {
+      // Create demo users
+      const demoUsers = [
+        {
+          id: "admin-id",
+          first_name: "Admin",
+          last_name: "User",
+          email: "admin@example.com",
+          password: "admin123",
+          role: "admin",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: "helper-id",
+          first_name: "Amanda",
+          last_name: "Helper",
+          email: "amanda@example.com",
+          password: "helper123",
+          role: "helper",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: "student-id",
+          first_name: "John",
+          last_name: "Student",
+          email: "john@example.com",
+          password: "student123",
+          role: "student",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: "driver-id",
+          first_name: "Dave",
+          last_name: "Driver",
+          email: "driver@example.com",
+          password: "driver123",
+          role: "driver",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ];
+      
+      localStorage.setItem("users", JSON.stringify(demoUsers));
+    }
+  };
+
   const login = async (email: string, password: string) => {
     try {
+      console.log("Attempting login with:", { email }); // Debug log
+      
       // Get users from localStorage
       const users = JSON.parse(localStorage.getItem("users") || "[]");
       const foundUser = users.find(
-        (u: User) => u.email === email
+        (u: any) => u.email === email && u.password === password
       );
 
+      console.log("Found user:", foundUser); // Debug log
+
       if (!foundUser) {
-        return { success: false, message: "User not found" };
+        console.log("No user found or password mismatch");
+        return false;
       }
       
-      // For demo purposes, assume the password is valid
-      // In a real app, you would compare hashed passwords
+      // Remove password from user object before storing
+      const { password: _, ...userWithoutPassword } = foundUser;
       
       // Store current user in localStorage
-      localStorage.setItem("currentUser", JSON.stringify(foundUser));
-      setUser(foundUser);
+      localStorage.setItem("currentUser", JSON.stringify(userWithoutPassword));
+      setUser(userWithoutPassword);
       
-      return { success: true, message: "Login successful" };
+      console.log("Login successful");
+      return true;
     } catch (error) {
       console.error("Login error:", error);
-      return { success: false, message: "An error occurred during login" };
+      return false;
     }
   };
 

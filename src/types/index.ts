@@ -4,34 +4,13 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  role: string;
-  // Added optional properties to match the database schema
+  role: UserRole;
+  created_at: string;
+  updated_at: string;
   photo?: string;
-  profile_picture?: string;
 }
 
-export interface SignInRecord {
-  id?: string;
-  date: string;
-  helper: string;
-  timestamp: number;
-}
-
-export interface HelpConfirmation {
-  id?: string;
-  date: string;
-  helper: string;
-  student: string;
-  description: string;
-  timestamp: number;
-}
-
-export interface StudentConfirmation {
-  id?: string;
-  date: string;
-  helperId: string;
-  student: string;
-}
+export type UserRole = 'admin' | 'helper' | 'student' | 'driver';
 
 export interface StudentOtp {
   id?: string;
@@ -39,15 +18,33 @@ export interface StudentOtp {
   timestamp: number;
   helperName: string;
   studentId: string;
-  // Add helperId to fix related errors
-  helperId: string;
+  helperId?: string;
 }
 
-export interface AdminMessage {
-  id?: string;
-  recipient: string;
-  subject: string;
-  content: string;
-  timestamp: number;
-  read: boolean;
+export interface RideRequest {
+  id: string;
+  studentId: string;
+  studentName?: string;
+  studentEmail?: string;
+  pickupLocation: string;
+  destination: string;
+  date: string;
+  time: string;
+  status: "pending" | "accepted" | "completed" | "declined";
+  disabilityType: string;
+  additionalNotes?: string;
+}
+
+export interface DriverRideRequest {
+  id: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  pickupLocation: string;
+  destination: string;
+  date: string;
+  time: string;
+  status: "pending" | "accepted" | "completed" | "declined";
+  disabilityType: string;
+  additionalNotes?: string;
 }
