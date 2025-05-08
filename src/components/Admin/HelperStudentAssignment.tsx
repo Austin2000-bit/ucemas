@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -110,23 +111,28 @@ const HelperStudentAssignment = () => {
       return;
     }
 
-    // Check if student already has an active assignment for the selected academic year
-    const existingAssignment = assignments.find(
-      a => a.student_id === selectedStudent && 
-          a.status === 'active' && 
-          a.academic_year === selectedYear
-    );
-
-    if (existingAssignment) {
-      toast({
-        title: "Error",
-        description: "This student already has an active assignment for the selected academic year.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
+      // Check if student already has an active assignment for the selected academic year
+      const { data: existingAssignments, error: checkError } = await supabase
+        .from('helper_student_assignments')
+        .select('*')
+        .eq('student_id', selectedStudent)
+        .eq('academic_year', selectedYear)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existingAssignments) {
+        toast({
+          title: "Error",
+          description: "This student already has an active assignment for the selected academic year.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create the new assignment in the database
       const { data, error } = await supabase
         .from('helper_student_assignments')
         .insert([
@@ -146,7 +152,7 @@ const HelperStudentAssignment = () => {
 
       if (error) throw error;
 
-      setAssignments([...assignments, data]);
+      setAssignments(prev => [...prev, data]);
       setSelectedStudent("");
       setSelectedHelper("");
       setSelectedYear("");
@@ -187,6 +193,7 @@ const HelperStudentAssignment = () => {
 
       if (error) throw error;
 
+      // Update local state
       setAssignments(assignments.map(a => 
         a.id === assignmentId ? { ...a, status: 'inactive' } : a
       ));
@@ -239,39 +246,40 @@ const HelperStudentAssignment = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {assignments.map((assignment) => (
-                <TableRow key={assignment.id}>
-                  <TableCell>
-                    {assignment.student?.first_name} {assignment.student?.last_name}
-                  </TableCell>
-                  <TableCell>{assignment.student?.disability_type || '-'}</TableCell>
-                  <TableCell>
-                    {assignment.helper?.first_name} {assignment.helper?.last_name}
-                  </TableCell>
-                  <TableCell>{assignment.helper?.assistant_specialization || '-'}</TableCell>
-                  <TableCell>{assignment.academic_year}</TableCell>
-                  <TableCell>
-                    <Badge variant={assignment.status === 'active' ? 'default' : 'secondary'}>
-                      {assignment.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(assignment.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    {assignment.status === 'active' && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleUnassign(assignment.id)}
-                      >
-                        Unassign
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {assignments.length === 0 && (
+              {assignments.length > 0 ? (
+                assignments.map((assignment) => (
+                  <TableRow key={assignment.id}>
+                    <TableCell>
+                      {assignment.student?.first_name} {assignment.student?.last_name}
+                    </TableCell>
+                    <TableCell>{assignment.student?.disability_type || '-'}</TableCell>
+                    <TableCell>
+                      {assignment.helper?.first_name} {assignment.helper?.last_name}
+                    </TableCell>
+                    <TableCell>{assignment.helper?.assistant_specialization || '-'}</TableCell>
+                    <TableCell>{assignment.academic_year}</TableCell>
+                    <TableCell>
+                      <Badge variant={assignment.status === 'active' ? 'default' : 'secondary'}>
+                        {assignment.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(assignment.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      {assignment.status === 'active' && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleUnassign(assignment.id)}
+                        >
+                          Unassign
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No assignments found.
@@ -350,4 +358,4 @@ const HelperStudentAssignment = () => {
   );
 };
 
-export default HelperStudentAssignment; 
+export default HelperStudentAssignment;

@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { 
   FileText, 
@@ -18,39 +19,28 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
-import UserSuggestions from "@/components/UserSuggestions";
-
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-}
+import { useAuth } from "@/utils/auth";
+import { supabase } from "@/lib/supabase";
 
 const Complaint = () => {
   const navigate = useNavigate();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const { user } = useAuth();
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | undefined>(undefined);
-
-  const handleUserSelect = (selectedEmail: string) => {
-    if (selectedEmail) {
-      const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-      const selectedUser = storedUsers.find((user: any) => user.email === selectedEmail);
-      if (selectedUser) {
-        setName(`${selectedUser.firstName} ${selectedUser.lastName}`);
-        setEmail(selectedUser.email);
-      }
-    } else {
-      setName("");
-      setEmail("");
+  
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to submit a complaint",
+        variant: "destructive",
+      });
+      navigate("/login");
     }
-  };
+  }, [user, navigate]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -61,73 +51,102 @@ const Complaint = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to submit a complaint",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
 
     // Form validation
-    if (!name || !email || !category || !description) {
+    if (!category || !description) {
       toast({
         title: "Missing information",
-        description: "Please fill out all fields before submitting.",
+        description: "Please fill out all required fields before submitting.",
         variant: "destructive",
       });
       setIsSubmitting(false);
       return;
     }
 
-    // Get existing complaints or initialize new array
-    const existingComplaints = JSON.parse(localStorage.getItem("complaints") || "[]");
-    
-    // Convert attachments to base64 for storage
-    const attachmentData = await Promise.all(
-      attachments.map(async (file) => {
-        const reader = new FileReader();
-        return new Promise((resolve) => {
-          reader.onload = () => {
-            resolve({
-              name: file.name,
-              type: file.type,
-              data: reader.result,
+    try {
+      // Upload attachments to Supabase storage if there are any
+      const attachmentUrls = [];
+      
+      if (attachments.length > 0) {
+        for (const file of attachments) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+          const filePath = `complaints/${fileName}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('attachments')
+            .upload(filePath, file, {
+              cacheControl: '3600',
+              upsert: false
             });
-          };
-          reader.readAsDataURL(file);
-        });
-      })
-    );
-    
-    // Create new complaint with generated ID
-    const newComplaint = {
-      id: `C${existingComplaints.length + 1}`,
-      name,
-      email,
-      issueCategory: category,
-      description,
-      attachments: attachmentData,
-      created: new Date().toLocaleDateString(),
-      status: "Pending",
-      feedback: "",
-      followUp: "",
-    };
+            
+          if (uploadError) {
+            console.error('Error uploading file:', uploadError);
+            throw new Error('Error uploading file');
+          }
+          
+          const { data } = supabase.storage
+            .from('attachments')
+            .getPublicUrl(filePath);
+            
+          attachmentUrls.push(data.publicUrl);
+        }
+      }
 
-    // Add to existing complaints
-    existingComplaints.push(newComplaint);
-    localStorage.setItem("complaints", JSON.stringify(existingComplaints));
+      // Insert complaint into database
+      const { data, error } = await supabase
+        .from('complaints')
+        .insert([
+          {
+            user_id: user.id,
+            title: category,
+            description: description,
+            status: 'pending',
+            created_at: new Date().toISOString(),
+            attachments: attachmentUrls.length > 0 ? attachmentUrls : null,
+          }
+        ])
+        .select();
 
-    // Show success message
-    toast({
-      title: "Complaint submitted",
-      description: "Your complaint has been successfully submitted.",
-    });
+      if (error) {
+        console.error('Error submitting complaint:', error);
+        throw error;
+      }
 
-    // Reset form
-    setName("");
-    setEmail("");
-    setCategory("");
-    setDescription("");
-    setAttachments([]);
-    setIsSubmitting(false);
+      // Show success message
+      toast({
+        title: "Complaint submitted",
+        description: "Your complaint has been successfully submitted.",
+      });
 
-    // Navigate to complaint list
-    navigate("/complaint/list");
+      // Reset form
+      setCategory("");
+      setDescription("");
+      setAttachments([]);
+
+      // Navigate to complaint list
+      navigate("/complaint/list");
+    } catch (error) {
+      console.error('Error in complaint submission:', error);
+      toast({
+        title: "Submission failed",
+        description: "There was an error submitting your complaint. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -175,12 +194,19 @@ const Complaint = () => {
           
           <div className="max-w-2xl mx-auto bg-card rounded-lg shadow p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* User info (auto-populated) */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Select User</label>
-                <UserSuggestions
-                  onSelect={setSelectedUser}
-                  selectedUser={selectedUser}
-                />
+                <label className="text-sm font-medium">Submitted by</label>
+                <div className="p-2 bg-muted/50 rounded-md">
+                  {user ? (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{user.firstName} {user.lastName}</span>
+                      <span className="text-sm text-muted-foreground">({user.email})</span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">Loading user information...</span>
+                  )}
+                </div>
               </div>
               
               <div className="space-y-2">
@@ -253,7 +279,7 @@ const Complaint = () => {
                 <Button 
                   type="submit" 
                   className="bg-blue-500 hover:bg-blue-600" 
-                  disabled={isSubmitting || !selectedUser}
+                  disabled={isSubmitting || !user}
                 >
                   {isSubmitting ? "Submitting..." : "Submit Complaint"}
                 </Button>

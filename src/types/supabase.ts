@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -18,6 +19,10 @@ export interface Database {
           role: 'admin' | 'helper' | 'student' | 'driver'
           created_at: string
           updated_at: string
+          disability_type?: string
+          assistant_type?: string
+          assistant_specialization?: string
+          profile_picture?: string
         }
         Insert: {
           id: string
@@ -27,6 +32,10 @@ export interface Database {
           role: 'admin' | 'helper' | 'student' | 'driver'
           created_at?: string
           updated_at?: string
+          disability_type?: string
+          assistant_type?: string
+          assistant_specialization?: string
+          profile_picture?: string
         }
         Update: {
           id?: string
@@ -36,6 +45,10 @@ export interface Database {
           role?: 'admin' | 'helper' | 'student' | 'driver'
           created_at?: string
           updated_at?: string
+          disability_type?: string
+          assistant_type?: string
+          assistant_specialization?: string
+          profile_picture?: string
         }
       }
       helper_student_assignments: {
@@ -74,8 +87,10 @@ export interface Database {
           helper_id: string
           date: string
           status: 'pending' | 'confirmed' | 'rejected'
+          description: string
           created_at: string
           updated_at: string
+          timestamp: number
         }
         Insert: {
           id?: string
@@ -83,8 +98,10 @@ export interface Database {
           helper_id: string
           date: string
           status?: 'pending' | 'confirmed' | 'rejected'
+          description: string
           created_at?: string
           updated_at?: string
+          timestamp: number
         }
         Update: {
           id?: string
@@ -92,8 +109,10 @@ export interface Database {
           helper_id?: string
           date?: string
           status?: 'pending' | 'confirmed' | 'rejected'
+          description?: string
           created_at?: string
           updated_at?: string
+          timestamp?: number
         }
       }
       complaints: {
@@ -105,6 +124,9 @@ export interface Database {
           status: 'pending' | 'in_progress' | 'resolved'
           created_at: string
           updated_at: string
+          attachments?: string[] | null
+          feedback?: string
+          followUp?: string
         }
         Insert: {
           id?: string
@@ -114,6 +136,9 @@ export interface Database {
           status?: 'pending' | 'in_progress' | 'resolved'
           created_at?: string
           updated_at?: string
+          attachments?: string[] | null
+          feedback?: string
+          followUp?: string
         }
         Update: {
           id?: string
@@ -123,6 +148,9 @@ export interface Database {
           status?: 'pending' | 'in_progress' | 'resolved'
           created_at?: string
           updated_at?: string
+          attachments?: string[] | null
+          feedback?: string
+          followUp?: string
         }
       }
       ride_requests: {
@@ -155,6 +183,55 @@ export interface Database {
           status?: 'pending' | 'accepted' | 'rejected' | 'completed'
           created_at?: string
           updated_at?: string
+        }
+      }
+      helper_sign_ins: {
+        Row: {
+          id: string
+          helper: string
+          date: string
+          timestamp: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          helper: string
+          date: string
+          timestamp: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          helper?: string
+          date?: string
+          timestamp?: number
+          created_at?: string
+        }
+      }
+      student_otps: {
+        Row: {
+          id: string
+          otp: string
+          timestamp: number
+          helperName: string
+          studentId: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          otp: string
+          timestamp: number
+          helperName: string
+          studentId: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          otp?: string
+          timestamp?: number
+          helperName?: string
+          studentId?: string
+          created_at?: string
         }
       }
       messages: {
@@ -197,4 +274,4 @@ export interface Database {
       [_ in never]: never
     }
   }
-} 
+}

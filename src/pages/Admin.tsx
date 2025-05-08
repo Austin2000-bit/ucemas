@@ -35,9 +35,7 @@ import { Users, MessageSquare, AlertTriangle, Car, Laptop, UserCog } from "lucid
 import AdminGadgetLending from "@/components/Admin/AdminGadgetLending";
 import AdminUsers from "@/components/Admin/AdminUsers";
 import AdminRideRequests from "@/components/Admin/AdminRideRequests";
-import AdminHelpersList from "@/components/Admin/AdminHelpersList";
 import Navbar from "@/components/Navbar";
-import MessageSystem from "@/components/MessageSystem";
 import HelperStudentAssignment from "@/components/Admin/HelperStudentAssignment";
 
 interface User {
@@ -103,9 +101,8 @@ const Admin: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   
-  // Navigation items for the sidebar
+  // Navigation items for the sidebar - removed messages
   const sidebarItems: SidebarItem[] = [
-    { icon: MessageSquare, label: "Messages", url: "messages", id: "messages", title: "Messages" },
     { icon: AlertTriangle, label: "Complaints", url: "complaints", id: "complaints", title: "Complaints" },
     { icon: Car, label: "Ride Requests", url: "ride-requests", id: "ride-requests", title: "Ride Requests" },
     { icon: Laptop, label: "Gadget Lending", url: "gadgets", id: "gadgets", title: "Gadget Lending" },
@@ -233,22 +230,6 @@ const Admin: React.FC = () => {
     switch (activeSection) {
       case "users":
         return <AdminUsers />;
-      case "messages":
-        return (
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Messages</CardTitle>
-                <CardDescription>
-                  Send messages to registered users and view conversations
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <MessageSystem />
-              </CardContent>
-            </Card>
-          </div>
-        );
       case "complaints":
         return (
           <div className="space-y-4">
