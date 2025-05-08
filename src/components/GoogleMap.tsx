@@ -2,6 +2,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader } from '@googlemaps/js-api-loader';
 
+// Add type definitions for Google Maps API
+declare global {
+  interface Window {
+    google: any;
+  }
+}
+
 interface GoogleMapProps {
   pickupLocation: string;
   destination: string;
@@ -30,7 +37,7 @@ const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMap
 
         if (mapRef.current) {
           console.log('Creating map instance...');
-          const initialMap = new google.maps.Map(mapRef.current, {
+          const initialMap = new window.google.maps.Map(mapRef.current, {
             center: { lat: -6.3690, lng: 34.8888 }, // Tanzania coordinates
             zoom: 6, // Zoom out to show more of Tanzania
             styles: [
@@ -42,8 +49,8 @@ const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMap
             ]
           });
 
-          const directionsServiceInstance = new google.maps.DirectionsService();
-          const directionsRendererInstance = new google.maps.DirectionsRenderer({
+          const directionsServiceInstance = new window.google.maps.DirectionsService();
+          const directionsRendererInstance = new window.google.maps.DirectionsRenderer({
             map: initialMap,
             suppressMarkers: true
           });
@@ -71,12 +78,12 @@ const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMap
       const request: google.maps.DirectionsRequest = {
         origin: pickupLocation,
         destination: destination,
-        travelMode: google.maps.TravelMode.DRIVING
+        travelMode: window.google.maps.TravelMode.DRIVING
       };
 
       directionsService.route(request, (result, status) => {
         console.log('Route calculation status:', status);
-        if (status === google.maps.DirectionsStatus.OK && result) {
+        if (status === window.google.maps.DirectionsStatus.OK && result) {
           console.log('Route calculated successfully');
           directionsRenderer.setDirections(result);
           

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,8 @@ import { MapPin, Clock, Check, X as XIcon, RefreshCw } from "lucide-react";
 import GoogleMap from "@/components/GoogleMap";
 import { useAuth } from "@/utils/auth";
 import { SystemLogs } from "@/utils/systemLogs";
-import { rideService, RideRequest } from "@/services/rideService";
+import { rideService } from "@/services/rideService";
+import { RideRequest } from "@/types";
 
 interface RideStats {
   totalRides: number;
@@ -27,9 +29,10 @@ const DriverRides = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { user } = useAuth();
 
-  const loadPendingRides = () => {
+  const loadPendingRides = async () => {
     try {
-      const pending = rideService.getPendingRides();
+      if (!user?.id) return;
+      const pending = await rideService.getPendingRides();
       console.log("Loaded pending rides:", pending);
       setPendingRides(pending);
     } catch (error) {
@@ -42,10 +45,10 @@ const DriverRides = () => {
     }
   };
 
-  const calculateStats = () => {
+  const calculateStats = async () => {
     if (!user?.id) return;
     try {
-      const newStats = rideService.getRideStats(user.id);
+      const newStats = await rideService.getRideStats(user.id);
       console.log("Calculated stats:", newStats);
       setStats(newStats);
     } catch (error) {
@@ -83,11 +86,7 @@ const DriverRides = () => {
     }
 
     try {
-      const success = rideService.acceptRide(
-        ride.id,
-        user.id,
-        `${user.firstName} ${user.lastName}`
-      );
+      const success = await rideService.acceptRide(ride.id, user.id);
 
       if (success) {
         setPendingRides(prev => prev.filter(r => r.id !== ride.id));
@@ -95,7 +94,7 @@ const DriverRides = () => {
 
         SystemLogs.addLog(
           "Ride accepted",
-          `Driver ${user.firstName} ${user.lastName} accepted ride from ${ride.pickupLocation} to ${ride.destination}`,
+          `Driver ${user.first_name} ${user.last_name} accepted ride from ${ride.pickup_location} to ${ride.destination}`,
           user.id,
           user.role
         );
@@ -128,11 +127,7 @@ const DriverRides = () => {
     }
 
     try {
-      const success = rideService.rejectRide(
-        ride.id,
-        user.id,
-        `${user.firstName} ${user.lastName}`
-      );
+      const success = await rideService.rejectRide(ride.id, user.id);
 
       if (success) {
         setPendingRides(prev => prev.filter(r => r.id !== ride.id));
@@ -140,7 +135,7 @@ const DriverRides = () => {
 
         SystemLogs.addLog(
           "Ride rejected",
-          `Driver ${user.firstName} ${user.lastName} rejected ride from ${ride.pickupLocation} to ${ride.destination}`,
+          `Driver ${user.first_name} ${user.last_name} rejected ride from ${ride.pickup_location} to ${ride.destination}`,
           user.id,
           user.role
         );
@@ -237,7 +232,7 @@ const DriverRides = () => {
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
                           <MapPin size={18} className="text-blue-500" />
-                          <span className="text-sm font-medium">{ride.pickupLocation}</span>
+                          <span className="text-sm font-medium">{ride.pickup_location}</span>
                         </div>
                       </div>
                       
@@ -251,7 +246,7 @@ const DriverRides = () => {
                       </div>
 
                       <GoogleMap
-                        pickupLocation={ride.pickupLocation}
+                        pickupLocation={ride.pickup_location}
                         destination={ride.destination}
                         onRouteCalculated={() => {}}
                       />
@@ -261,7 +256,7 @@ const DriverRides = () => {
                           <Clock size={18} />
                           <span className="text-sm font-medium">Estimated time</span>
                         </div>
-                        <span className="text-sm font-bold">{ride.estimatedTime}</span>
+                        <span className="text-sm font-bold">{ride.estimatedTime || "Calculating..."}</span>
                       </div>
                       
                       <div className="flex gap-4">
@@ -293,4 +288,4 @@ const DriverRides = () => {
   );
 };
 
-export default DriverRides; 
+export default DriverRides;

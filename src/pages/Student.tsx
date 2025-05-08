@@ -156,7 +156,7 @@ const Student = () => {
     // Log the confirmation
     SystemLogs.addLog(
       "Help confirmed",
-      `Student ${user?.firstName} ${user?.lastName} confirmed help from helper ${pendingOtp.helperName}`,
+      `Student ${user?.first_name} ${user?.last_name} confirmed help from helper ${pendingOtp.helperName}`,
       studentId,
       "student"
     );

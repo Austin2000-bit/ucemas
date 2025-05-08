@@ -2,8 +2,8 @@
 export interface User {
   id: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   role: string;
   created_at?: string;
   updated_at?: string;
@@ -59,6 +59,8 @@ export interface Complaint {
   status: 'pending' | 'in_progress' | 'resolved';
   created_at?: string;
   updated_at?: string;
+  feedback?: string;
+  followUp?: string;
 }
 
 export interface HelperStudentAssignment {
@@ -80,4 +82,17 @@ export interface RideRequest {
   status: 'pending' | 'accepted' | 'rejected' | 'completed';
   created_at?: string;
   updated_at?: string;
+  estimatedTime?: string;
+}
+
+export interface GadgetLoan {
+  id: string;
+  fullName: string;
+  regNumber: string;
+  course: string;
+  disabilityType: string;
+  gadgetTypes: string[];
+  dateBorrowed: string;
+  dateReturned?: string;
+  status: 'active' | 'returned';
 }

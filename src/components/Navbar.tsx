@@ -57,7 +57,7 @@ const Navbar = ({ title = "USNMS" }: NavbarProps) => {
             <div className="flex items-center space-x-2">
               {user ? (
                 <>
-                  <span className="text-sm hidden md:inline-block">{user.firstName} {user.lastName}</span>
+                  <span className="text-sm hidden md:inline-block">{user.first_name} {user.last_name}</span>
                   {user.id && <AdminMessages userId={user.id} />}
                   <Link to="/messages">
                     <Button variant="ghost" size="sm" className="relative text-white hover:bg-blue-600 dark:hover:bg-blue-800">

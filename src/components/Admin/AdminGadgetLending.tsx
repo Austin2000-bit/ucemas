@@ -19,18 +19,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-
-interface GadgetLoan {
-  id: string;
-  fullName: string;
-  regNumber: string;
-  course: string;
-  disabilityType: string;
-  gadgetTypes: string[];
-  dateBorrowed: string;
-  dateReturned?: string;
-  status: "active" | "returned";
-}
+import { GadgetLoan } from "@/types";
 
 const AdminGadgetLending = () => {
   const [loans, setLoans] = useState<GadgetLoan[]>([]);
@@ -107,11 +96,11 @@ const AdminGadgetLending = () => {
   };
 
   const handleReturn = (id: string) => {
-    const updatedLoans = loans.map(loan => 
+    const updatedLoans: GadgetLoan[] = loans.map(loan => 
       loan.id === id 
         ? { 
             ...loan, 
-            status: "returned",
+            status: "returned" as const,
             dateReturned: new Date().toISOString()
           } 
         : loan
@@ -323,4 +312,4 @@ const AdminGadgetLending = () => {
   );
 };
 
-export default AdminGadgetLending; 
+export default AdminGadgetLending;

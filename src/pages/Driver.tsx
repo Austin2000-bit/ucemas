@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
@@ -19,8 +20,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
+import { RideRequest } from "@/types";
 
-interface RideRequest {
+// Define a new type for the local storage ride requests
+interface LocalRideRequest {
   id: string;
   studentName: string;
   studentEmail: string;
@@ -35,7 +38,7 @@ interface RideRequest {
 
 const Driver = () => {
   const { user } = useAuth();
-  const [rideRequests, setRideRequests] = useState<RideRequest[]>([]);
+  const [rideRequests, setRideRequests] = useState<LocalRideRequest[]>([]);
 
   useEffect(() => {
     // Load ride requests from localStorage
@@ -77,7 +80,7 @@ const Driver = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <p><span className="font-medium">Name:</span> {user?.name}</p>
+                <p><span className="font-medium">Name:</span> {user ? `${user.first_name} ${user.last_name}` : "Loading..."}</p>
                 <p><span className="font-medium">Email:</span> {user?.email}</p>
                 <p><span className="font-medium">Role:</span> Driver</p>
               </div>
@@ -173,7 +176,7 @@ const Driver = () => {
                               variant={
                                 request.status === "accepted" ? "default" :
                                 request.status === "pending" ? "secondary" :
-                                request.status === "completed" ? "success" :
+                                request.status === "completed" ? "outline" :
                                 "destructive"
                               }
                             >
@@ -201,7 +204,7 @@ const Driver = () => {
                             {request.status === "accepted" && (
                               <Button
                                 size="sm"
-                                variant="success"
+                                variant="outline"
                                 onClick={() => handleRideAction(request.id, "complete")}
                               >
                                 Complete
@@ -228,4 +231,4 @@ const Driver = () => {
   );
 };
 
-export default Driver; 
+export default Driver;

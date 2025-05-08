@@ -217,7 +217,7 @@ const Helper = () => {
   
   const getStudentName = (studentId: string) => {
     const student = assignedStudents.find(s => s.id === studentId);
-    return student ? `${student.firstName} ${student.lastName}` : 'Unknown Student';
+    return student ? `${student.first_name} ${student.last_name}` : 'Unknown Student';
   };
 
   const formatDate = (dateString: string) => {
