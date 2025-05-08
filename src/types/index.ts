@@ -24,8 +24,8 @@ export interface StudentOtp {
 export interface RideRequest {
   id: string;
   studentId: string;
-  studentName?: string;
-  studentEmail?: string;
+  studentName: string;
+  studentEmail: string;
   pickupLocation: string;
   destination: string;
   date: string;
@@ -47,4 +47,20 @@ export interface DriverRideRequest {
   status: "pending" | "accepted" | "completed" | "declined";
   disabilityType: string;
   additionalNotes?: string;
+}
+
+export interface SignInRecord {
+  id?: string;
+  date: string;
+  helper: string;
+  timestamp: number;
+}
+
+export interface HelpConfirmation {
+  id?: string;
+  date: string;
+  helper: string;
+  student: string;
+  description: string;
+  timestamp: number;
 }

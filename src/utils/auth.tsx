@@ -31,99 +31,36 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Check if user is already logged in
   useEffect(() => {
-    const storedUser = localStorage.getItem("currentUser");
-    if (storedUser) {
+    async function loadUser() {
       try {
-        setUser(JSON.parse(storedUser));
+        const { success, user } = await getCurrentUser();
+        if (success && user) {
+          setUser(user);
+        }
       } catch (error) {
-        console.error("Failed to parse user from localStorage:", error);
-        localStorage.removeItem("currentUser");
+        console.error("Failed to load user:", error);
+      } finally {
+        setIsLoading(false);
       }
     }
     
-    // Initialize demo users if they don't exist
-    initializeDefaultUsers();
-    
-    setIsLoading(false);
+    loadUser();
   }, []);
-
-  const initializeDefaultUsers = () => {
-    // Check if users array exists in localStorage
-    if (!localStorage.getItem("users")) {
-      // Create demo users
-      const demoUsers = [
-        {
-          id: "admin-id",
-          first_name: "Admin",
-          last_name: "User",
-          email: "admin@example.com",
-          password: "admin123",
-          role: "admin",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: "helper-id",
-          first_name: "Amanda",
-          last_name: "Helper",
-          email: "amanda@example.com",
-          password: "helper123",
-          role: "helper",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: "student-id",
-          first_name: "John",
-          last_name: "Student",
-          email: "john@example.com",
-          password: "student123",
-          role: "student",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        },
-        {
-          id: "driver-id",
-          first_name: "Dave",
-          last_name: "Driver",
-          email: "driver@example.com",
-          password: "driver123",
-          role: "driver",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ];
-      
-      localStorage.setItem("users", JSON.stringify(demoUsers));
-    }
-  };
 
   const login = async (email: string, password: string) => {
     try {
       console.log("Attempting login with:", { email }); // Debug log
       
-      // Get users from localStorage
-      const users = JSON.parse(localStorage.getItem("users") || "[]");
-      const foundUser = users.find(
-        (u: any) => u.email === email && u.password === password
-      );
+      const { success, user, error } = await signIn(email, password);
+      
+      console.log("Login result:", { success, user, error }); // Debug log
 
-      console.log("Found user:", foundUser); // Debug log
-
-      if (!foundUser) {
-        console.log("No user found or password mismatch");
-        return false;
+      if (success && user) {
+        setUser(user);
+        return true;
       }
       
-      // Remove password from user object before storing
-      const { password: _, ...userWithoutPassword } = foundUser;
-      
-      // Store current user in localStorage
-      localStorage.setItem("currentUser", JSON.stringify(userWithoutPassword));
-      setUser(userWithoutPassword);
-      
-      console.log("Login successful");
-      return true;
+      return false;
     } catch (error) {
       console.error("Login error:", error);
       return false;
@@ -131,9 +68,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const logout = async () => {
-    // Remove user from localStorage
-    localStorage.removeItem("currentUser");
-    setUser(null);
+    try {
+      await signOut();
+      setUser(null);
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   };
 
   const contextValue: AuthContextType = {
