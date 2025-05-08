@@ -1,15 +1,9 @@
-
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/utils/auth";
 import { SystemLogs } from "@/utils/systemLogs";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import {
   Table,
@@ -27,16 +21,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AlertTriangle, Car, Laptop, UserCog } from "lucide-react";
 import AdminGadgetLending from "@/components/Admin/AdminGadgetLending";
 import AdminUsers from "@/components/Admin/AdminUsers";
 import AdminRideRequests from "@/components/Admin/AdminRideRequests";
-import AdminHelpersList from "@/components/Admin/AdminHelpersList";
 import Navbar from "@/components/Navbar";
 import HelperStudentAssignment from "@/components/Admin/HelperStudentAssignment";
 import { supabase } from "@/lib/supabase";
@@ -113,10 +103,13 @@ const Admin: React.FC = () => {
           }
 
           setComplaints(data || []);
+          console.log("Fetched complaints:", data);
           
           // Fetch users for the complaints
           if (data && data.length > 0) {
             const userIds = [...new Set(data.map(c => c.user_id))];
+            console.log("Fetching users for IDs:", userIds);
+            
             const { data: userData, error: userError } = await supabase
               .from('users')
               .select('*')
@@ -126,6 +119,8 @@ const Admin: React.FC = () => {
               console.error("Error fetching users:", userError);
               return;
             }
+            
+            console.log("Fetched users:", userData);
             
             // Create a map of user_id to user
             const userMap: Record<string, User> = {};
@@ -144,8 +139,8 @@ const Admin: React.FC = () => {
     fetchComplaints();
   }, [activeSection]);
 
+  // Fetch dashboard data
   useEffect(() => {
-    // Fetch dashboard data
     const rawData = SystemLogs.getDashboardSummary();
     // Transform the data to match our interface
     const transformedData: DashboardData = {
@@ -465,7 +460,6 @@ const Admin: React.FC = () => {
              activeSection === "ride-requests" ? "Ride Requests" :
              activeSection === "gadgets" ? "Gadget Lending" :
              activeSection === "users" ? "Users" :
-             activeSection === "messages" ? "Messages" :
              activeSection === "user-management" ? "User Management" : 
              activeSection === "assignments" ? "Student Assignments" : "Reports"}
           </h1>

@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/utils/auth";
 import { SystemLogs } from "@/utils/systemLogs";
@@ -48,6 +47,7 @@ const Complaint = () => {
         return;
       }
 
+      // Create the complaint object with the logged-in user's ID
       const newComplaint = {
         user_id: user.id,
         title: values.category,
@@ -55,6 +55,9 @@ const Complaint = () => {
         status: 'pending' as const,
       };
 
+      console.log("Creating complaint:", newComplaint);
+
+      // Save to Supabase
       const { data, error } = await supabase
         .from('complaints')
         .insert([newComplaint])
@@ -66,6 +69,9 @@ const Complaint = () => {
         throw new Error("Failed to create complaint");
       }
 
+      console.log("Complaint created successfully:", data);
+
+      // Add to system logs
       SystemLogs.addLog(
         "Complaint submitted",
         `New complaint submitted by ${user.first_name} ${user.last_name}`,

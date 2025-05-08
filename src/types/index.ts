@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -39,7 +38,7 @@ export interface StudentOtp {
   timestamp: number;
   helperName: string;
   studentId: string;
-  helperId: string;  // This property was missing
+  helperId: string;  // Added this missing property
 }
 
 export interface AdminMessage {

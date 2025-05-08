@@ -1,9 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { HelperStudentAssignment as Assignment } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
@@ -149,6 +147,7 @@ const HelperStudentAssignment = () => {
         academic_year: selectedYear
       };
 
+      // First try to insert with the join
       const { data, error } = await supabase
         .from('helper_student_assignments')
         .insert([newAssignment])
@@ -160,16 +159,19 @@ const HelperStudentAssignment = () => {
         .single();
 
       if (error) {
-        console.error("Error creating assignment:", error);
+        console.error("Error creating assignment with join:", error);
         
-        // If we can't join, just insert and get the basic assignment back
+        // If join fails, do a basic insert
         const { data: basicData, error: basicError } = await supabase
           .from('helper_student_assignments')
           .insert([newAssignment])
           .select()
           .single();
           
-        if (basicError) throw basicError;
+        if (basicError) {
+          console.error("Error creating basic assignment:", basicError);
+          throw basicError;
+        }
         
         // Find the user objects to attach to the assignment
         const student = students.find(s => s.id === selectedStudent);
@@ -182,8 +184,10 @@ const HelperStudentAssignment = () => {
         };
         
         setAssignments([...assignments, newAssignmentWithUsers]);
+        console.log("Successfully created assignment (without join):", basicData);
       } else {
         setAssignments([...assignments, data]);
+        console.log("Successfully created assignment with join:", data);
       }
 
       // Log the assignment

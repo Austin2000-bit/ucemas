@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
+import { supabase } from "@/lib/supabase";
 
 // Define a new type for the local storage ride requests
 interface LocalRideRequest {
@@ -63,14 +63,52 @@ const Driver = () => {
     }));
   };
 
-  useEffect(() => {
+  // Load ride requests and also save them to Supabase
+  const loadRideRequests = async () => {
     // Load ride requests from localStorage
     const storedRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
     const typedRequests = processRideRequests(storedRequests);
     setRideRequests(typedRequests);
+    
+    // Also ensure these are saved to Supabase
+    if (typedRequests.length > 0) {
+      try {
+        for (const request of typedRequests) {
+          // Check if this request already exists in the database
+          const { data: existingData } = await supabase
+            .from('ride_requests')
+            .select('id')
+            .eq('id', request.id)
+            .maybeSingle();
+            
+          if (!existingData) {
+            // Convert to the structure expected by the database
+            const dbRequest = {
+              id: request.id,
+              student_id: request.studentEmail.split('@')[0], // Using email prefix as a simple student_id
+              driver_id: null,
+              pickup_location: request.pickupLocation,
+              destination: request.destination,
+              status: request.status === "declined" ? "rejected" : request.status, // Map declined to rejected for DB
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+            
+            await supabase.from('ride_requests').insert([dbRequest]);
+          }
+        }
+      } catch (error) {
+        console.error("Error syncing ride requests to database:", error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    // Load ride requests from localStorage
+    loadRideRequests();
   }, []);
 
-  const handleRideAction = (requestId: string, action: "accept" | "decline" | "complete") => {
+  const handleRideAction = async (requestId: string, action: "accept" | "decline" | "complete") => {
     const updatedRequests = rideRequests.map(request => {
       if (request.id === requestId) {
         return {
@@ -84,6 +122,22 @@ const Driver = () => {
 
     localStorage.setItem("rideRequests", JSON.stringify(updatedRequests));
     setRideRequests(updatedRequests);
+
+    // Also update in Supabase
+    try {
+      const statusForDb = action === "decline" ? "rejected" : action === "accept" ? "accepted" : "completed";
+      
+      await supabase
+        .from('ride_requests')
+        .update({ 
+          status: statusForDb,
+          driver_id: user?.id || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', requestId);
+    } catch (error) {
+      console.error("Error updating ride request in database:", error);
+    }
 
     toast({
       title: "Ride Request Updated",
@@ -143,12 +197,7 @@ const Driver = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <Button variant="outline" className="w-full" onClick={() => {
-                  // Refresh ride requests
-                  const storedRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
-                  const typedRequests = processRideRequests(storedRequests);
-                  setRideRequests(typedRequests);
-                }}>
+                <Button variant="outline" className="w-full" onClick={loadRideRequests}>
                   Refresh Requests
                 </Button>
               </div>
