@@ -1,10 +1,10 @@
-
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { 
   FileText, 
   Users, 
   Layout,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,15 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
+import UserSuggestions from "@/components/UserSuggestions";
+
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+}
 
 const Complaint = () => {
   const navigate = useNavigate();
@@ -25,9 +34,32 @@ const Complaint = () => {
   const [email, setEmail] = useState("");
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | undefined>(undefined);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleUserSelect = (selectedEmail: string) => {
+    if (selectedEmail) {
+      const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
+      const selectedUser = storedUsers.find((user: any) => user.email === selectedEmail);
+      if (selectedUser) {
+        setName(`${selectedUser.firstName} ${selectedUser.lastName}`);
+        setEmail(selectedUser.email);
+      }
+    } else {
+      setName("");
+      setEmail("");
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setAttachments(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
@@ -45,6 +77,23 @@ const Complaint = () => {
     // Get existing complaints or initialize new array
     const existingComplaints = JSON.parse(localStorage.getItem("complaints") || "[]");
     
+    // Convert attachments to base64 for storage
+    const attachmentData = await Promise.all(
+      attachments.map(async (file) => {
+        const reader = new FileReader();
+        return new Promise((resolve) => {
+          reader.onload = () => {
+            resolve({
+              name: file.name,
+              type: file.type,
+              data: reader.result,
+            });
+          };
+          reader.readAsDataURL(file);
+        });
+      })
+    );
+    
     // Create new complaint with generated ID
     const newComplaint = {
       id: `C${existingComplaints.length + 1}`,
@@ -52,6 +101,7 @@ const Complaint = () => {
       email,
       issueCategory: category,
       description,
+      attachments: attachmentData,
       created: new Date().toLocaleDateString(),
       status: "Pending",
       feedback: "",
@@ -73,6 +123,7 @@ const Complaint = () => {
     setEmail("");
     setCategory("");
     setDescription("");
+    setAttachments([]);
     setIsSubmitting(false);
 
     // Navigate to complaint list
@@ -124,29 +175,12 @@ const Complaint = () => {
           
           <div className="max-w-2xl mx-auto bg-card rounded-lg shadow p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label htmlFor="name" className="text-sm font-medium">Name</label>
-                  <Input
-                    id="name"
-                    placeholder="Your name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium">Email</label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Your email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Select User</label>
+                <UserSuggestions
+                  onSelect={setSelectedUser}
+                  selectedUser={selectedUser}
+                />
               </div>
               
               <div className="space-y-2">
@@ -176,12 +210,50 @@ const Complaint = () => {
                   className="resize-none w-full"
                 />
               </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Attachments</label>
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 px-4 py-2 border rounded-md cursor-pointer hover:bg-accent">
+                    <Upload className="h-4 w-4" />
+                    <span>Add Files</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,video/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                  {attachments.length > 0 && (
+                    <span className="text-sm text-muted-foreground">
+                      {attachments.length} file(s) selected
+                    </span>
+                  )}
+                </div>
+                {attachments.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {attachments.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                        <span className="text-sm truncate">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
+                          className="text-red-500 hover:text-red-600"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               
               <div className="flex justify-end">
                 <Button 
                   type="submit" 
                   className="bg-blue-500 hover:bg-blue-600" 
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !selectedUser}
                 >
                   {isSubmitting ? "Submitting..." : "Submit Complaint"}
                 </Button>

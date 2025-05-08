@@ -16,6 +16,8 @@ import { Link } from "react-router-dom";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { db, StudentOtp, StudentConfirmation } from "@/lib/supabase";
 import { useAuth } from "@/utils/auth";
+import { SystemLogs } from "@/utils/systemLogs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Student = () => {
   const { user } = useAuth();
@@ -25,6 +27,9 @@ const Student = () => {
   const [todayConfirmed, setTodayConfirmed] = useState(false);
   const [recentConfirmations, setRecentConfirmations] = useState<StudentConfirmation[]>([]);
   const [pendingOtp, setPendingOtp] = useState<StudentOtp | null>(null);
+  const [assignedHelper, setAssignedHelper] = useState<any>(null);
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [userProfile, setUserProfile] = useState<any>(null);
   
   const form = useForm({
     defaultValues: {
@@ -83,6 +88,13 @@ const Student = () => {
     return () => clearInterval(interval);
   }, [form, pendingOtp, todayConfirmed, studentId]);
   
+  useEffect(() => {
+    // Load user profile
+    const users = JSON.parse(localStorage.getItem("users") || "[]");
+    const currentUser = users.find((u: any) => u.id === user?.id);
+    setUserProfile(currentUser);
+  }, [user?.id]);
+  
   const handleConfirm = async () => {
     const otpValue = form.getValues("otp");
     if (otpValue.length < 4) {
@@ -93,11 +105,17 @@ const Student = () => {
       });
       return;
     }
-    
-    // Verify OTP from Supabase
-    const { otp: storedOTP, helperId } = await db.getCurrentHelperOtp();
-    
-    if (otpValue !== storedOTP) {
+
+    if (!pendingOtp) {
+      toast({
+        title: "No OTP Found",
+        description: "Please wait for your helper to send you an OTP",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (otpValue !== pendingOtp.otp) {
       toast({
         title: "Incorrect OTP",
         description: "The OTP you entered is incorrect",
@@ -105,14 +123,10 @@ const Student = () => {
       });
       return;
     }
-    
-    // Save confirmation to Supabase
+
+    // Save confirmation to localStorage
     const today = new Date().toISOString().split('T')[0];
-    const newConfirmation: StudentConfirmation = {
-      date: today,
-      helperId: helperId || 'unknown',
-      student: studentId,
-    };
+    const studentConfirmations = JSON.parse(localStorage.getItem("studentHelpConfirmations") || "[]");
     
     // Prevent multiple confirmations for the same day
     if (todayConfirmed) {
@@ -124,26 +138,28 @@ const Student = () => {
       return;
     }
     
-    // Add new confirmation to Supabase
-    const success = await db.addStudentConfirmation(newConfirmation);
+    const newConfirmation = {
+      date: today,
+      helperId: pendingOtp.helperId,
+      student: studentId,
+      timestamp: Date.now()
+    };
     
-    if (!success) {
-      toast({
-        title: "Error",
-        description: "Failed to save confirmation. Please try again.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Clear the current OTP and student's pending OTP
-    await db.deleteCurrentHelperOtp();
-    await db.deleteStudentOtp(studentId);
+    studentConfirmations.push(newConfirmation);
+    localStorage.setItem("studentHelpConfirmations", JSON.stringify(studentConfirmations));
     
     // Update state
     setTodayConfirmed(true);
     setRecentConfirmations(prev => [newConfirmation, ...prev]);
     setPendingOtp(null);
+    
+    // Log the confirmation
+    SystemLogs.addLog(
+      "Help confirmed",
+      `Student ${user?.firstName} ${user?.lastName} confirmed help from helper ${pendingOtp.helperName}`,
+      studentId,
+      "student"
+    );
     
     toast({
       title: "Help confirmed",
@@ -154,15 +170,9 @@ const Student = () => {
   };
   
   const getHelperName = (helperId: string) => {
-    // This would be a database lookup in a real app
-    const helperMap: {[key: string]: string} = {
-      'john': 'John Smith',
-      'maria': 'Maria Garcia',
-      'james': 'James Johnson',
-      'sarah': 'Sarah Williams',
-    };
-    
-    return helperMap[helperId] || 'Unknown Helper';
+    const users = JSON.parse(localStorage.getItem("users") || "[]");
+    const helper = users.find((u: any) => u.id === helperId);
+    return helper ? `${helper.firstName} ${helper.lastName}` : 'Unknown Helper';
   };
   
   const formatTime = (timestamp: number) => {
@@ -213,6 +223,36 @@ const Student = () => {
               </Button>
             </Link>
           </div>
+
+          {/* Assigned Helper Card */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Your Assigned Helper</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {assignedHelper ? (
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={assignedHelper.photo} />
+                    <AvatarFallback>
+                      {assignedHelper.firstName[0]}{assignedHelper.lastName[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="text-lg font-semibold">
+                      {assignedHelper.firstName} {assignedHelper.lastName}
+                    </h3>
+                    <p className="text-muted-foreground">{assignedHelper.email}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Available for assistance during working hours
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">No helper assigned yet</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right Panel - User Profile and OTP */}
@@ -223,11 +263,13 @@ const Student = () => {
           
           <div className="flex flex-col items-center">
             <Avatar className="w-32 h-32 mb-4">
-              <AvatarImage src="/lovable-uploads/e0cd73f6-abe5-4757-9b0b-041be52fce22.png" alt="Grace Kusenganya" />
-              <AvatarFallback>GK</AvatarFallback>
+              <AvatarImage src={userProfile?.photo || "/default-avatar.png"} alt={`${userProfile?.firstName} ${userProfile?.lastName}`} />
+              <AvatarFallback>{userProfile?.firstName?.[0]}{userProfile?.lastName?.[0]}</AvatarFallback>
             </Avatar>
             
-            <h2 className="text-2xl font-semibold text-gray-700 dark:text-gray-100">GRACE KUSENGANYA</h2>
+            <h2 className="text-2xl font-semibold text-gray-700 dark:text-gray-100">
+              {userProfile?.firstName?.toUpperCase()} {userProfile?.lastName?.toUpperCase()}
+            </h2>
             <p className="text-gray-500 dark:text-gray-400 mb-4">Any dishonesty will not be forgiven</p>
             
             <div className="flex items-center gap-2 mb-6">
@@ -289,14 +331,48 @@ const Student = () => {
                 </div>
                 
                 <Button 
-                  className="bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 w-full max-w-xs"
+                  className="w-full max-w-xs bg-blue-500 hover:bg-blue-600"
                   onClick={handleConfirm}
+                  disabled={!pendingOtp}
                 >
-                  Confirm
+                  Confirm Help
                 </Button>
               </>
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto p-6 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Complaints Summary Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Complaints</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-muted p-4 rounded-lg text-center">
+                    <p className="text-2xl font-bold">{complaints.length}</p>
+                    <p className="text-sm text-muted-foreground">Total</p>
+                  </div>
+                  <div className="bg-muted p-4 rounded-lg text-center">
+                    <p className="text-2xl font-bold">
+                      {complaints.filter(c => c.status === "Pending").length}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Pending</p>
+                  </div>
+                  <div className="bg-muted p-4 rounded-lg text-center">
+                    <p className="text-2xl font-bold">
+                      {complaints.filter(c => c.status === "Resolved").length}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Resolved</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

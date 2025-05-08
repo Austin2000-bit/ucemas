@@ -1,92 +1,130 @@
-
 import { ReactNode, createContext, useContext, useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import { SystemLogs } from "@/utils/systemLogs";
+import { User, UserRole } from "@/lib/supabase";
+import { signIn, signOut, getCurrentUser } from "@/lib/supabase";
 
-// Define our user types
-type UserRole = "admin" | "helper" | "student" | null;
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-};
-
-type AuthContextType = {
+interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
-  hasRole: (roles: UserRole[]) => boolean;
-};
+  hasRole: (roles: string[]) => boolean;
+}
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo
-const USERS = [
-  { 
-    id: "admin", 
-    name: "Admin User", 
-    email: "admin@example.com", 
-    password: "admin123", 
-    role: "admin" as UserRole 
-  },
-  { 
-    id: "john", 
-    name: "John Smith", 
-    email: "john@example.com", 
-    password: "student123", 
-    role: "student" as UserRole 
-  },
-  { 
-    id: "amanda", 
-    name: "Amanda Kusisqanya", 
-    email: "amanda@example.com", 
-    password: "helper123", 
-    role: "helper" as UserRole 
-  }
-];
+interface AuthProviderProps {
+  children: ReactNode;
+}
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
-  
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
-    // Check for existing user session in local storage
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
+    // Check for existing session
+    const checkSession = async () => {
       try {
-        setUser(JSON.parse(storedUser));
+        const { success, user: currentUser } = await getCurrentUser();
+        if (success && currentUser) {
+          setUser(currentUser);
+        }
       } catch (error) {
-        console.error("Failed to parse stored user:", error);
-        localStorage.removeItem('currentUser');
+        console.error('Error checking session:', error);
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
+
+    checkSession();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Simple authentication for demo purposes
-    const foundUser = USERS.find(u => u.email === email && u.password === password);
-    
-    if (foundUser) {
-      const { password, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
-      return true;
+    try {
+      setIsLoading(true);
+      const { success, user: loggedInUser, error } = await signIn(email, password);
+
+      if (success && loggedInUser) {
+        setUser(loggedInUser);
+        
+        // Log the login
+        SystemLogs.addLog(
+          "User Login",
+          `User ${loggedInUser.first_name} ${loggedInUser.last_name} logged in`,
+          loggedInUser.id,
+          loggedInUser.role
+        );
+        
+        toast({
+          title: "Login Successful",
+          description: `Welcome back, ${loggedInUser.first_name}!`,
+        });
+        
+        return true;
+      }
+      
+      if (error) {
+        toast({
+          title: "Login Failed",
+          description: error.message || "Invalid email or password.",
+          variant: "destructive",
+        });
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("Login error:", error);
+      toast({
+        title: "Login Error",
+        description: "An error occurred during login. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
     }
-    
-    return false;
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('currentUser');
+  const logout = async () => {
+    try {
+      const { success, error } = await signOut();
+      
+      if (success) {
+        if (user) {
+          SystemLogs.addLog(
+            "User Logout",
+            `User ${user.first_name} ${user.last_name} logged out`,
+            user.id,
+            user.role
+          );
+        }
+        setUser(null);
+      } else if (error) {
+        toast({
+          title: "Logout Error",
+          description: error.message || "Failed to log out.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({
+        title: "Logout Error",
+        description: "An error occurred during logout.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const hasRole = (roles: UserRole[]): boolean => {
-    if (!user) return false;
-    return roles.includes(user.role);
+  const hasRole = (roles: string[]): boolean => {
+    return user ? roles.includes(user.role) : false;
   };
+
+  if (isLoading) {
+    return null; // or a loading spinner
+  }
 
   return (
     <AuthContext.Provider value={{ 
@@ -121,7 +159,7 @@ export const ProtectedRoute = ({
   requiredRoles = [], 
   redirectTo = "/login" 
 }: ProtectedRouteProps) => {
-  const { isAuthenticated, hasRole } = useAuth();
+  const { isAuthenticated, hasRole, user } = useAuth();
   const location = useLocation();
   
   if (!isAuthenticated) {
@@ -136,7 +174,6 @@ export const ProtectedRoute = ({
     });
     
     // Redirect to appropriate page based on role
-    const { user } = useAuth();
     let redirectPath = "/login";
     
     if (user) {
@@ -150,6 +187,11 @@ export const ProtectedRoute = ({
         case "student":
           redirectPath = "/student";
           break;
+        case "driver":
+          redirectPath = "/driver";
+          break;
+        default:
+          redirectPath = "/login";
       }
     }
     
@@ -161,25 +203,24 @@ export const ProtectedRoute = ({
 
 export const PublicRoute = ({ children }: { children: ReactNode }) => {
   const { isAuthenticated, user } = useAuth();
+  const location = useLocation();
   
+  // If authenticated, redirect based on role
   if (isAuthenticated && user) {
-    // Redirect to appropriate page based on user role
-    let redirectPath = "/login";
-    
     switch(user.role) {
       case "admin":
-        redirectPath = "/admin";
-        break;
+        return <Navigate to="/admin" replace />;
       case "helper":
-        redirectPath = "/helper";
-        break;
+        return <Navigate to="/helper" replace />;
       case "student":
-        redirectPath = "/student";
-        break;
+        return <Navigate to="/student" replace />;
+      case "driver":
+        return <Navigate to="/driver" replace />;
+      default:
+        return <Navigate to="/login" replace />;
     }
-    
-    return <Navigate to={redirectPath} replace />;
   }
   
+  // If not authenticated, show the children (login page)
   return <>{children}</>;
 };

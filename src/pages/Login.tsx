@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -18,17 +17,18 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
+    console.log("Attempting login with:", { email }); // Debug log
 
     try {
       const success = await login(email, password);
+      console.log("Login result:", success); // Debug log
       
       if (success) {
         toast({
           title: "Success!",
           description: "You are now logged in.",
         });
-        
-        // The PublicRoute component will handle redirection based on role
+        navigate("/");
       } else {
         toast({
           title: "Invalid credentials",
@@ -37,9 +37,10 @@ const Login = () => {
         });
       }
     } catch (error) {
+      console.error("Login error:", error); // Debug log
       toast({
         title: "Error!",
-        description: "Failed to log in.",
+        description: "Failed to log in. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -48,15 +49,15 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-      <Navbar  />
+    <div className="min-h-screen flex flex-col bg-background">
+      <Navbar title="Login" />
       
-      <div className="flex-grow flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+      <main className="flex-grow flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-card rounded-lg shadow-md overflow-hidden">
           <div className="p-6">
-            <div className="text-center mb-4">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Welcome back</h1>
-              <p className="text-gray-600 dark:text-gray-400">Sign in to your account</p>
+            <div className="text-center mb-6">
+              <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
+              <p className="text-muted-foreground mt-2">Sign in to your account</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -69,6 +70,7 @@ const Login = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  className="w-full"
                 />
               </div>
 
@@ -83,39 +85,49 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  className="w-full"
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={loading}
+              >
                 {loading ? "Signing in..." : "Sign in"}
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm">
-              <p className="text-gray-600 dark:text-gray-400">
+            <div className="mt-6">
+              <p className="text-muted-foreground text-sm">
                 Demo accounts:
               </p>
-              <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
-                <div className="text-left p-1 border rounded">
-                  <p><strong>Admin:</strong></p>
+              <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+                <div className="text-left p-2 border rounded bg-muted/50">
+                  <p className="font-medium">Admin</p>
                   <p>admin@example.com</p>
                   <p>admin123</p>
                 </div>
-                <div className="text-left p-1 border rounded">
-                  <p><strong>Helper:</strong></p>
+                <div className="text-left p-2 border rounded bg-muted/50">
+                  <p className="font-medium">Helper</p>
                   <p>amanda@example.com</p>
                   <p>helper123</p>
                 </div>
-                <div className="text-left p-1 border rounded">
-                  <p><strong>Student:</strong></p>
+                <div className="text-left p-2 border rounded bg-muted/50">
+                  <p className="font-medium">Student</p>
                   <p>john@example.com</p>
                   <p>student123</p>
+                </div>
+                <div className="text-left p-2 border rounded bg-muted/50">
+                  <p className="font-medium">Driver</p>
+                  <p>driver@example.com</p>
+                  <p>driver123</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

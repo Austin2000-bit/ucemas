@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,21 +23,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { db } from "@/lib/supabase";
 
-interface SignInRecord {
-  date: string;
-  helper: string;
-  timestamp: number;
-}
+import { useAuth } from "@/utils/auth";
+import { supabase } from "@/lib/supabase";
+import { User, SignInRecord, HelpConfirmation } from "@/types";
 
-interface HelpConfirmation {
-  date: string;
-  helper: string;
-  student: string;
-  description: string;
-  timestamp: number;
-}
 
 const Helper = () => {
   const [selectedStudent, setSelectedStudent] = useState<string>("");
@@ -47,15 +37,29 @@ const Helper = () => {
   const [hasCopied, setHasCopied] = useState(false);
   const [signInHistory, setSignInHistory] = useState<SignInRecord[]>([]);
   const [confirmations, setConfirmations] = useState<HelpConfirmation[]>([]);
+  const [assignedStudents, setAssignedStudents] = useState<User[]>([]);
+  const { user } = useAuth();
 
   useEffect(() => {
+    // Load assigned students
+    const assignments = JSON.parse(localStorage.getItem("helperStudentAssignments") || "[]");
+    const users = JSON.parse(localStorage.getItem("users") || "[]");
+    
+    const myAssignments = assignments.filter((a: any) => a.helperId === user?.id);
+    const myStudents = myAssignments.map((a: any) => {
+      const student = users.find((u: any) => u.id === a.studentId);
+      return student;
+    }).filter(Boolean);
+    
+    setAssignedStudents(myStudents);
+
     const today = new Date().toISOString().split('T')[0];
     const storedSignIns = localStorage.getItem('helperSignIns');
     const signIns: SignInRecord[] = storedSignIns ? JSON.parse(storedSignIns) : [];
     
     const signedToday = signIns.some(record => 
       record.date === today && 
-      record.helper === "amanda"
+      record.helper === user?.id
     );
     
     setIsSigned(signedToday);
@@ -66,43 +70,66 @@ const Helper = () => {
       ? JSON.parse(storedConfirmations) 
       : [];
     setConfirmations(helpConfirmations);
-  }, []);
+  }, [user]);
 
   const generateOTP = () => {
-    const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
+    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
     setOtp(newOtp);
     
-    // Store OTP in localStorage with student info
-    localStorage.setItem('currentHelperOTP', newOtp);
-    localStorage.setItem('currentHelperId', selectedStudent);
+    // Get the selected student's email
+    const selectedStudentData = assignedStudents.find(s => s.id === selectedStudent);
+    if (!selectedStudentData) {
+      toast({
+        title: "Error",
+        description: "Could not find selected student's information",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    // Store OTP with student ID to make it available to the student page
-    const studentOtps = JSON.parse(localStorage.getItem('studentOtps') || '{}');
-    studentOtps[selectedStudent] = {
-      otp: newOtp,
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "User not authenticated",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Store OTP in localStorage with student's email
+    const otps = JSON.parse(localStorage.getItem("otps") || "[]");
+    const newOtpEntry = {
+      code: newOtp,
+      email: selectedStudentData.email,
       timestamp: Date.now(),
-      helperName: "Amanda Kusisqanya"
+      expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
+      helperId: user.id,
+      helperName: `${user.firstName} ${user.lastName}`
     };
-    localStorage.setItem('studentOtps', JSON.stringify(studentOtps));
+    otps.push(newOtpEntry);
+    
+    localStorage.setItem("otps", JSON.stringify(otps));
+    
+    // Trigger a custom event to notify the student's page
+    const event = new CustomEvent('newOtpGenerated', { detail: newOtpEntry });
+    window.dispatchEvent(event);
     
     toast({
       title: "OTP Generated",
-      description: `OTP for ${getStudentName(selectedStudent)} has been generated and shared.`,
-    });
-    
-    setHasCopied(false);
-  };
-
-  const copyOTP = () => {
-    navigator.clipboard.writeText(otp);
-    setHasCopied(true);
-    toast({
-      title: "OTP Copied",
-      description: "OTP has been copied to clipboard.",
+      description: `OTP has been sent to ${selectedStudentData.firstName} ${selectedStudentData.lastName}`,
     });
   };
 
   const handleSignIn = () => {
+    if (!otp) {
+      toast({
+        title: "OTP Required",
+        description: "Please generate an OTP before signing in",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const today = new Date().toISOString().split('T')[0];
     
     const storedSignIns = localStorage.getItem('helperSignIns');
@@ -110,7 +137,7 @@ const Helper = () => {
     
     const signedToday = signIns.some(record => 
       record.date === today && 
-      record.helper === "amanda"
+      record.helper === user?.id
     );
     
     if (signedToday) {
@@ -123,7 +150,7 @@ const Helper = () => {
     
     const newSignIn: SignInRecord = {
       date: today,
-      helper: "amanda",
+      helper: user?.id || "",
       timestamp: Date.now()
     };
     
@@ -168,7 +195,7 @@ const Helper = () => {
     
     const newConfirmation: HelpConfirmation = {
       date: today,
-      helper: "amanda",
+      helper: user?.id || "",
       student: selectedStudent,
       description: description,
       timestamp: Date.now()
@@ -189,14 +216,8 @@ const Helper = () => {
   };
   
   const getStudentName = (studentId: string) => {
-    const studentMap: {[key: string]: string} = {
-      'john': 'John Smith',
-      'maria': 'Maria Garcia',
-      'james': 'James Johnson',
-      'sarah': 'Sarah Williams',
-    };
-    
-    return studentMap[studentId] || 'Unknown Student';
+    const student = assignedStudents.find(s => s.id === studentId);
+    return student ? `${student.firstName} ${student.lastName}` : 'Unknown Student';
   };
 
   const formatDate = (dateString: string) => {
@@ -208,43 +229,13 @@ const Helper = () => {
       <Navbar />
 
       <div className="flex flex-col md:flex-row flex-grow">
-        <div className="md:w-1/3 bg-blue-400 dark:bg-blue-600 p-6 flex flex-col items-center">
-          <div className="rounded-full overflow-hidden w-32 h-32 border-4 border-white mb-4">
-            <img 
-              src="/lovable-uploads/4099645c-e8d9-40ed-9964-383c8452c070.png" 
-              alt="Amanda Kusisqanya" 
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <h2 className="text-white font-semibold text-xl mb-1">AMANDA KUSISQANYA</h2>
-          <p className="text-white/80 mb-6">Special Needs Assistant</p>
+        <div className="md:w-1/3 bg-gray-300 dark:bg-gray-800 p-6 flex flex-col">
+          <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-6">HELP CONFIRMATION</h2>
           
-          <Button 
-            variant="outline" 
-            className="bg-white/20 text-white border-white/30 hover:bg-white/30 w-full mb-4"
-            onClick={handleSignIn}
-            disabled={isSigned}
-          >
-            {isSigned ? "Signed in for today" : "Daily sign-in"}
-          </Button>
-
-          <div className="w-full mt-4 bg-white/10 p-4 rounded-md">
-            <h3 className="text-white font-medium mb-2">Recent Sign-ins</h3>
-            <ScrollArea className="h-40">
-              <div className="space-y-2">
-                {signInHistory.slice(-5).reverse().map((record, idx) => (
-                  <div key={idx} className="text-white/90 text-sm flex justify-between">
-                    <span>{formatDate(record.date)}</span>
-                    <span>{new Date(record.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-4 h-4 rounded-full bg-blue-500"></div>
+            <span className="text-blue-500 dark:text-blue-400">Daily confirmation</span>
           </div>
-        </div>
-
-        <div className="flex-1 p-6 flex flex-col dark:text-white overflow-y-auto">
-          <h1 className="text-xl font-medium mb-4 text-center">Sign to confirm help provision</h1>
           
           <div className="max-w-md w-full mx-auto mb-6">
             <div className="flex justify-center mb-6">
@@ -264,10 +255,11 @@ const Helper = () => {
                     <SelectValue placeholder="Select assigned student" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="john">John Smith</SelectItem>
-                    <SelectItem value="maria">Maria Garcia</SelectItem>
-                    <SelectItem value="james">James Johnson</SelectItem>
-                    <SelectItem value="sarah">Sarah Williams</SelectItem>
+                    {assignedStudents.map((student) => (
+                      <SelectItem key={student.id} value={student.id}>
+                        {student.firstName} {student.lastName}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -300,7 +292,14 @@ const Helper = () => {
                     <Button 
                       size="sm" 
                       variant="ghost" 
-                      onClick={copyOTP}
+                      onClick={() => {
+                        navigator.clipboard.writeText(otp);
+                        setHasCopied(true);
+                        toast({
+                          title: "OTP Copied",
+                          description: "OTP has been copied to clipboard.",
+                        });
+                      }}
                       className="flex items-center gap-1"
                     >
                       {hasCopied ? <CheckCircle className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
@@ -323,9 +322,12 @@ const Helper = () => {
               </div>
             )}
           </div>
+        </div>
 
+        <div className="flex-1 p-6 flex flex-col dark:text-white overflow-y-auto">
+          <h1 className="text-xl font-medium mb-4 text-center">Recent Help Confirmations</h1>
+          
           <div className="w-full mt-6 max-w-4xl mx-auto">
-            <h2 className="text-lg font-medium mb-3">Recent Help Confirmations</h2>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
               <ScrollArea className="max-h-[400px]">
                 <Table>

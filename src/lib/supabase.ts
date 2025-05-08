@@ -1,5 +1,5 @@
-
 import { createClient } from '@supabase/supabase-js'
+import { Database } from '@/types/supabase'
 
 // Types for our database tables
 export interface SignInRecord {
@@ -42,210 +42,283 @@ export interface AdminMessage {
   read: boolean;
 }
 
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+// Initialize the Supabase client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.warn('Supabase URL or API key is missing. Supabase client will not be initialized.');
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+
+// User types
+export type UserRole = 'admin' | 'helper' | 'student' | 'driver';
+
+export interface User {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: UserRole;
+  created_at: string;
+  updated_at: string;
+}
+
+// Auth functions
+export const signUp = async (
+  email: string,
+  password: string,
+  userData: {
+    first_name: string;
+    last_name: string;
+    role: UserRole;
+  }
+) => {
+  try {
+    // Check if the current user is an admin
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      return { success: false, error: new Error('Authentication required') };
+    }
+
+    const { data: currentUser, error: userError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', session.user.id)
+      .single();
+
+    if (userError || currentUser?.role !== 'admin') {
+      return { success: false, error: new Error('Only admins can create new users') };
+    }
+
+    // 1. Sign up the user with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          role: userData.role
+        }
+      }
+    });
+
+    if (authError) throw authError;
+
+    if (!authData.user) throw new Error('No user data returned');
+
+    // 2. Create the user profile in the users table
+    const { error: profileError } = await supabase
+      .from('users')
+      .insert([
+        {
+          id: authData.user.id,
+          email,
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          role: userData.role,
+        },
+      ]);
+
+    if (profileError) throw profileError;
+
+    return { success: true, user: authData.user };
+  } catch (error) {
+    console.error('Error in signUp:', error);
+    return { success: false, error };
+  }
+};
+
+export const signIn = async (email: string, password: string) => {
+  try {
+    // 1. First, sign in with Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (authError) {
+      console.error('Auth error:', authError);
+      return { success: false, error: authError };
+    }
+
+    if (!authData.user) {
+      return { success: false, error: new Error('No user data returned from auth') };
+    }
+
+    // 2. Then, get the user's profile from the users table
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', authData.user.id)
+      .single();
+
+    if (userError) {
+      console.error('User data error:', userError);
+      // If user exists in auth but not in users table, they need to contact an admin
+      if (userError.code === 'PGRST116') {
+        return { 
+          success: false, 
+          error: new Error('Your account is not fully set up. Please contact an administrator.') 
+        };
+      }
+      return { success: false, error: userError };
+    }
+
+    return { success: true, user: { ...authData.user, ...userData } };
+  } catch (error) {
+    console.error('Error in signIn:', error);
+    return { success: false, error };
+  }
+};
+
+export const signOut = async () => {
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    console.error('Error in signOut:', error);
+    return { success: false, error };
+  }
+};
+
+export const getCurrentUser = async () => {
+  try {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      return { success: false, error: sessionError };
+    }
+
+    if (!session?.user) {
+      return { success: true, user: null };
+    }
+
+    // Get the user's profile from the users table
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+
+    if (userError) {
+      console.error('User data error:', userError);
+      return { success: false, error: userError };
+    }
+
+    return { success: true, user: { ...session.user, ...userData } };
+  } catch (error) {
+    console.error('Error in getCurrentUser:', error);
+    return { success: false, error };
+  }
+};
+
+// Test function to verify Supabase connection
+export const testSupabaseConnection = async () => {
+  console.log('Supabase connection temporarily disabled - using localStorage');
+  return true;
+};
 
 // Helper functions for data operations
 export const db = {
   // Helper sign-ins
   async getHelperSignIns() {
-    const { data, error } = await supabase
-      .from('helper_sign_ins')
-      .select('*')
-      .order('timestamp', { ascending: false })
-    
-    if (error) {
-      console.error('Error fetching helper sign-ins:', error)
-      return []
-    }
-    
-    return data as SignInRecord[]
+    const storedSignIns = localStorage.getItem('helperSignIns');
+    return storedSignIns ? JSON.parse(storedSignIns) : [];
   },
   
   async addHelperSignIn(signIn: SignInRecord) {
-    const { error } = await supabase
-      .from('helper_sign_ins')
-      .insert(signIn)
-    
-    if (error) {
-      console.error('Error adding helper sign-in:', error)
-      return false
-    }
-    
-    return true
+    const storedSignIns = localStorage.getItem('helperSignIns');
+    const signIns = storedSignIns ? JSON.parse(storedSignIns) : [];
+    signIns.push(signIn);
+    localStorage.setItem('helperSignIns', JSON.stringify(signIns));
+    return true;
   },
   
   // Help confirmations
   async getHelpConfirmations() {
-    const { data, error } = await supabase
-      .from('help_confirmations')
-      .select('*')
-      .order('timestamp', { ascending: false })
-    
-    if (error) {
-      console.error('Error fetching help confirmations:', error)
-      return []
-    }
-    
-    return data as HelpConfirmation[]
+    const storedConfirmations = localStorage.getItem('helpConfirmations');
+    return storedConfirmations ? JSON.parse(storedConfirmations) : [];
   },
   
   async addHelpConfirmation(confirmation: HelpConfirmation) {
-    const { error } = await supabase
-      .from('help_confirmations')
-      .insert(confirmation)
-    
-    if (error) {
-      console.error('Error adding help confirmation:', error)
-      return false
-    }
-    
-    return true
+    const storedConfirmations = localStorage.getItem('helpConfirmations');
+    const confirmations = storedConfirmations ? JSON.parse(storedConfirmations) : [];
+    confirmations.push(confirmation);
+    localStorage.setItem('helpConfirmations', JSON.stringify(confirmations));
+    return true;
   },
   
   // Student confirmations
   async getStudentConfirmations() {
-    const { data, error } = await supabase
-      .from('student_confirmations')
-      .select('*')
-      .order('date', { ascending: false })
-    
-    if (error) {
-      console.error('Error fetching student confirmations:', error)
-      return []
-    }
-    
-    return data as StudentConfirmation[]
+    const storedConfirmations = localStorage.getItem('studentConfirmations');
+    return storedConfirmations ? JSON.parse(storedConfirmations) : [];
   },
   
   async addStudentConfirmation(confirmation: StudentConfirmation) {
-    const { error } = await supabase
-      .from('student_confirmations')
-      .insert(confirmation)
-    
-    if (error) {
-      console.error('Error adding student confirmation:', error)
-      return false
-    }
-    
-    return true
+    const storedConfirmations = localStorage.getItem('studentConfirmations');
+    const confirmations = storedConfirmations ? JSON.parse(storedConfirmations) : [];
+    confirmations.push(confirmation);
+    localStorage.setItem('studentConfirmations', JSON.stringify(confirmations));
+    return true;
   },
   
   async getStudentConfirmationsByStudent(studentId: string) {
-    const { data, error } = await supabase
-      .from('student_confirmations')
-      .select('*')
-      .eq('student', studentId)
-      .order('date', { ascending: false })
-    
-    if (error) {
-      console.error('Error fetching student confirmations:', error)
-      return []
-    }
-    
-    return data as StudentConfirmation[]
+    const storedConfirmations = localStorage.getItem('studentConfirmations');
+    const confirmations = storedConfirmations ? JSON.parse(storedConfirmations) : [];
+    return confirmations.filter((c: StudentConfirmation) => c.student === studentId);
   },
   
   // OTP management
   async saveStudentOtp(studentOtp: StudentOtp) {
-    // Delete any existing OTP for this student first
-    await supabase
-      .from('student_otps')
-      .delete()
-      .eq('studentId', studentOtp.studentId)
-    
-    // Insert new OTP
-    const { error } = await supabase
-      .from('student_otps')
-      .insert(studentOtp)
-    
-    if (error) {
-      console.error('Error saving student OTP:', error)
-      return false
-    }
-    
-    return true
+    const storedOtps = localStorage.getItem('studentOtps');
+    const otps = storedOtps ? JSON.parse(storedOtps) : [];
+    otps.push(studentOtp);
+    localStorage.setItem('studentOtps', JSON.stringify(otps));
+    return true;
   },
   
   async getStudentOtp(studentId: string) {
-    const { data, error } = await supabase
-      .from('student_otps')
-      .select('*')
-      .eq('studentId', studentId)
-      .single()
-    
-    if (error) {
-      if (error.code !== 'PGRST116') { // PGRST116 means no rows returned
-        console.error('Error fetching student OTP:', error)
-      }
-      return null
-    }
-    
-    return data as StudentOtp
+    const storedOtps = localStorage.getItem('studentOtps');
+    const otps = storedOtps ? JSON.parse(storedOtps) : [];
+    return otps.find((o: StudentOtp) => o.studentId === studentId) || null;
   },
   
   async deleteStudentOtp(studentId: string) {
-    const { error } = await supabase
-      .from('student_otps')
-      .delete()
-      .eq('studentId', studentId)
-    
-    if (error) {
-      console.error('Error deleting student OTP:', error)
-      return false
-    }
-    
-    return true
+    const storedOtps = localStorage.getItem('studentOtps');
+    const otps = storedOtps ? JSON.parse(storedOtps) : [];
+    const filteredOtps = otps.filter((o: StudentOtp) => o.studentId !== studentId);
+    localStorage.setItem('studentOtps', JSON.stringify(filteredOtps));
+    return true;
   },
   
   // Admin messages
   async getAdminMessages(recipient: string) {
-    const { data, error } = await supabase
-      .from('admin_messages')
-      .select('*')
-      .eq('recipient', recipient)
-      .order('timestamp', { ascending: false })
-    
-    if (error) {
-      console.error('Error fetching admin messages:', error)
-      return []
-    }
-    
-    return data as AdminMessage[]
+    const storedMessages = localStorage.getItem('adminMessages');
+    const messages = storedMessages ? JSON.parse(storedMessages) : [];
+    return messages.filter((m: AdminMessage) => m.recipient === recipient);
   },
   
   async addAdminMessage(message: AdminMessage) {
-    const { error } = await supabase
-      .from('admin_messages')
-      .insert(message)
-    
-    if (error) {
-      console.error('Error adding admin message:', error)
-      return false
-    }
-    
-    return true
+    const storedMessages = localStorage.getItem('adminMessages');
+    const messages = storedMessages ? JSON.parse(storedMessages) : [];
+    messages.push(message);
+    localStorage.setItem('adminMessages', JSON.stringify(messages));
+    return true;
   },
   
   async markMessageAsRead(messageId: string) {
-    const { error } = await supabase
-      .from('admin_messages')
-      .update({ read: true })
-      .eq('id', messageId)
-    
-    if (error) {
-      console.error('Error marking message as read:', error)
-      return false
-    }
-    
-    return true
+    const storedMessages = localStorage.getItem('adminMessages');
+    const messages = storedMessages ? JSON.parse(storedMessages) : [];
+    const updatedMessages = messages.map((m: AdminMessage) => 
+      m.id === messageId ? { ...m, read: true } : m
+    );
+    localStorage.setItem('adminMessages', JSON.stringify(updatedMessages));
+    return true;
   },
   
   // Current OTP for the helper

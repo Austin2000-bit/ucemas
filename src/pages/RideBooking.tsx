@@ -1,193 +1,166 @@
-
 import { useState } from "react";
-import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MapPin, Clock, Navigation, X } from "lucide-react";
-import Navbar from "@/components/Navbar";
-import { useAuth } from "@/utils/auth";
+import { toast } from "@/hooks/use-toast";
+import { SystemLogs } from "@/utils/systemLogs";
+import GoogleMap from "@/components/GoogleMap";
+import DriverRides from "@/components/DriverRides";
+
+interface RideRequest {
+  id: string;
+  studentId: string;
+  pickupLocation: string;
+  destination: string;
+  status: "Pending" | "Accepted" | "Rejected" | "In Progress" | "Completed" | "Cancelled";
+  timestamp: number;
+  estimatedTime: string;
+  vehicleType: string;
+  distance?: string;
+  driverId?: string;
+  driverName?: string;
+}
 
 const RideBooking = () => {
+  const { user } = useAuth();
   const [pickupLocation, setPickupLocation] = useState("");
   const [destination, setDestination] = useState("");
-  const [isRouteSelected, setIsRouteSelected] = useState(false);
+  const [estimatedTime, setEstimatedTime] = useState("");
+  const [distance, setDistance] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [estimatedTime, setEstimatedTime] = useState("5-7");
-  const { user } = useAuth();
-  
-  // Predefined locations for the demo
-  const locations = [
-    "Berlin International Airport Terminal 1",
-    "Berlin International Airport Terminal 2",
-    "Berlin International Airport Terminal 3",
-    "Science Building",
-    "Student Center",
-    "Main Library",
-    "University Gate",
-    "Sports Complex"
-  ];
-  
+
   const handleFindDriver = () => {
     if (!pickupLocation || !destination) {
       toast({
-        title: "Missing information",
-        description: "Please select pickup and destination locations",
+        title: "Error",
+        description: "Please enter both pickup and destination locations.",
         variant: "destructive",
       });
       return;
     }
-    
-    setIsLoading(true);
-    
-    // Simulate finding a driver
-    setTimeout(() => {
-      setIsLoading(false);
-      setIsRouteSelected(true);
-      
+
+    if (!user?.id) {
       toast({
-        title: "Driver found!",
-        description: "Austin will arrive in 2 minutes with a Bajaj",
+        title: "Error",
+        description: "You must be logged in to request a ride.",
+        variant: "destructive",
       });
-    }, 2000);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const rideRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
+      console.log("Current ride requests:", rideRequests);
+
+      const newRide: RideRequest = {
+        id: Date.now().toString(),
+        studentId: user.id,
+        pickupLocation,
+        destination,
+        status: "Pending",
+        timestamp: Date.now(),
+        estimatedTime,
+        vehicleType: "Standard",
+        distance,
+      };
+
+      console.log("Creating new ride request:", newRide);
+      rideRequests.push(newRide);
+      localStorage.setItem("rideRequests", JSON.stringify(rideRequests));
+      console.log("Updated ride requests:", rideRequests);
+
+      SystemLogs.addLog(
+        "Ride requested",
+        `Student requested ride from ${pickupLocation} to ${destination}`,
+        user.id,
+        user.role
+      );
+
+      toast({
+        title: "Ride requested!",
+        description: "Your ride request has been sent to available drivers.",
+      });
+
+      setPickupLocation("");
+      setDestination("");
+      setEstimatedTime("");
+      setDistance("");
+    } catch (error) {
+      console.error("Error requesting ride:", error);
+      toast({
+        title: "Error",
+        description: "Failed to request ride. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
-  
-  const handleBookRide = () => {
-    toast({
-      title: "Ride booked successfully!",
-      description: "Your free Bajaj ride has been booked. Austin is on the way.",
-    });
-  };
-  
-  const handleCancel = () => {
-    setIsRouteSelected(false);
-    setPickupLocation("");
-    setDestination("");
-  };
-  
+
+  if (user?.role === "driver") {
+    return <DriverRides />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-      <Navbar title="Book Ride" />
-      
       <div className="container mx-auto p-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
           <div className="bg-blue-500 text-white p-4 text-center text-xl font-bold">
-            BOOK RIDE
+            BOOK A RIDE
           </div>
           
-          <div className="p-4">
-            {!isRouteSelected ? (
-              <div className="space-y-4">
-                <h2 className="font-bold text-gray-700 dark:text-gray-300 flex justify-between items-center">
-                  Your route
-                  {pickupLocation && destination && (
-                    <button onClick={handleCancel} className="text-red-500">
-                      <X size={18} />
-                    </button>
-                  )}
-                </h2>
-                
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 text-blue-500" size={18} />
-                  <Input
-                    className="pl-10"
-                    placeholder="Pickup location"
-                    value={pickupLocation}
-                    onChange={(e) => setPickupLocation(e.target.value)}
-                    list="pickup-locations"
-                  />
-                  <datalist id="pickup-locations">
-                    {locations.map((location, index) => (
-                      <option key={`pickup-${index}`} value={location} />
-                    ))}
-                  </datalist>
+          <div className="p-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Pickup Location</label>
+              <Input
+                placeholder="Enter pickup location"
+                value={pickupLocation}
+                onChange={(e) => setPickupLocation(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Destination</label>
+              <Input
+                placeholder="Enter destination"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+              />
+            </div>
+
+            <GoogleMap
+              pickupLocation={pickupLocation}
+              destination={destination}
+              onRouteCalculated={(time, dist) => {
+                setEstimatedTime(time);
+                setDistance(dist);
+              }}
+            />
+
+            {estimatedTime && (
+              <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Estimated time</span>
+                  <span className="text-sm font-bold">{estimatedTime}</span>
                 </div>
-                
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 text-red-500" size={18} />
-                  <Input
-                    className="pl-10"
-                    placeholder="Destination"
-                    value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
-                    list="destination-locations"
-                  />
-                  <datalist id="destination-locations">
-                    {locations.map((location, index) => (
-                      <option key={`dest-${index}`} value={location} />
-                    ))}
-                  </datalist>
-                </div>
-                
-                <Button 
-                  className="w-full" 
-                  onClick={handleFindDriver}
-                  disabled={!pickupLocation || !destination || isLoading}
-                >
-                  {isLoading ? "Finding driver..." : "Find driver"}
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <h2 className="font-bold text-gray-700 dark:text-gray-300">Ride details</h2>
-                
-                <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <MapPin size={18} className="text-blue-500" />
-                      <span className="text-sm font-medium">{pickupLocation}</span>
-                    </div>
+                {distance && (
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-sm font-medium">Distance</span>
+                    <span className="text-sm font-bold">{distance}</span>
                   </div>
-                  
-                  <div className="border-l-2 border-dashed border-gray-300 dark:border-gray-600 h-6 ml-[9px]"></div>
-                  
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <MapPin size={18} className="text-red-500" />
-                      <span className="text-sm font-medium">{destination}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex justify-between items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
-                  <div className="flex items-center gap-2">
-                    <Clock size={18} />
-                    <span className="text-sm font-medium">Estimated arrival time</span>
-                  </div>
-                  <span className="text-sm font-bold">{estimatedTime} min</span>
-                </div>
-                
-                <div className="flex justify-between items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
-                  <div className="flex items-center gap-2">
-                    <Navigation size={18} />
-                    <span className="text-sm font-medium">Vehicle type</span>
-                  </div>
-                  <span className="text-sm font-bold">Bajaj</span>
-                </div>
-                
-                <div className="flex justify-between items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">Cost</span>
-                  </div>
-                  <span className="text-sm font-bold text-green-500">Free</span>
-                </div>
-                
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline"
-                    className="flex-1" 
-                    onClick={handleCancel}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    className="flex-1 bg-blue-500 hover:bg-blue-600" 
-                    onClick={handleBookRide}
-                  >
-                    Book ride
-                  </Button>
-                </div>
+                )}
               </div>
             )}
+
+            <Button
+              className="w-full"
+              onClick={handleFindDriver}
+              disabled={isLoading || !pickupLocation || !destination}
+            >
+              {isLoading ? "Finding driver..." : "Find Driver"}
+            </Button>
           </div>
         </div>
       </div>

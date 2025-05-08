@@ -1,27 +1,15 @@
-
-import { useState, useEffect } from "react";
-import { LayoutDashboard, Users, HelpingHand, FileText, Car, PieChart } from "lucide-react";
-import { Link } from "react-router-dom";
-import Navbar from "@/components/Navbar";
-import AdminHelpersList from "@/components/admin/AdminHelpersList";
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "@/utils/auth";
+import { SystemLogs } from "@/utils/systemLogs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "@/hooks/use-toast";
 import {
   Table,
   TableBody,
@@ -30,7 +18,35 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { toast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Users, MessageSquare, AlertTriangle, Car, Laptop, UserCog } from "lucide-react";
+import AdminGadgetLending from "@/components/Admin/AdminGadgetLending";
+import AdminUsers from "@/components/Admin/AdminUsers";
+import AdminRideRequests from "@/components/Admin/AdminRideRequests";
+import AdminHelpersList from "@/components/Admin/AdminHelpersList";
+import Navbar from "@/components/Navbar";
+import MessageSystem from "@/components/MessageSystem";
+import HelperStudentAssignment from "@/components/Admin/HelperStudentAssignment";
+
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+}
 
 // Define complaint type
 interface Complaint {
@@ -45,7 +61,35 @@ interface Complaint {
   followUp: string;
 }
 
-const Admin = () => {
+interface SidebarItem {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  url: string;
+  id: string;
+  title: string;
+}
+
+interface DashboardData {
+  totalComplaints: number;
+  pendingComplaints: number;
+  resolvedComplaints: number;
+  totalUsers: number;
+  students: number;
+  helpers: number;
+  pendingRides: number;
+  completedRides: number;
+  totalRides: number;
+  helpConfirmations: number;
+  verifiedHelpConfirmations: number;
+  recentActivity: Array<{
+    timestamp: string;
+    action: string;
+    user: string;
+    type: string;
+  }>;
+}
+
+const Admin: React.FC = () => {
   const [activeSection, setActiveSection] = useState("dashboard");
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
@@ -56,15 +100,16 @@ const Admin = () => {
   const [messageRecipient, setMessageRecipient] = useState("");
   const [messageText, setMessageText] = useState("");
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
   
   // Navigation items for the sidebar
-  const sidebarItems = [
-    { id: "dashboard", title: "Dashboard", icon: LayoutDashboard, url: "/admin" },
-    { id: "students", title: "Manage Students", icon: Users, url: "/admin/students" },
-    { id: "helpers", title: "Manage Helpers", icon: HelpingHand, url: "/admin/helpers" },
-    { id: "complaints", title: "View complaints", icon: FileText, url: "/admin/complaints" },
-    { id: "rides", title: "Ride requests", icon: Car, url: "/admin/rides" },
-    { id: "reports", title: "Reports", icon: PieChart, url: "/admin/reports" },
+  const sidebarItems: SidebarItem[] = [
+    { icon: MessageSquare, label: "Messages", url: "messages", id: "messages", title: "Messages" },
+    { icon: AlertTriangle, label: "Complaints", url: "complaints", id: "complaints", title: "Complaints" },
+    { icon: Car, label: "Ride Requests", url: "ride-requests", id: "ride-requests", title: "Ride Requests" },
+    { icon: Laptop, label: "Gadget Lending", url: "gadgets", id: "gadgets", title: "Gadget Lending" },
+    { icon: UserCog, label: "User Management", url: "user-management", id: "user-management", title: "User Management" },
   ];
   
   // Load complaints from localStorage
@@ -74,6 +119,38 @@ const Admin = () => {
       setComplaints(storedComplaints);
     }
   }, [activeSection]);
+
+  useEffect(() => {
+    // Fetch dashboard data
+    const rawData = SystemLogs.getDashboardSummary();
+    // Transform the data to match our interface
+    const transformedData: DashboardData = {
+      totalComplaints: rawData.totalComplaints,
+      pendingComplaints: rawData.pendingComplaints,
+      resolvedComplaints: rawData.resolvedComplaints,
+      totalUsers: rawData.totalUsers,
+      students: rawData.students,
+      helpers: rawData.helpers,
+      pendingRides: rawData.pendingRides,
+      completedRides: rawData.completedRides,
+      totalRides: rawData.totalRides,
+      helpConfirmations: rawData.helpConfirmations,
+      verifiedHelpConfirmations: rawData.verifiedHelpConfirmations,
+      recentActivity: rawData.recentActivity.map(activity => ({
+        timestamp: activity.timestamp,
+        action: activity.action,
+        user: activity.userId,
+        type: activity.userRole
+      }))
+    };
+    setDashboardData(transformedData);
+  }, []);
+
+  // Load users from localStorage
+  useEffect(() => {
+    const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
+    setUsers(storedUsers);
+  }, []);
 
   // Handle opening complaint dialog
   const handleOpenComplaint = (complaint: Complaint) => {
@@ -154,52 +231,65 @@ const Admin = () => {
 
   const renderContent = () => {
     switch (activeSection) {
-      case "helpers":
-      case "students":
-        return <AdminHelpersList view={activeSection} />;
+      case "users":
+        return <AdminUsers />;
+      case "messages":
+        return (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Messages</CardTitle>
+                <CardDescription>
+                  Send messages to registered users and view conversations
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MessageSystem />
+              </CardContent>
+            </Card>
+          </div>
+        );
       case "complaints":
         return (
-          <div>
-            <div className="mb-6 flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Complaints Management</h2>
-              <Link to="/complaint/list">
-                <Button variant="outline">View Full List</Button>
-              </Link>
-            </div>
-            
-            <div className="bg-card rounded-md shadow overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-24">ID</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="w-32">Created</TableHead>
-                    <TableHead className="w-28">Status</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {complaints.length > 0 ? (
-                    complaints.map((complaint) => (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Complaints Management</CardTitle>
+                <CardDescription>
+                  View and manage user complaints
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {complaints.map((complaint) => (
                       <TableRow key={complaint.id}>
-                        <TableCell className="font-medium">{complaint.id}</TableCell>
+                        <TableCell>{complaint.id}</TableCell>
                         <TableCell>{complaint.name}</TableCell>
                         <TableCell>{complaint.issueCategory}</TableCell>
                         <TableCell>{complaint.created}</TableCell>
                         <TableCell>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            complaint.status === "Pending" ? "bg-yellow-100 text-yellow-800" :
-                            complaint.status === "Resolved" ? "bg-green-100 text-green-800" :
-                            complaint.status === "Rejected" ? "bg-red-100 text-red-800" :
-                            "bg-gray-100 text-gray-800"
-                          }`}>
+                          <Badge variant={
+                            complaint.status === "Pending" ? "secondary" :
+                            complaint.status === "Resolved" ? "default" :
+                            complaint.status === "Rejected" ? "destructive" : "outline"
+                          }>
                             {complaint.status}
-                          </span>
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handleOpenComplaint(complaint)}
                           >
@@ -207,78 +297,105 @@ const Admin = () => {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                        No complaints found.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </div>
         );
+      case "ride-requests":
+        return <AdminRideRequests />;
+      case "gadgets":
+        return <AdminGadgetLending />;
+      case "user-management":
+        return <AdminUsers />;
       case "dashboard":
       default:
         return (
-          <div>
-            <div className="mb-6 flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Quick Actions</h2>
-              <div className="flex space-x-2">
-                <Button onClick={() => handleOpenMessageDialog("john")}>
-                  Message Student
-                </Button>
-                <Button onClick={() => handleOpenMessageDialog("amanda")}>
-                  Message Helper
-                </Button>
-              </div>
-            </div>
-            
+          <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <h2 className="text-lg font-medium mb-2">Total Students</h2>
-                <p className="text-3xl font-bold">124</p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <h2 className="text-lg font-medium mb-2">Active Helpers</h2>
-                <p className="text-3xl font-bold">32</p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <h2 className="text-lg font-medium mb-2">Pending Rides</h2>
-                <p className="text-3xl font-bold">18</p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <h2 className="text-lg font-medium mb-2">Completed Rides</h2>
-                <p className="text-3xl font-bold">246</p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <h2 className="text-lg font-medium mb-2">Open Complaints</h2>
-                <p className="text-3xl font-bold">
-                  {complaints.filter(c => c.status === "Pending").length || 7}
-                </p>
-              </div>
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-                <h2 className="text-lg font-medium mb-2">User Satisfaction</h2>
-                <p className="text-3xl font-bold">94%</p>
-              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Total Students</CardTitle>
+                  <CardDescription>Active students in the system</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-3xl font-bold">{dashboardData?.students}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Active Assistants</CardTitle>
+                  <CardDescription>Currently active helpers</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-3xl font-bold">{dashboardData?.helpers}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pending Rides</CardTitle>
+                  <CardDescription>Rides waiting for assistance</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-3xl font-bold">{dashboardData?.pendingRides}</p>
+                </CardContent>
+              </Card>
             </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>Latest actions in the system</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Action</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Type</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dashboardData?.recentActivity.map((activity, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{new Date(activity.timestamp).toLocaleString()}</TableCell>
+                        <TableCell>{activity.action}</TableCell>
+                        <TableCell>{activity.user}</TableCell>
+                        <TableCell>{activity.type}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </div>
         );
     }
   };
 
+  if (!dashboardData) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
+        <Navbar title="Admin Control Center" />
+        <div className="flex-1 flex items-center justify-center">
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
       <Navbar title="Admin Control Center" />
-
       <div className="flex flex-grow">
         {/* Sidebar */}
         <div className="w-64 bg-gray-200 dark:bg-gray-800 min-h-[calc(100vh-6rem)]">
           <div className="p-4">
             <div className="flex items-center gap-2 mb-8">
-              <div className="h-4 w-4 rounded-full bg-gradient-to-r from-purple-500 to-blue-500"></div>
+              <div className="h-4 w-4 rounded-full bg-gradient-to-r from-purple-500 to-blue-500" />
               <h2 className="font-medium text-lg dark:text-white">Control center</h2>
             </div>
             
@@ -308,10 +425,23 @@ const Admin = () => {
              activeSection === "helpers" ? "Manage Helpers" :
              activeSection === "students" ? "Manage Students" :
              activeSection === "complaints" ? "View Complaints" :
-             activeSection === "rides" ? "Ride Requests" : "Reports"}
+             activeSection === "rides" ? "Ride Requests" :
+             activeSection === "gadgets" ? "Gadget Lending" :
+             activeSection === "users" ? "Users" :
+             activeSection === "messages" ? "Messages" :
+             activeSection === "user-management" ? "User Management" : "Reports"}
           </h1>
           
-          {renderContent()}
+          {activeSection === "assignments" ? (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">Assistant-Student Assignments</h2>
+              </div>
+              <HelperStudentAssignment />
+            </div>
+          ) : (
+            renderContent()
+          )}
         </div>
       </div>
 
@@ -381,31 +511,18 @@ const Admin = () => {
         </Dialog>
       )}
 
-      {/* Message Dialog */}
+      {/* Message User Dialog */}
       <Dialog open={isMessageDialogOpen} onOpenChange={setIsMessageDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-4xl h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Send Message</DialogTitle>
+            <DialogTitle>Message User</DialogTitle>
             <DialogDescription>
-              Send a message to {messageRecipient === "john" ? "Student" : "Helper"}
+              Select a user to message
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Message</label>
-              <Textarea
-                placeholder="Type your message..."
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                rows={4}
-                className="resize-none"
-              />
-            </div>
+          <div className="flex-1">
+            <MessageSystem />
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsMessageDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSendMessage}>Send Message</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
