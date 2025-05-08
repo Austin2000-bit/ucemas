@@ -43,20 +43,27 @@ const Driver = () => {
     // Load ride requests from localStorage
     const storedRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
     
-    // Ensure each item conforms to the LocalRideRequest type by explicitly casting
-    const typedRequests: LocalRideRequest[] = storedRequests.map((request: any) => ({
-      id: request.id,
-      studentName: request.studentName,
-      studentEmail: request.studentEmail,
-      pickupLocation: request.pickupLocation,
-      destination: request.destination,
-      date: request.date,
-      time: request.time,
-      // Explicitly cast the status to ensure it's one of the allowed values
-      status: (request.status as "pending" | "accepted" | "completed" | "declined") || "pending",
-      disabilityType: request.disabilityType,
-      additionalNotes: request.additionalNotes
-    }));
+    // Map and cast each request to ensure proper typing
+    const typedRequests: LocalRideRequest[] = storedRequests.map((request: any) => {
+      // First determine the correct status value
+      let validStatus: "pending" | "accepted" | "completed" | "declined" = "pending";
+      if (request.status === "accepted") validStatus = "accepted";
+      else if (request.status === "completed") validStatus = "completed"; 
+      else if (request.status === "declined") validStatus = "declined";
+      
+      return {
+        id: request.id,
+        studentName: request.studentName,
+        studentEmail: request.studentEmail,
+        pickupLocation: request.pickupLocation,
+        destination: request.destination,
+        date: request.date,
+        time: request.time,
+        status: validStatus,
+        disabilityType: request.disabilityType,
+        additionalNotes: request.additionalNotes
+      };
+    });
     
     setRideRequests(typedRequests);
   }, []);
@@ -137,19 +144,27 @@ const Driver = () => {
                 <Button variant="outline" className="w-full" onClick={() => {
                   // Refresh ride requests
                   const storedRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
-                  const typedRequests: LocalRideRequest[] = storedRequests.map((request: any) => ({
-                    id: request.id,
-                    studentName: request.studentName,
-                    studentEmail: request.studentEmail,
-                    pickupLocation: request.pickupLocation,
-                    destination: request.destination,
-                    date: request.date,
-                    time: request.time,
-                    // Explicitly cast the status to ensure it's one of the allowed values
-                    status: (request.status as "pending" | "accepted" | "completed" | "declined") || "pending",
-                    disabilityType: request.disabilityType,
-                    additionalNotes: request.additionalNotes
-                  }));
+                  // Map and cast each request to ensure proper typing
+                  const typedRequests: LocalRideRequest[] = storedRequests.map((request: any) => {
+                    // First determine the correct status value
+                    let validStatus: "pending" | "accepted" | "completed" | "declined" = "pending";
+                    if (request.status === "accepted") validStatus = "accepted";
+                    else if (request.status === "completed") validStatus = "completed"; 
+                    else if (request.status === "declined") validStatus = "declined";
+                    
+                    return {
+                      id: request.id,
+                      studentName: request.studentName,
+                      studentEmail: request.studentEmail,
+                      pickupLocation: request.pickupLocation,
+                      destination: request.destination,
+                      date: request.date,
+                      time: request.time,
+                      status: validStatus,
+                      disabilityType: request.disabilityType,
+                      additionalNotes: request.additionalNotes
+                    };
+                  });
                   setRideRequests(typedRequests);
                 }}>
                   Refresh Requests

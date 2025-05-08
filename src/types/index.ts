@@ -1,4 +1,5 @@
 
+
 export interface User {
   id: string;
   email: string;
@@ -96,3 +97,4 @@ export interface GadgetLoan {
   dateReturned?: string;
   status: 'active' | 'returned';
 }
+
