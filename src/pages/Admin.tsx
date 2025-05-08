@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
@@ -31,6 +32,7 @@ import {
 import { useAuth } from "@/utils/auth";
 import { supabase, User, UserRole } from "@/lib/supabase";
 import AdminGadgetLending from "@/components/Admin/AdminGadgetLending";
+import MessageSystem from "@/components/Messaging/MessageSystem";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -924,11 +926,9 @@ const Admin = () => {
               <div className="flex justify-end space-x-2 mt-4">
                 <Button variant="secondary" onClick={() => setSelectedComplaint(null)}>Cancel</Button>
                 {selectedComplaint.status !== 'resolved' ? (
-                  <>
-                    <Button onClick={handleResolveComplaint} disabled={isResolvingComplaint}>
-                      {isResolvingComplaint ? "Resolving..." : "Resolve Complaint"}
-                    </Button>
-                  </>
+                  <Button onClick={handleResolveComplaint} disabled={isResolvingComplaint}>
+                    {isResolvingComplaint ? "Resolving..." : "Resolve Complaint"}
+                  </Button>
                 ) : (
                   <Button onClick={handleReopenComplaint} disabled={isReopeningComplaint}>
                     {isReopeningComplaint ? "Reopening..." : "Reopen Complaint"}
@@ -968,4 +968,18 @@ const Admin = () => {
         {isDeletingAttachment && attachmentToDelete && (
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center">
             <div className="bg-white dark:bg-gray-800 rounded-lg p-8">
-              <h2 className="text-xl font-semibold mb-4">Delete
+              <h2 className="text-xl font-semibold mb-4">Delete Attachment</h2>
+              <p>Are you sure you want to delete this attachment?</p>
+              <div className="flex justify-end space-x-2 mt-4">
+                <Button variant="secondary" onClick={handleCancelDeleteAttachment}>Cancel</Button>
+                <Button variant="destructive" onClick={handleConfirmDeleteAttachment}>Delete Attachment</Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Admin;
