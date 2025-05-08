@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
   isLoading: boolean;
+  signOut?: () => Promise<void>; // Add signOut as alias for logout
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -73,8 +74,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(null);
   };
 
+  const contextValue: AuthContextType = {
+    user,
+    login,
+    logout,
+    isLoading,
+    signOut: logout, // Add signOut as alias for logout
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

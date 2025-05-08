@@ -1,3 +1,4 @@
+
 import { SystemLogs } from "@/utils/systemLogs";
 
 export interface RideRequest {
@@ -5,13 +6,20 @@ export interface RideRequest {
   studentId: string;
   pickupLocation: string;
   destination: string;
-  status: "Pending" | "Accepted" | "Rejected" | "In Progress" | "Completed" | "Cancelled";
+  status: "pending" | "accepted" | "rejected" | "in progress" | "completed" | "cancelled";
   timestamp: number;
   estimatedTime: string;
   vehicleType: string;
   distance?: string;
   driverId?: string;
   driverName?: string;
+  // Additional fields from localStorage
+  studentName?: string;
+  studentEmail?: string;
+  date?: string;
+  time?: string;
+  disabilityType?: string;
+  additionalNotes?: string;
 }
 
 class RideService {
@@ -52,7 +60,7 @@ class RideService {
       ...ride,
       id: Date.now().toString(),
       timestamp: Date.now(),
-      status: "Pending"
+      status: "pending"
     };
 
     this.rideRequests.push(newRide);
@@ -61,7 +69,7 @@ class RideService {
   }
 
   public getPendingRides(): RideRequest[] {
-    return this.rideRequests.filter(ride => ride.status === "Pending");
+    return this.rideRequests.filter(ride => ride.status === "pending");
   }
 
   public getDriverRides(driverId: string): RideRequest[] {
@@ -74,7 +82,7 @@ class RideService {
 
     this.rideRequests[rideIndex] = {
       ...this.rideRequests[rideIndex],
-      status: "Accepted",
+      status: "accepted",
       driverId,
       driverName
     };
@@ -89,7 +97,7 @@ class RideService {
 
     this.rideRequests[rideIndex] = {
       ...this.rideRequests[rideIndex],
-      status: "Rejected",
+      status: "rejected",
       driverId,
       driverName
     };
@@ -100,8 +108,8 @@ class RideService {
 
   public getRideStats(driverId: string) {
     const driverRides = this.getDriverRides(driverId);
-    const completedRides = driverRides.filter(ride => ride.status === "Completed").length;
-    const rejectedRides = driverRides.filter(ride => ride.status === "Rejected").length;
+    const completedRides = driverRides.filter(ride => ride.status === "completed").length;
+    const rejectedRides = driverRides.filter(ride => ride.status === "rejected").length;
     const totalRides = driverRides.length;
 
     return {
