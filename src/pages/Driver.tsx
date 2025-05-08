@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
@@ -20,9 +19,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
-import { RideRequest } from "@/services/rideService";
 
-interface DriverRideRequest {
+interface RideRequest {
   id: string;
   studentName: string;
   studentEmail: string;
@@ -37,19 +35,12 @@ interface DriverRideRequest {
 
 const Driver = () => {
   const { user } = useAuth();
-  const [rideRequests, setRideRequests] = useState<DriverRideRequest[]>([]);
+  const [rideRequests, setRideRequests] = useState<RideRequest[]>([]);
 
   useEffect(() => {
     // Load ride requests from localStorage
     const storedRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
-    // Ensure each request has the correct status type
-    const typedRequests = storedRequests.map((req: any) => ({
-      ...req,
-      status: req.status === "pending" ? "pending" :
-              req.status === "accepted" ? "accepted" :
-              req.status === "completed" ? "completed" : "declined"
-    })) as DriverRideRequest[];
-    setRideRequests(typedRequests);
+    setRideRequests(storedRequests);
   }, []);
 
   const handleRideAction = (requestId: string, action: "accept" | "decline" | "complete") => {
@@ -86,7 +77,7 @@ const Driver = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <p><span className="font-medium">Name:</span> {user ? `${user.first_name} ${user.last_name}` : 'Loading...'}</p>
+                <p><span className="font-medium">Name:</span> {user?.name}</p>
                 <p><span className="font-medium">Email:</span> {user?.email}</p>
                 <p><span className="font-medium">Role:</span> Driver</p>
               </div>
@@ -128,13 +119,7 @@ const Driver = () => {
                 <Button variant="outline" className="w-full" onClick={() => {
                   // Refresh ride requests
                   const storedRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
-                  const typedRequests = storedRequests.map((req: any) => ({
-                    ...req,
-                    status: req.status === "pending" ? "pending" :
-                            req.status === "accepted" ? "accepted" :
-                            req.status === "completed" ? "completed" : "declined"
-                  })) as RideRequest[];
-                  setRideRequests(typedRequests);
+                  setRideRequests(storedRequests);
                 }}>
                   Refresh Requests
                 </Button>
@@ -188,7 +173,7 @@ const Driver = () => {
                               variant={
                                 request.status === "accepted" ? "default" :
                                 request.status === "pending" ? "secondary" :
-                                request.status === "completed" ? "outline" :
+                                request.status === "completed" ? "success" :
                                 "destructive"
                               }
                             >
@@ -216,7 +201,7 @@ const Driver = () => {
                             {request.status === "accepted" && (
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="success"
                                 onClick={() => handleRideAction(request.id, "complete")}
                               >
                                 Complete
@@ -243,4 +228,4 @@ const Driver = () => {
   );
 };
 
-export default Driver;
+export default Driver; 

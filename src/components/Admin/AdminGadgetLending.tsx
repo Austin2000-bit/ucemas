@@ -107,16 +107,15 @@ const AdminGadgetLending = () => {
   };
 
   const handleReturn = (id: string) => {
-    const updatedLoans = loans.map(loan => {
-      if (loan.id === id) {
-        return { 
-          ...loan, 
-          status: "returned" as const,
-          dateReturned: new Date().toISOString()
-        };
-      }
-      return loan;
-    });
+    const updatedLoans = loans.map(loan => 
+      loan.id === id 
+        ? { 
+            ...loan, 
+            status: "returned",
+            dateReturned: new Date().toISOString()
+          } 
+        : loan
+    );
     
     localStorage.setItem("gadgetLoans", JSON.stringify(updatedLoans));
     setLoans(updatedLoans);
@@ -324,4 +323,4 @@ const AdminGadgetLending = () => {
   );
 };
 
-export default AdminGadgetLending;
+export default AdminGadgetLending; 

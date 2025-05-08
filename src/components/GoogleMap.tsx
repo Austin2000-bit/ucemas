@@ -1,13 +1,5 @@
-
 import { useEffect, useRef, useState } from 'react';
 import { Loader } from '@googlemaps/js-api-loader';
-
-// Define Google Maps types
-declare global {
-  interface Window {
-    google: any;
-  }
-}
 
 interface GoogleMapProps {
   pickupLocation: string;
@@ -17,9 +9,9 @@ interface GoogleMapProps {
 
 const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [map, setMap] = useState<any | null>(null);
-  const [directionsService, setDirectionsService] = useState<any | null>(null);
-  const [directionsRenderer, setDirectionsRenderer] = useState<any | null>(null);
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService | null>(null);
+  const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,7 +29,7 @@ const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMap
 
         if (mapRef.current) {
           console.log('Creating map instance...');
-          const initialMap = new window.google.maps.Map(mapRef.current, {
+          const initialMap = new google.maps.Map(mapRef.current, {
             center: { lat: -6.3690, lng: 34.8888 }, // Tanzania coordinates
             zoom: 6, // Zoom out to show more of Tanzania
             styles: [
@@ -49,8 +41,8 @@ const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMap
             ]
           });
 
-          const directionsServiceInstance = new window.google.maps.DirectionsService();
-          const directionsRendererInstance = new window.google.maps.DirectionsRenderer({
+          const directionsServiceInstance = new google.maps.DirectionsService();
+          const directionsRendererInstance = new google.maps.DirectionsRenderer({
             map: initialMap,
             suppressMarkers: true
           });
@@ -75,30 +67,28 @@ const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMap
   useEffect(() => {
     if (directionsService && directionsRenderer && pickupLocation && destination) {
       console.log('Calculating route...', { pickupLocation, destination });
-      const request: any = {
+      const request: google.maps.DirectionsRequest = {
         origin: pickupLocation,
         destination: destination,
-        travelMode: window.google.maps.TravelMode.DRIVING
+        travelMode: google.maps.TravelMode.DRIVING
       };
 
-      directionsService.route(request, (result: any, status: any) => {
+      directionsService.route(request, (result, status) => {
         console.log('Route calculation status:', status);
-        if (status === window.google.maps.DirectionsStatus.OK && result) {
+        if (status === google.maps.DirectionsStatus.OK && result) {
           console.log('Route calculated successfully');
           directionsRenderer.setDirections(result);
           
           // Calculate and format duration
           const duration = result.routes[0].legs[0].duration?.text || '5-7';
-          if (onRouteCalculated) {
-            onRouteCalculated(duration);
-          }
+          onRouteCalculated?.(duration);
         } else {
           console.error('Failed to calculate route:', status);
           setError('Failed to calculate route');
         }
       });
     }
-  }, [pickupLocation, destination, directionsService, directionsRenderer, onRouteCalculated]);
+  }, [pickupLocation, destination, directionsService, directionsRenderer]);
 
   if (error) {
     return (
@@ -116,4 +106,4 @@ const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMap
   );
 };
 
-export default GoogleMap;
+export default GoogleMap; 

@@ -1,236 +1,166 @@
 import { useState } from "react";
+import { useAuth } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import Navbar from "@/components/Navbar";
+import { SystemLogs } from "@/utils/systemLogs";
 import GoogleMap from "@/components/GoogleMap";
-import { useAuth } from "@/utils/auth";
-import { v4 as uuidv4 } from "uuid";
-import { rideService } from "@/services/rideService";
+import DriverRides from "@/components/DriverRides";
 
-// Define types for form data
-interface RideFormData {
+interface RideRequest {
+  id: string;
+  studentId: string;
   pickupLocation: string;
   destination: string;
-  date: string;
-  time: string;
-  disabilityType: string;
-  additionalNotes: string;
+  status: "Pending" | "Accepted" | "Rejected" | "In Progress" | "Completed" | "Cancelled";
+  timestamp: number;
+  estimatedTime: string;
+  vehicleType: string;
+  distance?: string;
+  driverId?: string;
+  driverName?: string;
 }
 
 const RideBooking = () => {
-  const [estimatedTime, setEstimatedTime] = useState<string | null>(null);
-  const [formData, setFormData] = useState<RideFormData>({
-    pickupLocation: "",
-    destination: "",
-    date: "",
-    time: "",
-    disabilityType: "",
-    additionalNotes: "",
-  });
-  
   const { user } = useAuth();
+  const [pickupLocation, setPickupLocation] = useState("");
+  const [destination, setDestination] = useState("");
+  const [estimatedTime, setEstimatedTime] = useState("");
+  const [distance, setDistance] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSelectChange = (value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      disabilityType: value,
-    }));
-  };
-
-  const onRouteCalculated = (duration: string) => {
-    console.log("Route duration:", duration);
-    setEstimatedTime(duration);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validate form
-    if (!formData.pickupLocation || !formData.destination || !formData.date || 
-        !formData.time || !formData.disabilityType) {
+  const handleFindDriver = () => {
+    if (!pickupLocation || !destination) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
+        title: "Error",
+        description: "Please enter both pickup and destination locations.",
         variant: "destructive",
       });
       return;
     }
 
-    try {
-      // Use the rideService to create a new ride request
-      const rideRequest = rideService.createRideRequest({
-        studentId: user?.id || "guest",
-        pickupLocation: formData.pickupLocation,
-        destination: formData.destination,
-        estimatedTime: estimatedTime || "5-10 minutes",
-        vehicleType: "standard",
-        studentName: user ? `${user.first_name} ${user.last_name}` : "Guest User",
-        studentEmail: user?.email || "guest@example.com",
-        date: formData.date,
-        time: formData.time,
-        disabilityType: formData.disabilityType,
-        additionalNotes: formData.additionalNotes
-      });
-      
-      // Show success message
-      toast({
-        title: "Ride Requested",
-        description: "Your ride request has been submitted successfully!",
-      });
-      
-      // Reset form
-      setFormData({
-        pickupLocation: "",
-        destination: "",
-        date: "",
-        time: "",
-        disabilityType: "",
-        additionalNotes: "",
-      });
-      setEstimatedTime(null);
-      
-    } catch (error) {
-      console.error("Error submitting ride request:", error);
+    if (!user?.id) {
       toast({
         title: "Error",
-        description: "There was an error submitting your request. Please try again.",
+        description: "You must be logged in to request a ride.",
         variant: "destructive",
       });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const rideRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
+      console.log("Current ride requests:", rideRequests);
+
+      const newRide: RideRequest = {
+        id: Date.now().toString(),
+        studentId: user.id,
+        pickupLocation,
+        destination,
+        status: "Pending",
+        timestamp: Date.now(),
+        estimatedTime,
+        vehicleType: "Standard",
+        distance,
+      };
+
+      console.log("Creating new ride request:", newRide);
+      rideRequests.push(newRide);
+      localStorage.setItem("rideRequests", JSON.stringify(rideRequests));
+      console.log("Updated ride requests:", rideRequests);
+
+      SystemLogs.addLog(
+        "Ride requested",
+        `Student requested ride from ${pickupLocation} to ${destination}`,
+        user.id,
+        user.role
+      );
+
+      toast({
+        title: "Ride requested!",
+        description: "Your ride request has been sent to available drivers.",
+      });
+
+      setPickupLocation("");
+      setDestination("");
+      setEstimatedTime("");
+      setDistance("");
+    } catch (error) {
+      console.error("Error requesting ride:", error);
+      toast({
+        title: "Error",
+        description: "Failed to request ride. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  if (user?.role === "driver") {
+    return <DriverRides />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-      <Navbar title="Book a Ride" />
-      
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h1 className="text-2xl font-bold mb-6">Book Assistive Transportation</h1>
-            
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label htmlFor="pickupLocation">Pickup Location</Label>
-                  <Input
-                    id="pickupLocation"
-                    name="pickupLocation"
-                    value={formData.pickupLocation}
-                    onChange={handleInputChange}
-                    placeholder="Enter pickup location"
-                    required
-                  />
+      <div className="container mx-auto p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+          <div className="bg-blue-500 text-white p-4 text-center text-xl font-bold">
+            BOOK A RIDE
+          </div>
+          
+          <div className="p-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Pickup Location</label>
+              <Input
+                placeholder="Enter pickup location"
+                value={pickupLocation}
+                onChange={(e) => setPickupLocation(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Destination</label>
+              <Input
+                placeholder="Enter destination"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+              />
+            </div>
+
+            <GoogleMap
+              pickupLocation={pickupLocation}
+              destination={destination}
+              onRouteCalculated={(time, dist) => {
+                setEstimatedTime(time);
+                setDistance(dist);
+              }}
+            />
+
+            {estimatedTime && (
+              <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Estimated time</span>
+                  <span className="text-sm font-bold">{estimatedTime}</span>
                 </div>
-                
-                <div>
-                  <Label htmlFor="destination">Destination</Label>
-                  <Input
-                    id="destination"
-                    name="destination"
-                    value={formData.destination}
-                    onChange={handleInputChange}
-                    placeholder="Enter destination"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="date">Date</Label>
-                  <Input
-                    id="date"
-                    name="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={handleInputChange}
-                    min={new Date().toISOString().split("T")[0]}
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="time">Time</Label>
-                  <Input
-                    id="time"
-                    name="time"
-                    type="time"
-                    value={formData.time}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="disabilityType">Type of Disability</Label>
-                  <Select
-                    value={formData.disabilityType}
-                    onValueChange={handleSelectChange}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select disability type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mobility">Mobility Impairment</SelectItem>
-                      <SelectItem value="visual">Visual Impairment</SelectItem>
-                      <SelectItem value="hearing">Hearing Impairment</SelectItem>
-                      <SelectItem value="cognitive">Cognitive Disability</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {distance && (
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-sm font-medium">Distance</span>
+                    <span className="text-sm font-bold">{distance}</span>
+                  </div>
+                )}
               </div>
-              
-              <div>
-                <Label htmlFor="additionalNotes">Additional Notes</Label>
-                <Textarea
-                  id="additionalNotes"
-                  name="additionalNotes"
-                  value={formData.additionalNotes}
-                  onChange={handleInputChange}
-                  placeholder="Any special requirements or information"
-                  rows={3}
-                />
-              </div>
-              
-              {formData.pickupLocation && formData.destination && (
-                <div className="space-y-4">
-                  <h2 className="text-lg font-semibold">Route Preview</h2>
-                  <GoogleMap
-                    pickupLocation={formData.pickupLocation}
-                    destination={formData.destination}
-                    onRouteCalculated={onRouteCalculated}
-                  />
-                  
-                  {estimatedTime && (
-                    <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-md">
-                      <p className="text-sm font-medium">
-                        Estimated travel time: <span className="text-blue-600 dark:text-blue-400">{estimatedTime}</span>
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              <Button type="submit" className="w-full">Book Ride</Button>
-            </form>
+            )}
+
+            <Button
+              className="w-full"
+              onClick={handleFindDriver}
+              disabled={isLoading || !pickupLocation || !destination}
+            >
+              {isLoading ? "Finding driver..." : "Find Driver"}
+            </Button>
           </div>
         </div>
       </div>
@@ -239,3 +169,4 @@ const RideBooking = () => {
 };
 
 export default RideBooking;
+
