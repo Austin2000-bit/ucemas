@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/utils/auth";
@@ -31,34 +32,22 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, MessageSquare, AlertTriangle, Car, Laptop, UserCog } from "lucide-react";
+import { AlertTriangle, Car, Laptop, UserCog } from "lucide-react";
 import AdminGadgetLending from "@/components/Admin/AdminGadgetLending";
 import AdminUsers from "@/components/Admin/AdminUsers";
 import AdminRideRequests from "@/components/Admin/AdminRideRequests";
 import AdminHelpersList from "@/components/Admin/AdminHelpersList";
 import Navbar from "@/components/Navbar";
-import MessageSystem from "@/components/MessageSystem";
 import HelperStudentAssignment from "@/components/Admin/HelperStudentAssignment";
+import { supabase } from "@/lib/supabase";
+import { Complaint } from "@/types";
 
 interface User {
   id: string;
+  first_name: string;
+  last_name: string;
   email: string;
-  firstName: string;
-  lastName: string;
   role: string;
-}
-
-// Define complaint type
-interface Complaint {
-  id: string;
-  name: string;
-  email: string;
-  issueCategory: string;
-  description: string;
-  created: string;
-  status: string;
-  feedback: string;
-  followUp: string;
 }
 
 interface SidebarItem {
@@ -96,28 +85,63 @@ const Admin: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [followUp, setFollowUp] = useState("");
-  const [status, setStatus] = useState("");
-  const [messageRecipient, setMessageRecipient] = useState("");
-  const [messageText, setMessageText] = useState("");
-  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [status, setStatus] = useState<"pending" | "in_progress" | "resolved">("pending");
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  const [complaintUsers, setComplaintUsers] = useState<Record<string, User>>({});
   
-  // Navigation items for the sidebar
+  // Navigation items for the sidebar - removed Messages
   const sidebarItems: SidebarItem[] = [
-    { icon: MessageSquare, label: "Messages", url: "messages", id: "messages", title: "Messages" },
     { icon: AlertTriangle, label: "Complaints", url: "complaints", id: "complaints", title: "Complaints" },
     { icon: Car, label: "Ride Requests", url: "ride-requests", id: "ride-requests", title: "Ride Requests" },
     { icon: Laptop, label: "Gadget Lending", url: "gadgets", id: "gadgets", title: "Gadget Lending" },
     { icon: UserCog, label: "User Management", url: "user-management", id: "user-management", title: "User Management" },
   ];
   
-  // Load complaints from localStorage
+  // Load complaints from database
   useEffect(() => {
-    if (activeSection === "complaints") {
-      const storedComplaints = JSON.parse(localStorage.getItem("complaints") || "[]");
-      setComplaints(storedComplaints);
-    }
+    const fetchComplaints = async () => {
+      if (activeSection === "complaints") {
+        try {
+          const { data, error } = await supabase
+            .from('complaints')
+            .select('*');
+
+          if (error) {
+            console.error("Error fetching complaints:", error);
+            return;
+          }
+
+          setComplaints(data || []);
+          
+          // Fetch users for the complaints
+          if (data && data.length > 0) {
+            const userIds = [...new Set(data.map(c => c.user_id))];
+            const { data: userData, error: userError } = await supabase
+              .from('users')
+              .select('*')
+              .in('id', userIds);
+              
+            if (userError) {
+              console.error("Error fetching users:", userError);
+              return;
+            }
+            
+            // Create a map of user_id to user
+            const userMap: Record<string, User> = {};
+            userData?.forEach(user => {
+              userMap[user.id] = user;
+            });
+            
+            setComplaintUsers(userMap);
+          }
+        } catch (error) {
+          console.error("Error:", error);
+        }
+      }
+    };
+    
+    fetchComplaints();
   }, [activeSection]);
 
   useEffect(() => {
@@ -146,10 +170,22 @@ const Admin: React.FC = () => {
     setDashboardData(transformedData);
   }, []);
 
-  // Load users from localStorage
+  // Load users
   useEffect(() => {
-    const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-    setUsers(storedUsers);
+    const fetchUsers = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*');
+        
+      if (error) {
+        console.error("Error fetching users:", error);
+        return;
+      }
+      
+      setUsers(data || []);
+    };
+    
+    fetchUsers();
   }, []);
 
   // Handle opening complaint dialog
@@ -157,98 +193,60 @@ const Admin: React.FC = () => {
     setSelectedComplaint(complaint);
     setFeedback(complaint.feedback || "");
     setFollowUp(complaint.followUp || "");
-    setStatus(complaint.status || "Pending");
+    setStatus(complaint.status);
     setIsDialogOpen(true);
   };
 
   // Handle saving complaint updates
-  const handleSaveComplaint = () => {
+  const handleSaveComplaint = async () => {
     if (!selectedComplaint) return;
 
-    const updatedComplaints = complaints.map(complaint => 
-      complaint.id === selectedComplaint.id 
-        ? { 
-            ...complaint, 
-            status, 
-            feedback, 
-            followUp 
-          } 
-        : complaint
-    );
+    try {
+      const { error } = await supabase
+        .from('complaints')
+        .update({ 
+          status,
+          feedback,
+          followUp
+        })
+        .eq('id', selectedComplaint.id);
 
-    localStorage.setItem("complaints", JSON.stringify(updatedComplaints));
-    setComplaints(updatedComplaints);
-    setIsDialogOpen(false);
-    
-    toast({
-      title: "Complaint updated",
-      description: `Complaint ${selectedComplaint.id} has been updated.`,
-    });
-  };
+      if (error) {
+        console.error("Error updating complaint:", error);
+        throw new Error("Failed to update complaint");
+      }
 
-  // Handle opening message dialog
-  const handleOpenMessageDialog = (recipient: string) => {
-    setMessageRecipient(recipient);
-    setMessageText("");
-    setIsMessageDialogOpen(true);
-  };
-
-  // Handle sending message
-  const handleSendMessage = () => {
-    if (!messageText.trim()) {
+      setComplaints(complaints.map(complaint => 
+        complaint.id === selectedComplaint.id 
+          ? { 
+              ...complaint, 
+              status, 
+              feedback, 
+              followUp 
+            } 
+          : complaint
+      ));
+      
+      setIsDialogOpen(false);
+      
       toast({
-        title: "Message required",
-        description: "Please enter a message to send.",
+        title: "Complaint updated",
+        description: `Complaint has been updated.`,
+      });
+    } catch (error) {
+      console.error("Error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update complaint. Please try again.",
         variant: "destructive",
       });
-      return;
     }
-
-    // Get existing messages or initialize new array
-    const existingMessages = JSON.parse(localStorage.getItem("adminMessages") || "{}");
-    
-    // Add message to recipient's array
-    if (!existingMessages[messageRecipient]) {
-      existingMessages[messageRecipient] = [];
-    }
-    
-    existingMessages[messageRecipient].push({
-      id: Date.now(),
-      text: messageText,
-      timestamp: new Date().toISOString(),
-      read: false,
-    });
-    
-    localStorage.setItem("adminMessages", JSON.stringify(existingMessages));
-    
-    toast({
-      title: "Message sent",
-      description: `Message has been sent to ${messageRecipient}.`,
-    });
-    
-    setIsMessageDialogOpen(false);
   };
 
   const renderContent = () => {
     switch (activeSection) {
       case "users":
         return <AdminUsers />;
-      case "messages":
-        return (
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Messages</CardTitle>
-                <CardDescription>
-                  Send messages to registered users and view conversations
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <MessageSystem />
-              </CardContent>
-            </Card>
-          </div>
-        );
       case "complaints":
         return (
           <div className="space-y-4">
@@ -264,7 +262,7 @@ const Admin: React.FC = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>ID</TableHead>
-                      <TableHead>Name</TableHead>
+                      <TableHead>Submitted By</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead>Status</TableHead>
@@ -272,32 +270,47 @@ const Admin: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {complaints.map((complaint) => (
-                      <TableRow key={complaint.id}>
-                        <TableCell>{complaint.id}</TableCell>
-                        <TableCell>{complaint.name}</TableCell>
-                        <TableCell>{complaint.issueCategory}</TableCell>
-                        <TableCell>{complaint.created}</TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            complaint.status === "Pending" ? "secondary" :
-                            complaint.status === "Resolved" ? "default" :
-                            complaint.status === "Rejected" ? "destructive" : "outline"
-                          }>
-                            {complaint.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenComplaint(complaint)}
-                          >
-                            Review
-                          </Button>
+                    {complaints.map((complaint) => {
+                      const user = complaintUsers[complaint.user_id];
+                      return (
+                        <TableRow key={complaint.id}>
+                          <TableCell>{complaint.id}</TableCell>
+                          <TableCell>
+                            {user ? `${user.first_name} ${user.last_name}` : complaint.user_id}
+                            <div className="text-xs text-muted-foreground">
+                              {user?.email || ''}
+                            </div>
+                          </TableCell>
+                          <TableCell>{complaint.title}</TableCell>
+                          <TableCell>{complaint.created_at ? new Date(complaint.created_at).toLocaleDateString() : '-'}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              complaint.status === "pending" ? "secondary" :
+                              complaint.status === "resolved" ? "default" :
+                              complaint.status === "in_progress" ? "outline" : "outline"
+                            }>
+                              {complaint.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenComplaint(complaint)}
+                            >
+                              Review
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {complaints.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          No complaints found.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -400,6 +413,30 @@ const Admin: React.FC = () => {
             </div>
             
             <nav className="space-y-1">
+              <button 
+                key="dashboard" 
+                onClick={() => setActiveSection("dashboard")}
+                className={`flex items-center gap-3 px-4 py-2.5 w-full text-left rounded-md transition-colors
+                  ${activeSection === "dashboard" 
+                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" 
+                    : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/30"}`
+                }
+              >
+                <UserCog className="h-5 w-5" />
+                <span>Dashboard</span>
+              </button>
+              <button 
+                key="assignments" 
+                onClick={() => setActiveSection("assignments")}
+                className={`flex items-center gap-3 px-4 py-2.5 w-full text-left rounded-md transition-colors
+                  ${activeSection === "assignments" 
+                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" 
+                    : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/30"}`
+                }
+              >
+                <UserCog className="h-5 w-5" />
+                <span>Student Assignments</span>
+              </button>
               {sidebarItems.map((item) => (
                 <button 
                   key={item.id} 
@@ -425,18 +462,16 @@ const Admin: React.FC = () => {
              activeSection === "helpers" ? "Manage Helpers" :
              activeSection === "students" ? "Manage Students" :
              activeSection === "complaints" ? "View Complaints" :
-             activeSection === "rides" ? "Ride Requests" :
+             activeSection === "ride-requests" ? "Ride Requests" :
              activeSection === "gadgets" ? "Gadget Lending" :
              activeSection === "users" ? "Users" :
              activeSection === "messages" ? "Messages" :
-             activeSection === "user-management" ? "User Management" : "Reports"}
+             activeSection === "user-management" ? "User Management" : 
+             activeSection === "assignments" ? "Student Assignments" : "Reports"}
           </h1>
           
           {activeSection === "assignments" ? (
             <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">Assistant-Student Assignments</h2>
-              </div>
               <HelperStudentAssignment />
             </div>
           ) : (
@@ -452,17 +487,23 @@ const Admin: React.FC = () => {
             <DialogHeader>
               <DialogTitle>Review Complaint</DialogTitle>
               <DialogDescription>
-                ID: {selectedComplaint.id} • {selectedComplaint.created}
+                ID: {selectedComplaint.id} • {selectedComplaint.created_at ? new Date(selectedComplaint.created_at).toLocaleDateString() : '-'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
                 <p className="text-sm font-medium mb-1">Submitted By</p>
-                <p className="text-sm">{selectedComplaint.name} ({selectedComplaint.email})</p>
+                <p className="text-sm">
+                  {complaintUsers[selectedComplaint.user_id] ? 
+                    `${complaintUsers[selectedComplaint.user_id].first_name} ${complaintUsers[selectedComplaint.user_id].last_name}` : 
+                    selectedComplaint.user_id}
+                    {complaintUsers[selectedComplaint.user_id]?.email && 
+                      ` (${complaintUsers[selectedComplaint.user_id].email})`}
+                </p>
               </div>
               <div>
                 <p className="text-sm font-medium mb-1">Category</p>
-                <p className="text-sm">{selectedComplaint.issueCategory}</p>
+                <p className="text-sm">{selectedComplaint.title}</p>
               </div>
               <div>
                 <p className="text-sm font-medium mb-1">Description</p>
@@ -470,15 +511,14 @@ const Admin: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Status</label>
-                <Select value={status} onValueChange={setStatus}>
+                <Select value={status} onValueChange={(value: "pending" | "in_progress" | "resolved") => setStatus(value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Pending">Pending</SelectItem>
-                    <SelectItem value="In Progress">In Progress</SelectItem>
-                    <SelectItem value="Resolved">Resolved</SelectItem>
-                    <SelectItem value="Rejected">Rejected</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="resolved">Resolved</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -510,21 +550,6 @@ const Admin: React.FC = () => {
           </DialogContent>
         </Dialog>
       )}
-
-      {/* Message User Dialog */}
-      <Dialog open={isMessageDialogOpen} onOpenChange={setIsMessageDialogOpen}>
-        <DialogContent className="max-w-4xl h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>Message User</DialogTitle>
-            <DialogDescription>
-              Select a user to message
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1">
-            <MessageSystem />
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

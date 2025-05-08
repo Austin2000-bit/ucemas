@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
@@ -6,20 +7,9 @@ import { toast } from "@/hooks/use-toast";
 import { SystemLogs } from "@/utils/systemLogs";
 import GoogleMap from "@/components/GoogleMap";
 import DriverRides from "@/components/DriverRides";
-
-interface RideRequest {
-  id: string;
-  studentId: string;
-  pickupLocation: string;
-  destination: string;
-  status: "Pending" | "Accepted" | "Rejected" | "In Progress" | "Completed" | "Cancelled";
-  timestamp: number;
-  estimatedTime: string;
-  vehicleType: string;
-  distance?: string;
-  driverId?: string;
-  driverName?: string;
-}
+import { supabase } from "@/lib/supabase";
+import { RideRequest } from "@/types";
+import Navbar from "@/components/Navbar";
 
 const RideBooking = () => {
   const { user } = useAuth();
@@ -29,7 +19,7 @@ const RideBooking = () => {
   const [distance, setDistance] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleFindDriver = () => {
+  const handleFindDriver = async () => {
     if (!pickupLocation || !destination) {
       toast({
         title: "Error",
@@ -51,25 +41,25 @@ const RideBooking = () => {
     setIsLoading(true);
 
     try {
-      const rideRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
-      console.log("Current ride requests:", rideRequests);
-
-      const newRide: RideRequest = {
-        id: Date.now().toString(),
-        studentId: user.id,
-        pickupLocation,
-        destination,
-        status: "Pending",
-        timestamp: Date.now(),
-        estimatedTime,
-        vehicleType: "Standard",
-        distance,
+      const newRide = {
+        student_id: user.id,
+        pickup_location: pickupLocation,
+        destination: destination,
+        status: 'pending' as const,
+        estimated_time: estimatedTime,
+        distance: distance
       };
 
-      console.log("Creating new ride request:", newRide);
-      rideRequests.push(newRide);
-      localStorage.setItem("rideRequests", JSON.stringify(rideRequests));
-      console.log("Updated ride requests:", rideRequests);
+      const { data, error } = await supabase
+        .from('ride_requests')
+        .insert([newRide])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error creating ride request:", error);
+        throw new Error("Failed to create ride request");
+      }
 
       SystemLogs.addLog(
         "Ride requested",
@@ -105,6 +95,7 @@ const RideBooking = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+      <Navbar title="Book a Ride" />
       <div className="container mx-auto p-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
           <div className="bg-blue-500 text-white p-4 text-center text-xl font-bold">
@@ -169,4 +160,3 @@ const RideBooking = () => {
 };
 
 export default RideBooking;
-

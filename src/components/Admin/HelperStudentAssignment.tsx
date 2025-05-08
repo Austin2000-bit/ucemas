@@ -1,5 +1,7 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { HelperStudentAssignment as Assignment } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,21 +25,10 @@ interface User {
   assistant_specialization?: string;
 }
 
-interface Assignment {
-  id: string;
-  student_id: string;
-  helper_id: string;
-  status: string;
-  created_at: string;
-  academic_year: string;
-  student?: User;
-  helper?: User;
-}
-
 const HelperStudentAssignment = () => {
   const [students, setStudents] = useState<User[]>([]);
   const [helpers, setHelpers] = useState<User[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [assignments, setAssignments] = useState<(Assignment & { student?: User; helper?: User })[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<string>("");
   const [selectedHelper, setSelectedHelper] = useState<string>("");
   const [selectedYear, setSelectedYear] = useState<string>("");
@@ -51,10 +42,12 @@ const HelperStudentAssignment = () => {
     return `${startYear}-${startYear + 1}`;
   });
 
-  // Load users and assignments from Supabase
+  // Load users and assignments
   useEffect(() => {
     const loadData = async () => {
       try {
+        setLoading(true);
+        
         // Load students
         const { data: studentsData, error: studentsError } = await supabase
           .from('users')
@@ -71,20 +64,42 @@ const HelperStudentAssignment = () => {
 
         if (helpersError) throw helpersError;
 
-        // Load assignments
+        // Load assignments with joined user data
         const { data: assignmentsData, error: assignmentsError } = await supabase
           .from('helper_student_assignments')
           .select(`
             *,
-            student:users!student_id(*),
-            helper:users!helper_id(*)
+            student:users!helper_student_assignments_student_id_fkey(*),
+            helper:users!helper_student_assignments_helper_id_fkey(*)
           `);
 
-        if (assignmentsError) throw assignmentsError;
+        if (assignmentsError) {
+          console.error("Error loading assignments:", assignmentsError);
+          // If we can't join due to RLS policies or other issues, load assignments separately
+          const { data: basicAssignments, error: basicError } = await supabase
+            .from('helper_student_assignments')
+            .select('*');
+            
+          if (basicError) throw basicError;
+          
+          // Map users to assignments manually
+          const mappedAssignments = basicAssignments.map(assignment => {
+            const student = studentsData?.find(s => s.id === assignment.student_id);
+            const helper = helpersData?.find(h => h.id === assignment.helper_id);
+            return {
+              ...assignment,
+              student,
+              helper
+            };
+          });
+          
+          setAssignments(mappedAssignments || []);
+        } else {
+          setAssignments(assignmentsData || []);
+        }
 
         setStudents(studentsData || []);
         setHelpers(helpersData || []);
-        setAssignments(assignmentsData || []);
       } catch (error) {
         console.error('Error loading data:', error);
         toast({
@@ -127,30 +142,49 @@ const HelperStudentAssignment = () => {
     }
 
     try {
+      const newAssignment: Assignment = {
+        student_id: selectedStudent,
+        helper_id: selectedHelper,
+        status: 'active',
+        academic_year: selectedYear
+      };
+
       const { data, error } = await supabase
         .from('helper_student_assignments')
-        .insert([
-          {
-            student_id: selectedStudent,
-            helper_id: selectedHelper,
-            status: 'active',
-            academic_year: selectedYear
-          }
-        ])
+        .insert([newAssignment])
         .select(`
           *,
-          student:users!student_id(*),
-          helper:users!helper_id(*)
+          student:users!helper_student_assignments_student_id_fkey(*),
+          helper:users!helper_student_assignments_helper_id_fkey(*)
         `)
         .single();
 
-      if (error) throw error;
-
-      setAssignments([...assignments, data]);
-      setSelectedStudent("");
-      setSelectedHelper("");
-      setSelectedYear("");
-      setIsCreateDialogOpen(false);
+      if (error) {
+        console.error("Error creating assignment:", error);
+        
+        // If we can't join, just insert and get the basic assignment back
+        const { data: basicData, error: basicError } = await supabase
+          .from('helper_student_assignments')
+          .insert([newAssignment])
+          .select()
+          .single();
+          
+        if (basicError) throw basicError;
+        
+        // Find the user objects to attach to the assignment
+        const student = students.find(s => s.id === selectedStudent);
+        const helper = helpers.find(h => h.id === selectedHelper);
+        
+        const newAssignmentWithUsers = {
+          ...basicData,
+          student,
+          helper
+        };
+        
+        setAssignments([...assignments, newAssignmentWithUsers]);
+      } else {
+        setAssignments([...assignments, data]);
+      }
 
       // Log the assignment
       const student = students.find(s => s.id === selectedStudent);
@@ -163,6 +197,11 @@ const HelperStudentAssignment = () => {
           "admin"
         );
       }
+
+      setSelectedStudent("");
+      setSelectedHelper("");
+      setSelectedYear("");
+      setIsCreateDialogOpen(false);
 
       toast({
         title: "Success",
@@ -256,14 +295,14 @@ const HelperStudentAssignment = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {new Date(assignment.created_at).toLocaleDateString()}
+                    {assignment.created_at ? new Date(assignment.created_at).toLocaleDateString() : '-'}
                   </TableCell>
                   <TableCell>
                     {assignment.status === 'active' && (
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => handleUnassign(assignment.id)}
+                        onClick={() => handleUnassign(assignment.id as string)}
                       >
                         Unassign
                       </Button>
@@ -350,4 +389,4 @@ const HelperStudentAssignment = () => {
   );
 };
 
-export default HelperStudentAssignment; 
+export default HelperStudentAssignment;

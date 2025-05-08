@@ -1,10 +1,11 @@
+
 import { useEffect, useRef, useState } from 'react';
 import { Loader } from '@googlemaps/js-api-loader';
 
 interface GoogleMapProps {
   pickupLocation: string;
   destination: string;
-  onRouteCalculated?: (duration: string) => void;
+  onRouteCalculated?: (duration: string, distance: string) => void;
 }
 
 const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMapProps) => {
@@ -79,16 +80,17 @@ const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMap
           console.log('Route calculated successfully');
           directionsRenderer.setDirections(result);
           
-          // Calculate and format duration
-          const duration = result.routes[0].legs[0].duration?.text || '5-7';
-          onRouteCalculated?.(duration);
+          // Calculate and format duration and distance
+          const duration = result.routes[0].legs[0].duration?.text || '5-7 mins';
+          const distance = result.routes[0].legs[0].distance?.text || '1-2 km';
+          onRouteCalculated?.(duration, distance);
         } else {
           console.error('Failed to calculate route:', status);
           setError('Failed to calculate route');
         }
       });
     }
-  }, [pickupLocation, destination, directionsService, directionsRenderer]);
+  }, [pickupLocation, destination, directionsService, directionsRenderer, onRouteCalculated]);
 
   if (error) {
     return (
@@ -106,4 +108,4 @@ const GoogleMap = ({ pickupLocation, destination, onRouteCalculated }: GoogleMap
   );
 };
 
-export default GoogleMap; 
+export default GoogleMap;

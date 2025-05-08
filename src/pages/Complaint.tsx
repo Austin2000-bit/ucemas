@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { 
   FileText, 
@@ -18,39 +19,29 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
-import UserSuggestions from "@/components/UserSuggestions";
-
-interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-}
+import { useAuth } from "@/utils/auth";
+import { supabase } from "@/lib/supabase";
+import { Complaint as ComplaintType } from "@/types";
 
 const Complaint = () => {
   const navigate = useNavigate();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const { user } = useAuth();
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | undefined>(undefined);
 
-  const handleUserSelect = (selectedEmail: string) => {
-    if (selectedEmail) {
-      const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-      const selectedUser = storedUsers.find((user: any) => user.email === selectedEmail);
-      if (selectedUser) {
-        setName(`${selectedUser.firstName} ${selectedUser.lastName}`);
-        setEmail(selectedUser.email);
-      }
-    } else {
-      setName("");
-      setEmail("");
+  useEffect(() => {
+    // Check if user is logged in
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to submit a complaint.",
+        variant: "destructive",
+      });
+      navigate("/login");
     }
-  };
+  }, [user, navigate]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -63,8 +54,18 @@ const Complaint = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
+    if (!user?.id) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to submit a complaint.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     // Form validation
-    if (!name || !email || !category || !description) {
+    if (!category || !description) {
       toast({
         title: "Missing information",
         description: "Please fill out all fields before submitting.",
@@ -74,60 +75,67 @@ const Complaint = () => {
       return;
     }
 
-    // Get existing complaints or initialize new array
-    const existingComplaints = JSON.parse(localStorage.getItem("complaints") || "[]");
-    
-    // Convert attachments to base64 for storage
-    const attachmentData = await Promise.all(
-      attachments.map(async (file) => {
-        const reader = new FileReader();
-        return new Promise((resolve) => {
-          reader.onload = () => {
-            resolve({
-              name: file.name,
-              type: file.type,
-              data: reader.result,
-            });
-          };
-          reader.readAsDataURL(file);
-        });
-      })
-    );
-    
-    // Create new complaint with generated ID
-    const newComplaint = {
-      id: `C${existingComplaints.length + 1}`,
-      name,
-      email,
-      issueCategory: category,
-      description,
-      attachments: attachmentData,
-      created: new Date().toLocaleDateString(),
-      status: "Pending",
-      feedback: "",
-      followUp: "",
-    };
+    try {
+      // Create complaint in the database
+      const newComplaint: Omit<ComplaintType, 'id' | 'created_at' | 'updated_at'> = {
+        user_id: user.id,
+        title: category,
+        description,
+        status: 'pending'
+      };
 
-    // Add to existing complaints
-    existingComplaints.push(newComplaint);
-    localStorage.setItem("complaints", JSON.stringify(existingComplaints));
+      const { data, error } = await supabase
+        .from('complaints')
+        .insert([newComplaint])
+        .select()
+        .single();
 
-    // Show success message
-    toast({
-      title: "Complaint submitted",
-      description: "Your complaint has been successfully submitted.",
-    });
+      if (error) {
+        console.error("Error submitting complaint:", error);
+        throw new Error("Failed to submit complaint");
+      }
 
-    // Reset form
-    setName("");
-    setEmail("");
-    setCategory("");
-    setDescription("");
-    setAttachments([]);
-    setIsSubmitting(false);
+      // Upload attachments if any
+      if (attachments.length > 0) {
+        await Promise.all(attachments.map(async (file, index) => {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${user.id}_${data.id}_${index}.${fileExt}`;
+          const filePath = `complaints/${fileName}`;
 
-    // Navigate to complaint list
-    navigate("/complaint/list");
+          const { error: uploadError } = await supabase
+            .storage
+            .from('complaints')
+            .upload(filePath, file);
+
+          if (uploadError) {
+            console.error("Error uploading attachment:", uploadError);
+          }
+        }));
+      }
+
+      // Show success message
+      toast({
+        title: "Complaint submitted",
+        description: "Your complaint has been successfully submitted.",
+      });
+
+      // Reset form
+      setCategory("");
+      setDescription("");
+      setAttachments([]);
+      
+      // Navigate to complaint list
+      navigate("/complaint/list");
+    } catch (error) {
+      console.error("Error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit complaint. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -158,13 +166,15 @@ const Complaint = () => {
                 <Users className="h-5 w-5" />
                 <span>Complaint List</span>
               </Link>
-              <Link 
-                to="/admin" 
-                className="flex items-center gap-3 px-4 py-2.5 text-foreground hover:bg-accent rounded-md transition-colors font-poppins"
-              >
-                <Layout className="h-5 w-5" />
-                <span>Admin Section</span>
-              </Link>
+              {user?.role === 'admin' && (
+                <Link 
+                  to="/admin" 
+                  className="flex items-center gap-3 px-4 py-2.5 text-foreground hover:bg-accent rounded-md transition-colors font-poppins"
+                >
+                  <Layout className="h-5 w-5" />
+                  <span>Admin Section</span>
+                </Link>
+              )}
             </nav>
           </div>
         </div>
@@ -176,11 +186,11 @@ const Complaint = () => {
           <div className="max-w-2xl mx-auto bg-card rounded-lg shadow p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Select User</label>
-                <UserSuggestions
-                  onSelect={setSelectedUser}
-                  selectedUser={selectedUser}
-                />
+                <label className="text-sm font-medium">User Information</label>
+                <div className="p-4 bg-muted/50 rounded-md">
+                  <p className="font-medium">{user?.firstName} {user?.lastName}</p>
+                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                </div>
               </div>
               
               <div className="space-y-2">
@@ -253,7 +263,7 @@ const Complaint = () => {
                 <Button 
                   type="submit" 
                   className="bg-blue-500 hover:bg-blue-600" 
-                  disabled={isSubmitting || !selectedUser}
+                  disabled={isSubmitting}
                 >
                   {isSubmitting ? "Submitting..." : "Submit Complaint"}
                 </Button>
