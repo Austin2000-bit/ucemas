@@ -20,8 +20,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
+import { RideRequest } from "@/services/rideService";
 
-interface RideRequest {
+interface DriverRideRequest {
   id: string;
   studentName: string;
   studentEmail: string;
@@ -36,7 +37,7 @@ interface RideRequest {
 
 const Driver = () => {
   const { user } = useAuth();
-  const [rideRequests, setRideRequests] = useState<RideRequest[]>([]);
+  const [rideRequests, setRideRequests] = useState<DriverRideRequest[]>([]);
 
   useEffect(() => {
     // Load ride requests from localStorage
@@ -47,7 +48,7 @@ const Driver = () => {
       status: req.status === "pending" ? "pending" :
               req.status === "accepted" ? "accepted" :
               req.status === "completed" ? "completed" : "declined"
-    })) as RideRequest[];
+    })) as DriverRideRequest[];
     setRideRequests(typedRequests);
   }, []);
 

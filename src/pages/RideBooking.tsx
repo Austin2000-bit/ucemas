@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +15,7 @@ import Navbar from "@/components/Navbar";
 import GoogleMap from "@/components/GoogleMap";
 import { useAuth } from "@/utils/auth";
 import { v4 as uuidv4 } from "uuid";
+import { rideService } from "@/services/rideService";
 
 // Define types for form data
 interface RideFormData {
@@ -75,26 +75,20 @@ const RideBooking = () => {
     }
 
     try {
-      // Get existing ride requests or create new array
-      const existingRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
-      
-      // Add new request with the user's information
-      const newRequest = {
-        id: uuidv4(),
-        studentName: user ? `${user.first_name} ${user.last_name}` : "Guest User",
-        studentEmail: user?.email || "guest@example.com",
+      // Use the rideService to create a new ride request
+      const rideRequest = rideService.createRideRequest({
+        studentId: user?.id || "guest",
         pickupLocation: formData.pickupLocation,
         destination: formData.destination,
+        estimatedTime: estimatedTime || "5-10 minutes",
+        vehicleType: "standard",
+        studentName: user ? `${user.first_name} ${user.last_name}` : "Guest User",
+        studentEmail: user?.email || "guest@example.com",
         date: formData.date,
         time: formData.time,
-        status: "pending",
         disabilityType: formData.disabilityType,
-        additionalNotes: formData.additionalNotes,
-        estimatedTime: estimatedTime || "5-10 minutes"
-      };
-      
-      existingRequests.push(newRequest);
-      localStorage.setItem("rideRequests", JSON.stringify(existingRequests));
+        additionalNotes: formData.additionalNotes
+      });
       
       // Show success message
       toast({
