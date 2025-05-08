@@ -86,7 +86,7 @@ const DriverRides = () => {
       const success = rideService.acceptRide(
         ride.id,
         user.id,
-        `${user.firstName} ${user.lastName}`
+        `${user.first_name} ${user.last_name}`
       );
 
       if (success) {
@@ -95,7 +95,7 @@ const DriverRides = () => {
 
         SystemLogs.addLog(
           "Ride accepted",
-          `Driver ${user.firstName} ${user.lastName} accepted ride from ${ride.pickupLocation} to ${ride.destination}`,
+          `Driver ${user.first_name} ${user.last_name} accepted ride from ${ride.pickupLocation} to ${ride.destination}`,
           user.id,
           user.role
         );
@@ -131,7 +131,7 @@ const DriverRides = () => {
       const success = rideService.rejectRide(
         ride.id,
         user.id,
-        `${user.firstName} ${user.lastName}`
+        `${user.first_name} ${user.last_name}`
       );
 
       if (success) {
@@ -140,7 +140,7 @@ const DriverRides = () => {
 
         SystemLogs.addLog(
           "Ride rejected",
-          `Driver ${user.firstName} ${user.lastName} rejected ride from ${ride.pickupLocation} to ${ride.destination}`,
+          `Driver ${user.first_name} ${user.last_name} rejected ride from ${ride.pickupLocation} to ${ride.destination}`,
           user.id,
           user.role
         );
@@ -293,4 +293,4 @@ const DriverRides = () => {
   );
 };
 
-export default DriverRides; 
+export default DriverRides;

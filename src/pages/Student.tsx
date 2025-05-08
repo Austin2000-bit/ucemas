@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -140,7 +141,7 @@ const Student = () => {
     
     const newConfirmation = {
       date: today,
-      helperId: pendingOtp.helperId,
+      helperId: pendingOtp.helperId || "", // Use the helperId from the OTP
       student: studentId,
       timestamp: Date.now()
     };
@@ -156,7 +157,7 @@ const Student = () => {
     // Log the confirmation
     SystemLogs.addLog(
       "Help confirmed",
-      `Student ${user?.firstName} ${user?.lastName} confirmed help from helper ${pendingOtp.helperName}`,
+      `Student ${user?.first_name} ${user?.last_name} confirmed help from helper ${pendingOtp.helperName}`,
       studentId,
       "student"
     );
@@ -172,7 +173,7 @@ const Student = () => {
   const getHelperName = (helperId: string) => {
     const users = JSON.parse(localStorage.getItem("users") || "[]");
     const helper = users.find((u: any) => u.id === helperId);
-    return helper ? `${helper.firstName} ${helper.lastName}` : 'Unknown Helper';
+    return helper ? `${helper.first_name} ${helper.last_name}` : 'Unknown Helper';
   };
   
   const formatTime = (timestamp: number) => {

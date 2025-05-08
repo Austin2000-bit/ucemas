@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { 
@@ -200,7 +199,7 @@ const Complaint = () => {
                 <div className="p-2 bg-muted/50 rounded-md">
                   {user ? (
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{user.firstName} {user.lastName}</span>
+                      <span className="font-medium">{user.first_name} {user.last_name}</span>
                       <span className="text-sm text-muted-foreground">({user.email})</span>
                     </div>
                   ) : (

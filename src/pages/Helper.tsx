@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
@@ -146,8 +147,9 @@ const Helper = () => {
         .insert({
           otp: newOtp,
           timestamp: Date.now(),
-          helperName: `${user.firstName} ${user.lastName}`,
-          studentId: selectedStudent
+          helperName: `${user.first_name} ${user.last_name}`,
+          studentId: selectedStudent,
+          helperId: user.id
         });
         
       if (error) throw error;
