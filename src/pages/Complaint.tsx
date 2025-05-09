@@ -6,17 +6,38 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/utils/auth";
 import { SystemLogs } from "@/utils/systemLogs";
 import { supabase } from "@/lib/supabase";
 
+const complaintCategories = [
+  "Safety Concern",
+  "Assistance Concern",
+  "Helper Concern",
+  "Driver Concern",
+];
+
 const formSchema = z.object({
-  category: z.string().min(2, {
-    message: "Category must be at least 2 characters.",
+  category: z.string().min(1, {
+    message: "Please select a category.",
   }),
   description: z.string().min(10, {
     message: "Description must be at least 10 characters.",
@@ -117,11 +138,22 @@ const Complaint = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Category</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Category of complaint" {...field} />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {complaintCategories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
-                        This is the category of your complaint.
+                        Please select the category that best matches your complaint.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

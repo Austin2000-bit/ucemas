@@ -10,8 +10,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Complaint, User } from "@/types";
+import { SystemLogs } from "@/utils/systemLogs";
 
 const ComplaintsView = () => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
@@ -65,6 +74,60 @@ const ComplaintsView = () => {
     return user ? user.role : "Unknown";
   };
 
+  const handleUpdateStatus = async (complaintId: string, newStatus: 'pending' | 'in_progress' | 'resolved') => {
+    try {
+      const { error } = await supabase
+        .from('complaints')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', complaintId);
+
+      if (error) {
+        console.error("Error updating complaint status:", error);
+        throw error;
+      }
+
+      // Update local state
+      setComplaints(prevComplaints => 
+        prevComplaints.map(complaint => 
+          complaint.id === complaintId 
+            ? { ...complaint, status: newStatus, updated_at: new Date().toISOString() } 
+            : complaint
+        )
+      );
+
+      // Log the action
+      SystemLogs.addLog(
+        "Complaint status updated",
+        `Complaint status updated to ${newStatus}`,
+        "admin",
+        "admin"
+      );
+
+      toast({
+        title: "Status Updated",
+        description: `Complaint status updated to ${newStatus}`,
+      });
+    } catch (error) {
+      console.error("Error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update complaint status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Format status for display
+  const formatStatus = (status: string) => {
+    return status
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
       <h2 className="text-lg font-medium p-4">Complaints</h2>
@@ -82,6 +145,7 @@ const ComplaintsView = () => {
               <TableHead>Role</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -102,8 +166,35 @@ const ComplaintsView = () => {
                       "secondary"
                     }
                   >
-                    {complaint.status}
+                    {formatStatus(complaint.status)}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">Update Status</Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem 
+                        onClick={() => handleUpdateStatus(complaint.id!, 'pending')}
+                        disabled={complaint.status === 'pending'}
+                      >
+                        Set to Pending
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleUpdateStatus(complaint.id!, 'in_progress')}
+                        disabled={complaint.status === 'in_progress'}
+                      >
+                        Set to In Progress
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleUpdateStatus(complaint.id!, 'resolved')}
+                        disabled={complaint.status === 'resolved'}
+                      >
+                        Set to Resolved
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}

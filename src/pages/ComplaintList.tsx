@@ -36,19 +36,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import Navbar from "@/components/Navbar";
-
-// Define complaint type
-interface Complaint {
-  id: string;
-  name: string;
-  email: string;
-  issueCategory: string;
-  description: string;
-  created: string;
-  status: string;
-  feedback: string;
-  followUp: string;
-}
+import { supabase } from "@/lib/supabase";
+import { Complaint } from "@/types";
+import { useAuth } from "@/utils/auth";
 
 const ComplaintList = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -56,23 +46,71 @@ const ComplaintList = () => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [users, setUsers] = useState<any[]>([]);
   
-  const filters = ["All", "Pending", "Resolved", "Rejected", "Created"];
+  const { user } = useAuth();
   
-  // Load complaints from localStorage
+  const filters = ["All", "Pending", "In Progress", "Resolved"];
+  
+  // Load complaints from Supabase
   useEffect(() => {
-    const storedComplaints = JSON.parse(localStorage.getItem("complaints") || "[]");
-    setComplaints(storedComplaints);
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch complaints
+        const { data: complaintsData, error: complaintsError } = await supabase
+          .from('complaints')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (complaintsError) {
+          console.error("Error fetching complaints:", complaintsError);
+          throw complaintsError;
+        }
+
+        // Fetch users to get names
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select('*');
+
+        if (usersError) {
+          console.error("Error fetching users:", usersError);
+          throw usersError;
+        }
+
+        setComplaints(complaintsData || []);
+        setUsers(usersData || []);
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
   }, []);
+  
+  const getUserName = (userId: string) => {
+    const userFound = users.find(u => u.id === userId);
+    return userFound ? `${userFound.first_name} ${userFound.last_name}` : 'Unknown User';
+  };
+
+  const getUserEmail = (userId: string) => {
+    const userFound = users.find(u => u.id === userId);
+    return userFound ? userFound.email : 'Unknown';
+  };
   
   const filteredComplaints = complaints.filter(complaint => {
     // Apply search filter
-    if (searchQuery && !complaint.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+    const userName = getUserName(complaint.user_id);
+    if (searchQuery && !userName.toLowerCase().includes(searchQuery.toLowerCase()) && 
+        !complaint.title.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
     
     // Apply status filter
-    if (activeFilter !== "All" && complaint.status !== activeFilter) {
+    if (activeFilter !== "All" && complaint.status !== activeFilter.toLowerCase().replace(" ", "_")) {
       return false;
     }
     
@@ -93,11 +131,11 @@ const ComplaintList = () => {
       ...filteredComplaints.map(c => 
         [
           c.id,
-          `"${c.name}"`,
-          `"${c.email}"`,
-          `"${c.issueCategory}"`,
+          `"${getUserName(c.user_id)}"`,
+          `"${getUserEmail(c.user_id)}"`,
+          `"${c.title}"`,
           `"${c.description.replace(/"/g, '""')}"`,
-          c.created,
+          c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A',
           c.status
         ].join(",")
       )
@@ -112,6 +150,14 @@ const ComplaintList = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Format status for display
+  const formatStatus = (status: string) => {
+    return status
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
   
   return (
@@ -200,55 +246,61 @@ const ComplaintList = () => {
           
           {/* Complaints table */}
           <div className="bg-card rounded-md shadow overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-24 font-poppins">ID</TableHead>
-                  <TableHead className="font-poppins">Name</TableHead>
-                  <TableHead className="font-poppins">Category</TableHead>
-                  <TableHead className="w-32 font-poppins">Created</TableHead>
-                  <TableHead className="w-24 font-poppins">Status</TableHead>
-                  <TableHead className="w-24 text-right font-poppins">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredComplaints.length > 0 ? (
-                  filteredComplaints.map((complaint) => (
-                    <TableRow key={complaint.id}>
-                      <TableCell className="font-medium font-poppins">{complaint.id}</TableCell>
-                      <TableCell className="font-poppins">{complaint.name}</TableCell>
-                      <TableCell className="font-poppins">{complaint.issueCategory}</TableCell>
-                      <TableCell className="font-poppins">{complaint.created}</TableCell>
-                      <TableCell className="font-poppins">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          complaint.status === "Pending" ? "bg-yellow-100 text-yellow-800" :
-                          complaint.status === "Resolved" ? "bg-green-100 text-green-800" :
-                          complaint.status === "Rejected" ? "bg-red-100 text-red-800" :
-                          "bg-gray-100 text-gray-800"
-                        }`}>
-                          {complaint.status}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleViewComplaint(complaint)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+            {isLoading ? (
+              <div className="text-center py-8">Loading complaints...</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-24 font-poppins">ID</TableHead>
+                    <TableHead className="font-poppins">Name</TableHead>
+                    <TableHead className="font-poppins">Category</TableHead>
+                    <TableHead className="w-32 font-poppins">Created</TableHead>
+                    <TableHead className="w-24 font-poppins">Status</TableHead>
+                    <TableHead className="w-24 text-right font-poppins">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredComplaints.length > 0 ? (
+                    filteredComplaints.map((complaint) => (
+                      <TableRow key={complaint.id}>
+                        <TableCell className="font-medium font-poppins">{complaint.id?.substring(0, 8)}</TableCell>
+                        <TableCell className="font-poppins">{getUserName(complaint.user_id)}</TableCell>
+                        <TableCell className="font-poppins">{complaint.title}</TableCell>
+                        <TableCell className="font-poppins">
+                          {complaint.created_at ? new Date(complaint.created_at).toLocaleDateString() : 'N/A'}
+                        </TableCell>
+                        <TableCell className="font-poppins">
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            complaint.status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                            complaint.status === "in_progress" ? "bg-blue-100 text-blue-800" :
+                            complaint.status === "resolved" ? "bg-green-100 text-green-800" :
+                            "bg-gray-100 text-gray-800"
+                          }`}>
+                            {formatStatus(complaint.status)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleViewComplaint(complaint)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        No complaints found. <Link to="/complaint" className="text-blue-500 hover:underline">Submit a complaint</Link>
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No complaints found. <Link to="/complaint" className="text-blue-500 hover:underline">Submit a complaint</Link>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  )}
+                </TableBody>
+              </Table>
+            )}
           </div>
           
           {/* Pagination */}
@@ -282,23 +334,23 @@ const ComplaintList = () => {
             <DialogHeader>
               <DialogTitle>Complaint Details</DialogTitle>
               <DialogDescription>
-                ID: {selectedComplaint.id} • {selectedComplaint.created}
+                ID: {selectedComplaint.id} • {selectedComplaint.created_at ? new Date(selectedComplaint.created_at).toLocaleDateString() : 'N/A'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium mb-1">Submitted By</p>
-                  <p className="text-sm">{selectedComplaint.name}</p>
+                  <p className="text-sm">{getUserName(selectedComplaint.user_id)}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium mb-1">Email</p>
-                  <p className="text-sm">{selectedComplaint.email}</p>
+                  <p className="text-sm">{getUserEmail(selectedComplaint.user_id)}</p>
                 </div>
               </div>
               <div>
                 <p className="text-sm font-medium mb-1">Category</p>
-                <p className="text-sm">{selectedComplaint.issueCategory}</p>
+                <p className="text-sm">{selectedComplaint.title}</p>
               </div>
               <div>
                 <p className="text-sm font-medium mb-1">Description</p>
@@ -308,12 +360,12 @@ const ComplaintList = () => {
                 <p className="text-sm font-medium mb-1">Status</p>
                 <p className="text-sm">
                   <span className={`px-2 py-1 text-xs rounded-full ${
-                    selectedComplaint.status === "Pending" ? "bg-yellow-100 text-yellow-800" :
-                    selectedComplaint.status === "Resolved" ? "bg-green-100 text-green-800" :
-                    selectedComplaint.status === "Rejected" ? "bg-red-100 text-red-800" :
+                    selectedComplaint.status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                    selectedComplaint.status === "in_progress" ? "bg-blue-100 text-blue-800" :
+                    selectedComplaint.status === "resolved" ? "bg-green-100 text-green-800" :
                     "bg-gray-100 text-gray-800"
                   }`}>
-                    {selectedComplaint.status}
+                    {formatStatus(selectedComplaint.status)}
                   </span>
                 </p>
               </div>

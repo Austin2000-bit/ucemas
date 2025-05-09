@@ -79,7 +79,7 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
 
       if (error) {
         console.error("Error creating assignment:", error);
-        throw new Error("Failed to create assignment");
+        throw new Error(`Failed to create assignment: ${error.message}`);
       }
 
       console.log("Assignment created successfully:", data);
@@ -106,7 +106,7 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
       console.error("Error submitting assignment:", error);
       toast({
         title: "Error",
-        description: "Failed to create assignment. Please try again.",
+        description: `Failed to create assignment. ${error instanceof Error ? error.message : 'Please try again.'}`,
         variant: "destructive",
       });
     } finally {
