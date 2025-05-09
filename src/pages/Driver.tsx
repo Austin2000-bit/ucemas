@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
@@ -142,10 +141,13 @@ const Driver = () => {
   const handleRideAction = async (requestId: string, action: "accept" | "decline" | "complete") => {
     const updatedRequests = rideRequests.map(request => {
       if (request.id === requestId) {
+        const newStatus: "pending" | "accepted" | "completed" | "declined" = 
+          action === "accept" ? "accepted" : 
+          action === "decline" ? "declined" : "completed";
+        
         return {
           ...request,
-          status: action === "accept" ? "accepted" : 
-                  action === "decline" ? "declined" : "completed"
+          status: newStatus
         };
       }
       return request;

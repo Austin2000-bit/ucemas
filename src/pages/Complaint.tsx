@@ -64,8 +64,7 @@ const Complaint = () => {
       const { data, error } = await supabase
         .from('complaints')
         .insert([newComplaint])
-        .select()
-        .single();
+        .select();
 
       if (error) {
         console.error("Error creating complaint:", error);

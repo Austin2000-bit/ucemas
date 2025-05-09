@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import DriverRides from "@/components/DriverRides";
 import { supabase } from "@/lib/supabase";
 import { RideRequest } from "@/types";
 import Navbar from "@/components/Navbar";
+import { v4 as uuidv4 } from "uuid";
 
 const RideBooking = () => {
   const { user } = useAuth();
@@ -40,14 +42,20 @@ const RideBooking = () => {
     setIsLoading(true);
 
     try {
+      // Create a unique ID for the ride request
+      const rideId = uuidv4();
+      
       // Create the ride request object
-      const newRide: Omit<RideRequest, "id"> = {
+      const newRide: RideRequest = {
+        id: rideId,
         student_id: user.id,
         driver_id: null,
         pickup_location: pickupLocation,
         destination: destination,
         status: 'pending',
         estimatedTime: estimatedTime,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       console.log("Creating ride request:", newRide);
@@ -55,8 +63,7 @@ const RideBooking = () => {
       // Save to Supabase
       const { data, error } = await supabase
         .from('ride_requests')
-        .insert([newRide])
-        .select();
+        .insert([newRide]);
 
       if (error) {
         console.error("Error creating ride request:", error);
