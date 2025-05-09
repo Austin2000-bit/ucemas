@@ -31,6 +31,7 @@ export interface StudentOtp {
   timestamp: number;
   helperName: string;
   studentId: string;
+  helperId: string;
 }
 
 export interface AdminMessage {
