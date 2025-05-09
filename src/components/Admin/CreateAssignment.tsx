@@ -40,13 +40,18 @@ interface CreateAssignmentProps {
 
 const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Get current year for defaults
+  const currentYear = new Date().getFullYear();
+  const nextYear = currentYear + 1;
+  const defaultAcademicYear = `${currentYear}-${nextYear}`;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       helper_id: "",
       student_id: "",
-      academic_year: new Date().getFullYear().toString(),
+      academic_year: defaultAcademicYear,
       status: "active",
     },
   });
@@ -108,6 +113,23 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
       setIsSubmitting(false);
     }
   };
+
+  // Function to generate academic year options (YYYY-YYYY format)
+  const generateAcademicYearOptions = () => {
+    const startYear = currentYear - 2; // 2 years back
+    const endYear = currentYear + 2; // 2 years ahead
+    
+    const options = [];
+    for (let year = startYear; year <= endYear; year++) {
+      options.push({
+        value: `${year}-${year + 1}`,
+        label: `${year}-${year + 1}`
+      });
+    }
+    return options;
+  };
+
+  const academicYearOptions = generateAcademicYearOptions();
 
   return (
     <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
@@ -178,18 +200,15 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {[...Array(5)].map((_, i) => {
-                      const year = new Date().getFullYear() - 2 + i;
-                      return (
-                        <SelectItem key={year} value={year.toString()}>
-                          {year}
-                        </SelectItem>
-                      );
-                    })}
+                    {academicYearOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormDescription>
-                  The academic year for this assignment
+                  The academic year for this assignment (YYYY-YYYY format)
                 </FormDescription>
                 <FormMessage />
               </FormItem>
