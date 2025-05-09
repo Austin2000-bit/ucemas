@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -53,6 +54,8 @@ const Complaint = () => {
         title: values.category,
         description: values.description,
         status: 'pending' as const,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
       console.log("Creating complaint:", newComplaint);

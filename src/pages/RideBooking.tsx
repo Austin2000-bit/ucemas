@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
@@ -41,26 +40,32 @@ const RideBooking = () => {
     setIsLoading(true);
 
     try {
-      const newRide = {
+      // Create the ride request object
+      const newRide: Omit<RideRequest, "id"> = {
         student_id: user.id,
+        driver_id: null,
         pickup_location: pickupLocation,
         destination: destination,
-        status: 'pending' as const,
-        estimated_time: estimatedTime,
-        distance: distance
+        status: 'pending',
+        estimatedTime: estimatedTime,
       };
 
+      console.log("Creating ride request:", newRide);
+
+      // Save to Supabase
       const { data, error } = await supabase
         .from('ride_requests')
         .insert([newRide])
-        .select()
-        .single();
+        .select();
 
       if (error) {
         console.error("Error creating ride request:", error);
         throw new Error("Failed to create ride request");
       }
 
+      console.log("Ride request created successfully:", data);
+
+      // Add to system logs
       SystemLogs.addLog(
         "Ride requested",
         `Student requested ride from ${pickupLocation} to ${destination}`,
@@ -145,13 +150,15 @@ const RideBooking = () => {
               </div>
             )}
 
-            <Button
-              className="w-full"
-              onClick={handleFindDriver}
-              disabled={isLoading || !pickupLocation || !destination}
-            >
-              {isLoading ? "Finding driver..." : "Find Driver"}
-            </Button>
+            <div className="p-4">
+              <Button
+                className="w-full"
+                onClick={handleFindDriver}
+                disabled={isLoading || !pickupLocation || !destination}
+              >
+                {isLoading ? "Finding driver..." : "Find Driver"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

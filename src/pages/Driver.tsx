@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
@@ -51,21 +52,51 @@ const Driver = () => {
   const processRideRequests = (storedRequests: any[]): LocalRideRequest[] => {
     return storedRequests.map(request => ({
       id: request.id,
-      studentName: request.studentName,
-      studentEmail: request.studentEmail,
-      pickupLocation: request.pickupLocation,
-      destination: request.destination,
-      date: request.date,
-      time: request.time,
-      status: validateStatus(request.status),
-      disabilityType: request.disabilityType,
+      studentName: request.studentName || "Unknown",
+      studentEmail: request.studentEmail || "unknown@email.com",
+      pickupLocation: request.pickupLocation || "",
+      destination: request.destination || "",
+      date: request.date || new Date().toLocaleDateString(),
+      time: request.time || new Date().toLocaleTimeString(),
+      status: validateStatus(request.status || "pending"),
+      disabilityType: request.disabilityType || "Not specified",
       additionalNotes: request.additionalNotes
     }));
   };
 
   // Load ride requests and also save them to Supabase
   const loadRideRequests = async () => {
-    // Load ride requests from localStorage
+    // First try to load from Supabase
+    try {
+      const { data: dbRequests, error } = await supabase
+        .from('ride_requests')
+        .select('*');
+      
+      if (!error && dbRequests && dbRequests.length > 0) {
+        console.log("Loaded ride requests from Supabase:", dbRequests);
+        
+        // Convert DB requests to LocalRideRequest format
+        const formattedRequests: LocalRideRequest[] = dbRequests.map(dbReq => ({
+          id: dbReq.id,
+          studentName: dbReq.student_id, // We'll need to improve this with actual student names
+          studentEmail: dbReq.student_id + "@example.com", // Placeholder
+          pickupLocation: dbReq.pickup_location,
+          destination: dbReq.destination,
+          date: new Date(dbReq.created_at || Date.now()).toLocaleDateString(),
+          time: new Date(dbReq.created_at || Date.now()).toLocaleTimeString(),
+          status: validateStatus(dbReq.status),
+          disabilityType: "Not specified", // This info isn't available in our current schema
+          additionalNotes: "From database"
+        }));
+        
+        setRideRequests(formattedRequests);
+        return;
+      }
+    } catch (dbError) {
+      console.error("Error loading ride requests from database:", dbError);
+    }
+    
+    // Fall back to localStorage if no data in database
     const storedRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
     const typedRequests = processRideRequests(storedRequests);
     setRideRequests(typedRequests);
@@ -104,7 +135,7 @@ const Driver = () => {
   };
 
   useEffect(() => {
-    // Load ride requests from localStorage
+    // Load ride requests
     loadRideRequests();
   }, []);
 

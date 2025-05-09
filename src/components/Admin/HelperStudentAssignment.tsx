@@ -1,394 +1,209 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
-import { HelperStudentAssignment as Assignment } from "@/types";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
-import { SystemLogs } from "@/utils/systemLogs";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Plus } from "lucide-react";
 
-interface User {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  role: string;
-  disability_type?: string;
-  assistant_type?: string;
-  assistant_specialization?: string;
-}
+import { useState, useEffect } from "react";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
+import { User, HelperStudentAssignment as Assignment } from "@/types";
+import { SystemLogs } from "@/utils/systemLogs";
+import CreateAssignment from "@/components/Admin/CreateAssignment";
 
 const HelperStudentAssignment = () => {
-  const [students, setStudents] = useState<User[]>([]);
-  const [helpers, setHelpers] = useState<User[]>([]);
-  const [assignments, setAssignments] = useState<(Assignment & { student?: User; helper?: User })[]>([]);
-  const [selectedStudent, setSelectedStudent] = useState<string>("");
-  const [selectedHelper, setSelectedHelper] = useState<string>("");
-  const [selectedYear, setSelectedYear] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
-  // Generate academic years (current year and next 2 years)
-  const currentYear = new Date().getFullYear();
-  const academicYears = [0, 1, 2].map(offset => {
-    const startYear = currentYear + offset;
-    return `${startYear}-${startYear + 1}`;
-  });
-
-  // Load users and assignments
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        
-        // Load students
-        const { data: studentsData, error: studentsError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('role', 'student');
-
-        if (studentsError) throw studentsError;
-
-        // Load helpers
-        const { data: helpersData, error: helpersError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('role', 'helper');
-
-        if (helpersError) throw helpersError;
-
-        // Load assignments with joined user data
-        const { data: assignmentsData, error: assignmentsError } = await supabase
-          .from('helper_student_assignments')
-          .select(`
-            *,
-            student:users!helper_student_assignments_student_id_fkey(*),
-            helper:users!helper_student_assignments_helper_id_fkey(*)
-          `);
-
-        if (assignmentsError) {
-          console.error("Error loading assignments:", assignmentsError);
-          // If we can't join due to RLS policies or other issues, load assignments separately
-          const { data: basicAssignments, error: basicError } = await supabase
-            .from('helper_student_assignments')
-            .select('*');
-            
-          if (basicError) throw basicError;
-          
-          // Map users to assignments manually
-          const mappedAssignments = basicAssignments.map(assignment => {
-            const student = studentsData?.find(s => s.id === assignment.student_id);
-            const helper = helpersData?.find(h => h.id === assignment.helper_id);
-            return {
-              ...assignment,
-              student,
-              helper
-            };
-          });
-          
-          setAssignments(mappedAssignments || []);
-        } else {
-          setAssignments(assignmentsData || []);
-        }
-
-        setStudents(studentsData || []);
-        setHelpers(helpersData || []);
-      } catch (error) {
-        console.error('Error loading data:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load data. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
+    fetchData();
   }, []);
 
-  const handleAssign = async () => {
-    if (!selectedStudent || !selectedHelper || !selectedYear) {
-      toast({
-        title: "Error",
-        description: "Please select a student, helper, and academic year.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Check if student already has an active assignment for the selected academic year
-    const existingAssignment = assignments.find(
-      a => a.student_id === selectedStudent && 
-          a.status === 'active' && 
-          a.academic_year === selectedYear
-    );
-
-    if (existingAssignment) {
-      toast({
-        title: "Error",
-        description: "This student already has an active assignment for the selected academic year.",
-        variant: "destructive",
-      });
-      return;
-    }
+  const fetchData = async () => {
+    setIsLoading(true);
 
     try {
-      const newAssignment: Assignment = {
-        student_id: selectedStudent,
-        helper_id: selectedHelper,
-        status: 'active',
-        academic_year: selectedYear
-      };
+      // Fetch users
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('*');
 
-      // First try to insert with the join
-      const { data, error } = await supabase
-        .from('helper_student_assignments')
-        .insert([newAssignment])
-        .select(`
-          *,
-          student:users!helper_student_assignments_student_id_fkey(*),
-          helper:users!helper_student_assignments_helper_id_fkey(*)
-        `)
-        .single();
-
-      if (error) {
-        console.error("Error creating assignment with join:", error);
-        
-        // If join fails, do a basic insert
-        const { data: basicData, error: basicError } = await supabase
-          .from('helper_student_assignments')
-          .insert([newAssignment])
-          .select()
-          .single();
-          
-        if (basicError) {
-          console.error("Error creating basic assignment:", basicError);
-          throw basicError;
-        }
-        
-        // Find the user objects to attach to the assignment
-        const student = students.find(s => s.id === selectedStudent);
-        const helper = helpers.find(h => h.id === selectedHelper);
-        
-        const newAssignmentWithUsers = {
-          ...basicData,
-          student,
-          helper
-        };
-        
-        setAssignments([...assignments, newAssignmentWithUsers]);
-        console.log("Successfully created assignment (without join):", basicData);
-      } else {
-        setAssignments([...assignments, data]);
-        console.log("Successfully created assignment with join:", data);
+      if (usersError) {
+        console.error("Error fetching users:", usersError);
+        throw usersError;
       }
 
-      // Log the assignment
-      const student = students.find(s => s.id === selectedStudent);
-      const helper = helpers.find(h => h.id === selectedHelper);
-      if (student && helper) {
+      // Fetch assignments
+      const { data: assignmentsData, error: assignmentsError } = await supabase
+        .from('helper_student_assignments')
+        .select('*');
+
+      if (assignmentsError) {
+        console.error("Error fetching assignments:", assignmentsError);
+        throw assignmentsError;
+      }
+
+      setUsers(usersData || []);
+      setAssignments(assignmentsData || []);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load assignments data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getUserName = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    return user ? `${user.first_name} ${user.last_name}` : 'Unknown User';
+  };
+
+  const handleToggleStatus = async (assignmentId: string, currentStatus: 'active' | 'inactive') => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    
+    try {
+      const { error } = await supabase
+        .from('helper_student_assignments')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', assignmentId);
+
+      if (error) {
+        console.error("Error updating assignment status:", error);
+        throw error;
+      }
+
+      // Update local state
+      setAssignments(prevAssignments => 
+        prevAssignments.map(a => 
+          a.id === assignmentId ? { ...a, status: newStatus } : a
+        )
+      );
+
+      // Log the action
+      const assignment = assignments.find(a => a.id === assignmentId);
+      if (assignment) {
+        const helperName = getUserName(assignment.helper_id);
+        const studentName = getUserName(assignment.student_id);
+        
         SystemLogs.addLog(
-          "Helper Assignment",
-          `Assigned helper ${helper.first_name} ${helper.last_name} to student ${student.first_name} ${student.last_name} for academic year ${selectedYear}`,
+          "Assignment updated",
+          `Assignment for helper ${helperName} and student ${studentName} status changed to ${newStatus}`,
           "admin",
           "admin"
         );
       }
 
-      setSelectedStudent("");
-      setSelectedHelper("");
-      setSelectedYear("");
-      setIsCreateDialogOpen(false);
-
       toast({
-        title: "Success",
-        description: "Helper assigned successfully.",
+        title: "Status Updated",
+        description: `Assignment status updated to ${newStatus}`,
       });
     } catch (error) {
-      console.error('Error assigning helper:', error);
+      console.error("Error:", error);
       toast({
         title: "Error",
-        description: "Failed to assign helper. Please try again.",
+        description: "Failed to update assignment status",
         variant: "destructive",
       });
     }
   };
 
-  const handleUnassign = async (assignmentId: string) => {
-    try {
-      const { error } = await supabase
-        .from('helper_student_assignments')
-        .update({ status: 'inactive' })
-        .eq('id', assignmentId);
-
-      if (error) throw error;
-
-      setAssignments(assignments.map(a => 
-        a.id === assignmentId ? { ...a, status: 'inactive' } : a
-      ));
-
-      toast({
-        title: "Success",
-        description: "Helper unassigned successfully.",
-      });
-    } catch (error) {
-      console.error('Error unassigning helper:', error);
-      toast({
-        title: "Error",
-        description: "Failed to unassign helper. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const handleCreateSuccess = () => {
+    setShowCreateForm(false);
+    fetchData();
   };
 
-  if (loading) {
-    return <div className="text-center py-4">Loading...</div>;
-  }
+  const getHelpers = () => {
+    return users.filter(user => user.role === 'helper');
+  };
+
+  const getStudents = () => {
+    return users.filter(user => user.role === 'student');
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Assistant-Student Assignments</h2>
-        <Button onClick={() => setIsCreateDialogOpen(true)} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Create Assignment
+        <h2 className="text-lg font-medium">Helper-Student Assignments</h2>
+        <Button 
+          onClick={() => setShowCreateForm(!showCreateForm)}
+        >
+          {showCreateForm ? "Cancel" : "Create New Assignment"}
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Current Assignments</CardTitle>
-          <CardDescription>Manage assistant-student assignments for different academic years</CardDescription>
-        </CardHeader>
-        <CardContent>
+      {showCreateForm && (
+        <CreateAssignment 
+          onSuccess={handleCreateSuccess} 
+          helpers={getHelpers()}
+          students={getStudents()}
+        />
+      )}
+
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        {isLoading ? (
+          <div className="text-center py-8">Loading assignments...</div>
+        ) : assignments.length > 0 ? (
           <Table>
+            <TableCaption>List of helper-student assignments</TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead>Disability Type</TableHead>
                 <TableHead>Helper</TableHead>
-                <TableHead>Specialization</TableHead>
+                <TableHead>Student</TableHead>
                 <TableHead>Academic Year</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Assigned Date</TableHead>
-                <TableHead>Action</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {assignments.map((assignment) => (
+              {assignments.map(assignment => (
                 <TableRow key={assignment.id}>
-                  <TableCell>
-                    {assignment.student?.first_name} {assignment.student?.last_name}
-                  </TableCell>
-                  <TableCell>{assignment.student?.disability_type || '-'}</TableCell>
-                  <TableCell>
-                    {assignment.helper?.first_name} {assignment.helper?.last_name}
-                  </TableCell>
-                  <TableCell>{assignment.helper?.assistant_specialization || '-'}</TableCell>
+                  <TableCell>{getUserName(assignment.helper_id)}</TableCell>
+                  <TableCell>{getUserName(assignment.student_id)}</TableCell>
                   <TableCell>{assignment.academic_year}</TableCell>
                   <TableCell>
-                    <Badge variant={assignment.status === 'active' ? 'default' : 'secondary'}>
+                    <Badge 
+                      variant={assignment.status === "active" ? "default" : "secondary"}
+                    >
                       {assignment.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {assignment.created_at ? new Date(assignment.created_at).toLocaleDateString() : '-'}
+                    {assignment.created_at 
+                      ? new Date(assignment.created_at).toLocaleDateString() 
+                      : "N/A"}
                   </TableCell>
                   <TableCell>
-                    {assignment.status === 'active' && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleUnassign(assignment.id as string)}
-                      >
-                        Unassign
-                      </Button>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleToggleStatus(assignment.id!, assignment.status)}
+                    >
+                      {assignment.status === "active" ? "Deactivate" : "Activate"}
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
-              {assignments.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    No assignments found.
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
-
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Assignment</DialogTitle>
-            <DialogDescription>
-              Assign a helper to a student for a specific academic year
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Academic Year</Label>
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select academic year" />
-                </SelectTrigger>
-                <SelectContent>
-                  {academicYears.map((year) => (
-                    <SelectItem key={year} value={year}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Select Student</Label>
-              <Select value={selectedStudent} onValueChange={setSelectedStudent}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a student" />
-                </SelectTrigger>
-                <SelectContent>
-                  {students.map((student) => (
-                    <SelectItem key={student.id} value={student.id}>
-                      {student.first_name} {student.last_name} ({student.disability_type || 'No disability type'})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Select Helper</Label>
-              <Select value={selectedHelper} onValueChange={setSelectedHelper}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a helper" />
-                </SelectTrigger>
-                <SelectContent>
-                  {helpers.map((helper) => (
-                    <SelectItem key={helper.id} value={helper.id}>
-                      {helper.first_name} {helper.last_name} ({helper.assistant_specialization || 'No specialization'})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            No assignments found. Create your first assignment using the button above.
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleAssign}>Create Assignment</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        )}
+      </div>
     </div>
   );
 };
