@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -44,7 +45,6 @@ export interface Database {
           helper_id: string
           student_id: string
           status: 'active' | 'inactive'
-          academic_year: string
           created_at: string
           updated_at: string
         }
@@ -53,7 +53,6 @@ export interface Database {
           helper_id: string
           student_id: string
           status?: 'active' | 'inactive'
-          academic_year: string
           created_at?: string
           updated_at?: string
         }
@@ -62,7 +61,6 @@ export interface Database {
           helper_id?: string
           student_id?: string
           status?: 'active' | 'inactive'
-          academic_year?: string
           created_at?: string
           updated_at?: string
         }

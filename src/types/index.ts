@@ -4,33 +4,61 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  role: string;
-  created_at?: string;
-  updated_at?: string;
+  role: 'admin' | 'helper' | 'student' | 'driver';
+  created_at: string;
+  updated_at: string;
 }
 
-export interface SignInRecord {
+export interface HelperStudentAssignment {
   id?: string;
-  date: string;
-  helper: string;
-  timestamp: number;
+  helper_id: string;
+  student_id: string;
+  status: 'active' | 'inactive';
+  created_at: string;
+  updated_at: string;
 }
 
-export interface HelpConfirmation {
-  id?: string;
-  date: string;
-  helper: string;
-  student: string;
-  description: string;
-  timestamp: number;
-}
-
-export interface StudentConfirmation {
+export interface StudentHelpConfirmation {
   id?: string;
   student_id: string;
   helper_id: string;
   date: string;
   status: 'pending' | 'confirmed' | 'rejected';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Complaint {
+  id?: string;
+  user_id: string;
+  title: string;
+  description: string;
+  status: 'pending' | 'in_progress' | 'resolved';
+  created_at: string;
+  updated_at: string;
+  feedback?: string;
+  followUp?: string;
+}
+
+export interface RideRequest {
+  id?: string;
+  student_id: string;
+  driver_id?: string | null;
+  pickup_location: string;
+  destination: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'completed';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Message {
+  id?: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  read: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface StudentOtp {
@@ -42,57 +70,11 @@ export interface StudentOtp {
   helperId: string;
 }
 
-export interface AdminMessage {
+export interface SystemLog {
   id?: string;
-  recipient: string;
-  subject: string;
-  content: string;
+  type: string;
+  message: string;
+  userId?: string;
+  userRole?: string;
   timestamp: number;
-  read: boolean;
-}
-
-export interface Complaint {
-  id?: string;
-  user_id: string;
-  title: string;
-  description: string;
-  status: 'pending' | 'in_progress' | 'resolved';
-  created_at?: string;
-  updated_at?: string;
-  feedback?: string;
-  followUp?: string;
-}
-
-export interface HelperStudentAssignment {
-  id?: string;
-  helper_id: string;
-  student_id: string;
-  status: 'active' | 'inactive';
-  academic_year: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface RideRequest {
-  id: string;
-  student_id: string;
-  driver_id?: string | null;
-  pickup_location: string;
-  destination: string;
-  status: 'pending' | 'accepted' | 'rejected' | 'completed';
-  created_at?: string;
-  updated_at?: string;
-  estimatedTime?: string;
-}
-
-export interface GadgetLoan {
-  id: string;
-  fullName: string;
-  regNumber: string;
-  course: string;
-  disabilityType: string;
-  gadgetTypes: string[];
-  dateBorrowed: string;
-  dateReturned?: string;
-  status: 'active' | 'returned';
 }

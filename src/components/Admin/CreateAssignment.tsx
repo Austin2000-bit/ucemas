@@ -28,7 +28,6 @@ import { SystemLogs } from "@/utils/systemLogs";
 const formSchema = z.object({
   helper_id: z.string().min(1, { message: "Helper is required" }),
   student_id: z.string().min(1, { message: "Student is required" }),
-  academic_year: z.string().min(1, { message: "Academic year is required" }),
   status: z.enum(["active", "inactive"]),
 });
 
@@ -40,18 +39,12 @@ interface CreateAssignmentProps {
 
 const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Get current year for defaults
-  const currentYear = new Date().getFullYear();
-  const nextYear = currentYear + 1;
-  const defaultAcademicYear = `${currentYear}-${nextYear}`;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       helper_id: "",
       student_id: "",
-      academic_year: defaultAcademicYear,
       status: "active",
     },
   });
@@ -61,11 +54,10 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
     try {
       console.log("Creating assignment:", values);
 
-      // Create the new assignment
-      const newAssignment: Omit<HelperStudentAssignment, "id"> = {
+      // Create the new assignment without academic_year field
+      const newAssignment = {
         helper_id: values.helper_id,
         student_id: values.student_id,
-        academic_year: values.academic_year,
         status: values.status,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -113,23 +105,6 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
       setIsSubmitting(false);
     }
   };
-
-  // Function to generate academic year options (YYYY-YYYY format)
-  const generateAcademicYearOptions = () => {
-    const startYear = currentYear - 2; // 2 years back
-    const endYear = currentYear + 2; // 2 years ahead
-    
-    const options = [];
-    for (let year = startYear; year <= endYear; year++) {
-      options.push({
-        value: `${year}-${year + 1}`,
-        label: `${year}-${year + 1}`
-      });
-    }
-    return options;
-  };
-
-  const academicYearOptions = generateAcademicYearOptions();
 
   return (
     <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
@@ -182,34 +157,6 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
                     ))}
                   </SelectContent>
                 </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="academic_year"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Academic Year</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select academic year" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {academicYearOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  The academic year for this assignment (YYYY-YYYY format)
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}

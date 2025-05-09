@@ -69,19 +69,30 @@ const Complaint = () => {
         return;
       }
 
+      // Get the current authenticated session
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        toast({
+          title: "Error",
+          description: "Authentication session not found. Please log in again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Create the complaint object with the logged-in user's ID
       const newComplaint = {
         user_id: user.id,
         title: values.category,
         description: values.description,
-        status: 'pending' as const,
+        status: 'pending',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
 
       console.log("Creating complaint:", newComplaint);
 
-      // Save to Supabase
+      // Save to Supabase with auth token from session
       const { data, error } = await supabase
         .from('complaints')
         .insert([newComplaint])

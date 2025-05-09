@@ -161,7 +161,6 @@ const HelperStudentAssignment = () => {
               <TableRow>
                 <TableHead>Helper</TableHead>
                 <TableHead>Student</TableHead>
-                <TableHead>Academic Year</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
@@ -172,7 +171,6 @@ const HelperStudentAssignment = () => {
                 <TableRow key={assignment.id}>
                   <TableCell>{getUserName(assignment.helper_id)}</TableCell>
                   <TableCell>{getUserName(assignment.student_id)}</TableCell>
-                  <TableCell>{assignment.academic_year}</TableCell>
                   <TableCell>
                     <Badge 
                       variant={assignment.status === "active" ? "default" : "secondary"}
