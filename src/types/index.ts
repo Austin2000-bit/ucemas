@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -8,6 +7,12 @@ export interface User {
   created_at: string;
   updated_at: string;
   photo?: string;
+  phone?: string;
+  bank_name?: string;
+  bank_account_number?: string;
+  time_period?: 'full_year' | 'semester' | 'half_semester';
+  status?: 'active' | 'completed' | 'inactive';
+  disability_type?: string;
 }
 
 export interface HelperStudentAssignment {
@@ -119,4 +124,18 @@ export interface GadgetLoan {
   gadgetTypes?: string[] | string;
   dateBorrowed?: string;
   dateReturned?: string;
+  usage_hours?: number;
+  usage_start_time?: string;
+  usage_end_time?: string;
+  usage_notes?: string;
+}
+
+export interface HelperStatusLog {
+  id: string;
+  helper_id: string;
+  previous_status: string;
+  new_status: string;
+  changed_by: string;
+  changed_at: string;
+  notes?: string;
 }
