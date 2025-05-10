@@ -7,6 +7,7 @@ export interface User {
   role: 'admin' | 'helper' | 'student' | 'driver';
   created_at: string;
   updated_at: string;
+  photo?: string;
 }
 
 export interface HelperStudentAssignment {
@@ -50,6 +51,11 @@ export interface RideRequest {
   created_at: string;
   updated_at: string;
   estimatedTime?: string | number;
+  student_name?: string;
+  driver_name?: string;
+}
+
+export interface RideRequestWithDetails extends RideRequest {
   student_name?: string;
   driver_name?: string;
 }
@@ -106,4 +112,11 @@ export interface GadgetLoan {
   status: 'borrowed' | 'returned';
   borrowed_date: string;
   return_date?: string;
+  fullName?: string;
+  regNumber?: string;
+  course?: string;
+  disabilityType?: string;
+  gadgetTypes?: string;
+  dateBorrowed?: string;
+  dateReturned?: string;
 }

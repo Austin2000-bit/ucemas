@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { db, StudentOtp, StudentConfirmation } from "@/lib/supabase";
 import { useAuth } from "@/utils/auth";
 import { SystemLogs } from "@/utils/systemLogs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { User } from "@/types";
 
 const Student = () => {
   const { user } = useAuth();
@@ -27,7 +29,7 @@ const Student = () => {
   const [todayConfirmed, setTodayConfirmed] = useState(false);
   const [recentConfirmations, setRecentConfirmations] = useState<StudentConfirmation[]>([]);
   const [pendingOtp, setPendingOtp] = useState<StudentOtp | null>(null);
-  const [assignedHelper, setAssignedHelper] = useState<any>(null);
+  const [assignedHelper, setAssignedHelper] = useState<User | null>(null);
   const [complaints, setComplaints] = useState<any[]>([]);
   const [userProfile, setUserProfile] = useState<any>(null);
   
@@ -63,6 +65,19 @@ const Student = () => {
       } else {
         setPendingOtp(null);
       }
+
+      // Load assigned helper
+      const assignments = JSON.parse(localStorage.getItem("helperStudentAssignments") || "[]");
+      const users = JSON.parse(localStorage.getItem("users") || "[]");
+      
+      const myAssignment = assignments.find((a: any) => 
+        a.student_id === studentId && a.status === "active"
+      );
+      
+      if (myAssignment) {
+        const helper = users.find((u: any) => u.id === myAssignment.helper_id);
+        setAssignedHelper(helper || null);
+      }
     };
     
     loadData();
@@ -97,7 +112,7 @@ const Student = () => {
   
   const handleConfirm = async () => {
     const otpValue = form.getValues("otp");
-    if (otpValue.length < 4) {
+    if (!otpValue || otpValue.length < 4) {
       toast({
         title: "Invalid OTP",
         description: "Please enter a valid 4-digit OTP",
@@ -172,7 +187,7 @@ const Student = () => {
   const getHelperName = (helperId: string) => {
     const users = JSON.parse(localStorage.getItem("users") || "[]");
     const helper = users.find((u: any) => u.id === helperId);
-    return helper ? `${helper.firstName} ${helper.lastName}` : 'Unknown Helper';
+    return helper ? `${helper.first_name} ${helper.last_name}` : 'Unknown Helper';
   };
   
   const formatTime = (timestamp: number) => {
@@ -225,7 +240,7 @@ const Student = () => {
           </div>
 
           {/* Assigned Helper Card */}
-          <Card className="mb-6">
+          <Card className="mt-6">
             <CardHeader>
               <CardTitle>Your Assigned Helper</CardTitle>
             </CardHeader>
@@ -233,14 +248,14 @@ const Student = () => {
               {assignedHelper ? (
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16">
-                    <AvatarImage src={assignedHelper.photo} />
+                    <AvatarImage src={assignedHelper.photo || "/default-avatar.png"} />
                     <AvatarFallback>
-                      {assignedHelper.firstName[0]}{assignedHelper.lastName[0]}
+                      {assignedHelper.first_name[0]}{assignedHelper.last_name[0]}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <h3 className="text-lg font-semibold">
-                      {assignedHelper.firstName} {assignedHelper.lastName}
+                      {assignedHelper.first_name} {assignedHelper.last_name}
                     </h3>
                     <p className="text-muted-foreground">{assignedHelper.email}</p>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -263,12 +278,12 @@ const Student = () => {
           
           <div className="flex flex-col items-center">
             <Avatar className="w-32 h-32 mb-4">
-              <AvatarImage src={userProfile?.photo || "/default-avatar.png"} alt={`${userProfile?.firstName} ${userProfile?.lastName}`} />
-              <AvatarFallback>{userProfile?.firstName?.[0]}{userProfile?.lastName?.[0]}</AvatarFallback>
+              <AvatarImage src={userProfile?.photo || "/default-avatar.png"} alt={`${userProfile?.first_name} ${userProfile?.last_name}`} />
+              <AvatarFallback>{userProfile?.first_name?.[0]}{userProfile?.last_name?.[0]}</AvatarFallback>
             </Avatar>
             
             <h2 className="text-2xl font-semibold text-gray-700 dark:text-gray-100">
-              {userProfile?.firstName?.toUpperCase()} {userProfile?.lastName?.toUpperCase()}
+              {userProfile?.first_name?.toUpperCase()} {userProfile?.last_name?.toUpperCase()}
             </h2>
             <p className="text-gray-500 dark:text-gray-400 mb-4">Any dishonesty will not be forgiven</p>
             
@@ -333,7 +348,6 @@ const Student = () => {
                 <Button 
                   className="w-full max-w-xs bg-blue-500 hover:bg-blue-600"
                   onClick={handleConfirm}
-                  disabled={!pendingOtp}
                 >
                   Confirm Help
                 </Button>
@@ -359,13 +373,13 @@ const Student = () => {
                   </div>
                   <div className="bg-muted p-4 rounded-lg text-center">
                     <p className="text-2xl font-bold">
-                      {complaints.filter(c => c.status === "Pending").length}
+                      {complaints.filter(c => c.status === "pending").length}
                     </p>
                     <p className="text-sm text-muted-foreground">Pending</p>
                   </div>
                   <div className="bg-muted p-4 rounded-lg text-center">
                     <p className="text-2xl font-bold">
-                      {complaints.filter(c => c.status === "Resolved").length}
+                      {complaints.filter(c => c.status === "resolved").length}
                     </p>
                     <p className="text-sm text-muted-foreground">Resolved</p>
                   </div>

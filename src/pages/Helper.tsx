@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
@@ -41,38 +42,51 @@ const Helper = () => {
 
   useEffect(() => {
     // Load assigned students
-    const assignments = JSON.parse(localStorage.getItem("helperStudentAssignments") || "[]");
-    const users = JSON.parse(localStorage.getItem("users") || "[]");
-    
-    const myAssignments = assignments.filter((a: any) => a.helperId === user?.id);
-    const myStudents = myAssignments.map((a: any) => {
-      const student = users.find((u: any) => u.id === a.studentId);
-      return student;
-    }).filter(Boolean);
-    
-    setAssignedStudents(myStudents);
+    const loadData = () => {
+      const assignments = JSON.parse(localStorage.getItem("helperStudentAssignments") || "[]");
+      const users = JSON.parse(localStorage.getItem("users") || "[]");
+      
+      const myAssignments = assignments.filter((a: any) => a.helper_id === user?.id && a.status === "active");
+      const myStudents = myAssignments.map((a: any) => {
+        const student = users.find((u: any) => u.id === a.student_id);
+        return student;
+      }).filter(Boolean);
+      
+      setAssignedStudents(myStudents);
+      
+      // If there's only one assigned student, select them automatically
+      if (myStudents.length === 1 && !selectedStudent) {
+        setSelectedStudent(myStudents[0].id);
+      }
 
-    const today = new Date().toISOString().split('T')[0];
-    const storedSignIns = localStorage.getItem('helperSignIns');
-    const signIns: SignInRecord[] = storedSignIns ? JSON.parse(storedSignIns) : [];
-    
-    const signedToday = signIns.some(record => 
-      record.date === today && 
-      record.helper === user?.id
-    );
-    
-    setIsSigned(signedToday);
-    setSignInHistory(signIns);
+      const today = new Date().toISOString().split('T')[0];
+      const storedSignIns = localStorage.getItem('helperSignIns');
+      const signIns: SignInRecord[] = storedSignIns ? JSON.parse(storedSignIns) : [];
+      
+      const signedToday = signIns.some(record => 
+        record.date === today && 
+        record.helper === user?.id
+      );
+      
+      setIsSigned(signedToday);
+      setSignInHistory(signIns);
 
-    const storedConfirmations = localStorage.getItem('helpConfirmations');
-    const helpConfirmations: HelpConfirmation[] = storedConfirmations 
-      ? JSON.parse(storedConfirmations) 
-      : [];
-    setConfirmations(helpConfirmations);
-  }, [user]);
+      const storedConfirmations = localStorage.getItem('helpConfirmations');
+      const helpConfirmations: HelpConfirmation[] = storedConfirmations 
+        ? JSON.parse(storedConfirmations) 
+        : [];
+      setConfirmations(helpConfirmations);
+    };
+
+    loadData();
+    
+    // Setup periodic refresh
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
+  }, [user, selectedStudent]);
 
   const generateOTP = () => {
-    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const newOtp = Math.floor(100000 + Math.random() * 900000).toString().substring(0, 4);
     setOtp(newOtp);
     
     // Get the selected student's email
@@ -103,11 +117,18 @@ const Helper = () => {
       timestamp: Date.now(),
       expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
       helperId: user.id,
-      helperName: `${user.first_name} ${user.last_name}`
+      helperName: `${user.first_name} ${user.last_name}`,
+      studentId: selectedStudent,
+      otp: newOtp
     };
     otps.push(newOtpEntry);
     
     localStorage.setItem("otps", JSON.stringify(otps));
+    
+    // Store in studentOtps for the student to access
+    const studentOtps = JSON.parse(localStorage.getItem("studentOtps") || "[]");
+    studentOtps.push(newOtpEntry);
+    localStorage.setItem("studentOtps", JSON.stringify(studentOtps));
     
     // Trigger a custom event to notify the student's page
     const event = new CustomEvent('newOtpGenerated', { detail: newOtpEntry });
@@ -117,13 +138,15 @@ const Helper = () => {
       title: "OTP Generated",
       description: `OTP has been sent to ${selectedStudentData.first_name} ${selectedStudentData.last_name}`,
     });
+
+    setHasCopied(false);
   };
 
   const handleSignIn = () => {
-    if (!otp) {
+    if (!user?.id) {
       toast({
-        title: "OTP Required",
-        description: "Please generate an OTP before signing in",
+        title: "Error",
+        description: "User not authenticated",
         variant: "destructive",
       });
       return;
@@ -136,7 +159,7 @@ const Helper = () => {
     
     const signedToday = signIns.some(record => 
       record.date === today && 
-      record.helper === user?.id
+      record.helper === user.id
     );
     
     if (signedToday) {
@@ -149,7 +172,7 @@ const Helper = () => {
     
     const newSignIn: SignInRecord = {
       date: today,
-      helper: user?.id || "",
+      helper: user.id,
       timestamp: Date.now()
     };
     
@@ -186,6 +209,15 @@ const Helper = () => {
       return;
     }
 
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User not authenticated",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const today = new Date().toISOString().split('T')[0];
     const storedConfirmations = localStorage.getItem('helpConfirmations');
     const helpConfirmations: HelpConfirmation[] = storedConfirmations 
@@ -194,7 +226,7 @@ const Helper = () => {
     
     const newConfirmation: HelpConfirmation = {
       date: today,
-      helper: user?.id || "",
+      helper: user.id,
       student: selectedStudent,
       description: description,
       timestamp: Date.now()
@@ -249,7 +281,11 @@ const Helper = () => {
             
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <Select value={selectedStudent} onValueChange={setSelectedStudent}>
+                <Select 
+                  value={selectedStudent} 
+                  onValueChange={setSelectedStudent}
+                  disabled={assignedStudents.length === 1}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select assigned student" />
                   </SelectTrigger>
@@ -261,6 +297,11 @@ const Helper = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                {assignedStudents.length === 0 && (
+                  <p className="text-sm text-amber-500">
+                    No students assigned to you yet. Please contact an administrator.
+                  </p>
+                )}
               </div>
               
               <div className="space-y-2">
@@ -273,7 +314,11 @@ const Helper = () => {
                 />
               </div>
               
-              <Button type="submit" className="w-full bg-blue-500 hover:bg-blue-600">
+              <Button 
+                type="submit" 
+                className="w-full bg-blue-500 hover:bg-blue-600"
+                disabled={assignedStudents.length === 0}
+              >
                 Sign & Generate OTP
               </Button>
             </form>
@@ -341,7 +386,11 @@ const Helper = () => {
                   </TableHeader>
                   <TableBody>
                     {confirmations.length > 0 ? (
-                      confirmations.slice(-10).reverse().map((conf, idx) => (
+                      confirmations
+                        .filter(conf => conf.helper === user?.id)
+                        .slice(-10)
+                        .reverse()
+                        .map((conf, idx) => (
                         <TableRow key={idx}>
                           <TableCell>{formatDate(conf.date)}</TableCell>
                           <TableCell>{getStudentName(conf.student)}</TableCell>
@@ -350,7 +399,7 @@ const Helper = () => {
                             {(() => {
                               const studentConfirmations = JSON.parse(localStorage.getItem('studentHelpConfirmations') || '[]');
                               const isConfirmed = studentConfirmations.some(
-                                (sc: any) => sc.date === conf.date && sc.helperId === conf.student
+                                (sc: any) => sc.date === conf.date && sc.helperId === conf.helper && sc.student === conf.student
                               );
                               return isConfirmed ? (
                                 <Badge className="bg-green-500">Verified</Badge>
