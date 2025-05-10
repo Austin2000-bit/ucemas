@@ -78,3 +78,29 @@ export interface SystemLog {
   userRole?: string;
   timestamp: number;
 }
+
+// Types needed for other parts of the application
+export interface SignInRecord {
+  id?: string;
+  date: string;
+  helper: string;
+  timestamp: number;
+}
+
+export interface HelpConfirmation {
+  id?: string;
+  date: string;
+  helper: string;
+  student: string;
+  description: string;
+  timestamp: number;
+}
+
+export interface GadgetLoan {
+  id: string;
+  user_id: string;
+  gadget_name: string;
+  status: 'borrowed' | 'returned';
+  borrowed_date: string;
+  return_date?: string;
+}

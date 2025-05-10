@@ -31,6 +31,18 @@ const HelperStudentAssignment = () => {
     setIsLoading(true);
 
     try {
+      // Get the current auth session
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        toast({
+          title: "Error",
+          description: "Authentication required. Please log in again.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       // Fetch users
       const { data: usersData, error: usersError } = await supabase
         .from('users')
@@ -57,7 +69,7 @@ const HelperStudentAssignment = () => {
       console.error("Error fetching data:", error);
       toast({
         title: "Error",
-        description: "Failed to load assignments data",
+        description: `Failed to load assignments data: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive",
       });
     } finally {
@@ -74,6 +86,17 @@ const HelperStudentAssignment = () => {
     const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
     
     try {
+      // Check session before updating
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        toast({
+          title: "Error",
+          description: "Authentication required. Please log in again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       const { error } = await supabase
         .from('helper_student_assignments')
         .update({ status: newStatus, updated_at: new Date().toISOString() })
@@ -81,6 +104,9 @@ const HelperStudentAssignment = () => {
 
       if (error) {
         console.error("Error updating assignment status:", error);
+        if (error.code === '42501') {
+          throw new Error("Permission denied. You may not have the right access level to update assignments.");
+        }
         throw error;
       }
 
@@ -113,7 +139,7 @@ const HelperStudentAssignment = () => {
       console.error("Error:", error);
       toast({
         title: "Error",
-        description: "Failed to update assignment status",
+        description: `Failed to update assignment status: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive",
       });
     }

@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -54,7 +53,13 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
     try {
       console.log("Creating assignment:", values);
 
-      // Create the new assignment without academic_year field
+      // Get the current authenticated session to ensure proper auth
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        throw new Error("Authentication session not found. Please log in again.");
+      }
+
+      // Create the new assignment
       const newAssignment = {
         helper_id: values.helper_id,
         student_id: values.student_id,
@@ -71,6 +76,9 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
 
       if (error) {
         console.error("Error creating assignment:", error);
+        if (error.code === '42501') {
+          throw new Error("Permission denied. You may not have the right access level to create assignments.");
+        }
         throw new Error(`Failed to create assignment: ${error.message}`);
       }
 

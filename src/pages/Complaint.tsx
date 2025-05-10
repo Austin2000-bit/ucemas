@@ -100,6 +100,9 @@ const Complaint = () => {
 
       if (error) {
         console.error("Error creating complaint:", error);
+        if (error.code === '42501') {
+          throw new Error("Permission denied. You may not have the right access level to submit complaints.");
+        }
         throw new Error("Failed to create complaint");
       }
 
@@ -124,7 +127,7 @@ const Complaint = () => {
       console.error("Error submitting complaint:", error);
       toast({
         title: "Error",
-        description: "Failed to submit complaint. Please try again.",
+        description: `Failed to submit complaint: ${error instanceof Error ? error.message : 'Please try again.'}`,
         variant: "destructive",
       });
     } finally {
