@@ -21,6 +21,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Complaint, User } from "@/types";
 import { SystemLogs } from "@/utils/systemLogs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const ComplaintsView = () => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
@@ -76,7 +77,20 @@ const ComplaintsView = () => {
 
   const handleUpdateStatus = async (complaintId: string, newStatus: 'pending' | 'in_progress' | 'resolved') => {
     try {
-      const { error } = await supabase
+      // First, check if complaint exists
+      const { data: existingComplaint, error: fetchError } = await supabase
+        .from('complaints')
+        .select('*')
+        .eq('id', complaintId)
+        .single();
+        
+      if (fetchError) {
+        console.error("Error fetching complaint:", fetchError);
+        throw new Error("Could not find the complaint");
+      }
+      
+      // Now update the complaint
+      const { data, error } = await supabase
         .from('complaints')
         .update({ 
           status: newStatus,
@@ -97,6 +111,13 @@ const ComplaintsView = () => {
             : complaint
         )
       );
+
+      // Also update in localStorage as a fallback
+      const localComplaints = JSON.parse(localStorage.getItem("complaints") || "[]");
+      const updatedLocalComplaints = localComplaints.map((c: any) => 
+        c.id === complaintId ? { ...c, status: newStatus, updated_at: new Date().toISOString() } : c
+      );
+      localStorage.setItem("complaints", JSON.stringify(updatedLocalComplaints));
 
       // Log the action
       SystemLogs.addLog(
@@ -135,71 +156,73 @@ const ComplaintsView = () => {
       {isLoading ? (
         <div className="text-center py-8">Loading complaints...</div>
       ) : complaints.length > 0 ? (
-        <Table>
-          <TableCaption>List of submitted complaints</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Category</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Submitted By</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {complaints.map(complaint => (
-              <TableRow key={complaint.id}>
-                <TableCell className="font-medium">{complaint.title}</TableCell>
-                <TableCell className="max-w-md truncate">{complaint.description}</TableCell>
-                <TableCell>{getUserName(complaint.user_id)}</TableCell>
-                <TableCell>{getUserRole(complaint.user_id)}</TableCell>
-                <TableCell>
-                  {complaint.created_at ? new Date(complaint.created_at).toLocaleDateString() : "N/A"}
-                </TableCell>
-                <TableCell>
-                  <Badge 
-                    variant={
-                      complaint.status === "resolved" ? "outline" : 
-                      complaint.status === "in_progress" ? "default" : 
-                      "secondary"
-                    }
-                  >
-                    {formatStatus(complaint.status)}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">Update Status</Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem 
-                        onClick={() => handleUpdateStatus(complaint.id!, 'pending')}
-                        disabled={complaint.status === 'pending'}
-                      >
-                        Set to Pending
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => handleUpdateStatus(complaint.id!, 'in_progress')}
-                        disabled={complaint.status === 'in_progress'}
-                      >
-                        Set to In Progress
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => handleUpdateStatus(complaint.id!, 'resolved')}
-                        disabled={complaint.status === 'resolved'}
-                      >
-                        Set to Resolved
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+        <ScrollArea className="h-[500px]">
+          <Table>
+            <TableCaption>List of submitted complaints</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Category</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Submitted By</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {complaints.map(complaint => (
+                <TableRow key={complaint.id}>
+                  <TableCell className="font-medium">{complaint.title}</TableCell>
+                  <TableCell className="max-w-md truncate">{complaint.description}</TableCell>
+                  <TableCell>{getUserName(complaint.user_id)}</TableCell>
+                  <TableCell>{getUserRole(complaint.user_id)}</TableCell>
+                  <TableCell>
+                    {complaint.created_at ? new Date(complaint.created_at).toLocaleDateString() : "N/A"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge 
+                      variant={
+                        complaint.status === "resolved" ? "outline" : 
+                        complaint.status === "in_progress" ? "default" : 
+                        "secondary"
+                      }
+                    >
+                      {formatStatus(complaint.status)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">Update Status</Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem 
+                          onClick={() => handleUpdateStatus(complaint.id!, 'pending')}
+                          disabled={complaint.status === 'pending'}
+                        >
+                          Set to Pending
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleUpdateStatus(complaint.id!, 'in_progress')}
+                          disabled={complaint.status === 'in_progress'}
+                        >
+                          Set to In Progress
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleUpdateStatus(complaint.id!, 'resolved')}
+                          disabled={complaint.status === 'resolved'}
+                        >
+                          Set to Resolved
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </ScrollArea>
       ) : (
         <div className="text-center py-8 text-gray-500">No complaints found</div>
       )}
