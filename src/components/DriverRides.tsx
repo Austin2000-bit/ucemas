@@ -86,7 +86,7 @@ const DriverRides = () => {
     }
 
     try {
-      const success = await rideService.acceptRide(ride.id, user.id);
+      const success = await rideService.acceptRide(ride.id!, user.id);
 
       if (success) {
         setPendingRides(prev => prev.filter(r => r.id !== ride.id));
@@ -127,7 +127,7 @@ const DriverRides = () => {
     }
 
     try {
-      const success = await rideService.rejectRide(ride.id, user.id);
+      const success = await rideService.rejectRide(ride.id!, user.id);
 
       if (success) {
         setPendingRides(prev => prev.filter(r => r.id !== ride.id));

@@ -239,3 +239,109 @@ export const getAllRideRequests = async (): Promise<RideRequestWithDetails[]> =>
     throw error;
   }
 };
+
+// Additional functions for DriverRides.tsx
+export const getPendingRides = async (): Promise<RideRequestWithDetails[]> => {
+  return getAvailableRideRequests();
+};
+
+export const getRideStats = async (driverId: string): Promise<{
+  totalRides: number;
+  completedRides: number;
+  rejectedRides: number;
+  acceptanceRate: number;
+  averageRating: number;
+}> => {
+  try {
+    const { data: rides, error } = await supabase
+      .from('ride_requests')
+      .select('*')
+      .eq('driver_id', driverId);
+    
+    if (error) {
+      throw new Error(error.message);
+    }
+    
+    const totalRides = rides.length;
+    const completedRides = rides.filter(ride => ride.status === 'completed').length;
+    const rejectedRides = rides.filter(ride => ride.status === 'rejected').length;
+    const acceptanceRate = totalRides > 0 ? (completedRides / totalRides) * 100 : 0;
+    
+    return {
+      totalRides,
+      completedRides,
+      rejectedRides,
+      acceptanceRate,
+      averageRating: 4.5 // Placeholder value, would be calculated from actual ratings
+    };
+  } catch (error) {
+    console.error('Error getting ride stats:', error);
+    return {
+      totalRides: 0,
+      completedRides: 0,
+      rejectedRides: 0,
+      acceptanceRate: 0,
+      averageRating: 0
+    };
+  }
+};
+
+export const acceptRide = async (rideId: string, driverId: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('ride_requests')
+      .update({
+        driver_id: driverId,
+        status: 'accepted',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', rideId);
+      
+    if (error) {
+      throw new Error(error.message);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error accepting ride:', error);
+    return false;
+  }
+};
+
+export const rejectRide = async (rideId: string, driverId: string): Promise<boolean> => {
+  try {
+    // We log the driver who rejected it even though we don't store it
+    console.log(`Driver ${driverId} rejected ride ${rideId}`);
+    
+    const { error } = await supabase
+      .from('ride_requests')
+      .update({
+        status: 'rejected',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', rideId);
+      
+    if (error) {
+      throw new Error(error.message);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error rejecting ride:', error);
+    return false;
+  }
+};
+
+// Create a consolidated export object for the rideService
+export const rideService = {
+  createRideRequest,
+  getStudentRideRequests,
+  getAvailableRideRequests,
+  getDriverRideRequests,
+  updateRideRequestStatus,
+  getAllRideRequests,
+  getPendingRides,
+  getRideStats,
+  acceptRide,
+  rejectRide
+};

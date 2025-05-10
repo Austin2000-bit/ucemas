@@ -49,6 +49,9 @@ export interface RideRequest {
   status: 'pending' | 'accepted' | 'rejected' | 'completed';
   created_at: string;
   updated_at: string;
+  estimatedTime?: string | number;
+  student_name?: string;
+  driver_name?: string;
 }
 
 export interface Message {

@@ -53,7 +53,6 @@ const RideBooking = () => {
         pickup_location: pickupLocation,
         destination: destination,
         status: 'pending',
-        estimatedTime: estimatedTime,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
