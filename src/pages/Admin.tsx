@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/utils/auth";
 import { SystemLogs } from "@/utils/systemLogs";
@@ -28,7 +27,6 @@ import { AlertTriangle, Car, Laptop, UserCog, BarChart, History, Clock } from "l
 import AdminGadgetLending from "@/components/Admin/AdminGadgetLending";
 import AdminUsers from "@/components/Admin/AdminUsers";
 import AdminRideRequests from "@/components/Admin/AdminRideRequests";
-import AssistantStatusHistory from "@/components/Admin/AssistantStatusHistory";
 import Navbar from "@/components/Navbar";
 import HelperStudentAssignment from "@/components/Admin/HelperStudentAssignment";
 import { supabase } from "@/lib/supabase";
@@ -91,7 +89,6 @@ const Admin: React.FC = () => {
     { icon: Car, label: "Ride Requests", url: "ride-requests", id: "ride-requests", title: "Ride Requests" },
     { icon: Laptop, label: "Gadget Lending", url: "gadgets", id: "gadgets", title: "Gadget Lending" },
     { icon: UserCog, label: "User Management", url: "user-management", id: "user-management", title: "User Management" },
-    { icon: History, label: "Assistant Status", url: "assistant-status", id: "assistant-status", title: "Assistant Status History" },
     { icon: Clock, label: "Assignments", url: "assignments", id: "assignments", title: "Student Assignments" },
   ];
   
@@ -335,8 +332,6 @@ const Admin: React.FC = () => {
         return <AdminGadgetLending />;
       case "user-management":
         return <AdminUsers />;
-      case "assistant-status":
-        return <AssistantStatusHistory />;
       case "assignments":
         return <HelperStudentAssignment />;
       case "dashboard":
@@ -533,15 +528,11 @@ const Admin: React.FC = () => {
         <div className="flex-1 p-6">
           <h1 className="text-2xl font-bold mb-6 dark:text-white">
             {activeSection === "dashboard" ? "UDSNMS Dashboard" : 
-             activeSection === "helpers" ? "Manage Helpers" :
-             activeSection === "students" ? "Manage Students" :
              activeSection === "complaints" ? "View Complaints" :
              activeSection === "ride-requests" ? "Ride Requests" :
              activeSection === "gadgets" ? "Gadget Lending" :
-             activeSection === "users" ? "Users" :
              activeSection === "user-management" ? "User Management" : 
-             activeSection === "assignments" ? "Student Assignments" :
-             activeSection === "assistant-status" ? "Assistant Status History" : "Reports"}
+             activeSection === "assignments" ? "Student Assignments" : "Reports"}
           </h1>
           
           {renderContent()}
@@ -587,7 +578,7 @@ const Admin: React.FC = () => {
                 ID: {selectedComplaint.id} • {selectedComplaint.created_at ? new Date(selectedComplaint.created_at).toLocaleDateString() : '-'}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
               <div>
                 <p className="text-sm font-medium mb-1">Submitted By</p>
                 <p className="text-sm">

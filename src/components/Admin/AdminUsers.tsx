@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   Table,
@@ -23,11 +24,10 @@ import { supabase } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Download, Search, UserPlus, MessageSquare, Trash2, Eye } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import HelperStudentAssignment from "./HelperStudentAssignment";
 
 interface User {
@@ -47,6 +47,7 @@ interface User {
   application_letter?: string;
   created_at?: string;
   last_login?: string;
+  status?: 'active' | 'completed' | 'inactive';
 }
 
 interface Assignment {
@@ -66,6 +67,7 @@ const AdminUsers = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [isEditStatusDialogOpen, setIsEditStatusDialogOpen] = useState(false);
   const [selectedUserForMessage, setSelectedUserForMessage] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
@@ -83,7 +85,10 @@ const AdminUsers = () => {
     assistant_level: "",
     bank_account: "",
     bank_account_number: "",
+    status: "active",
   });
+  const [newStatus, setNewStatus] = useState<'active' | 'completed' | 'inactive'>('active');
+  const [statusNote, setStatusNote] = useState("");
 
   // Load users and assignments from Supabase
   useEffect(() => {
@@ -174,12 +179,77 @@ const AdminUsers = () => {
     }
   };
 
+  const handleEditStatus = (user: User) => {
+    if (user.role !== 'helper') return;
+    
+    setSelectedUser(user);
+    setNewStatus(user.status || 'active');
+    setStatusNote("");
+    setIsEditStatusDialogOpen(true);
+  };
+
+  const confirmStatusUpdate = async () => {
+    if (!selectedUser) return;
+
+    try {
+      const previousStatus = selectedUser.status || 'active';
+      
+      // Update user status
+      const { error } = await supabase
+        .from('users')
+        .update({ status: newStatus })
+        .eq('id', selectedUser.id);
+
+      if (error) throw error;
+
+      // Add to status logs
+      const { error: logError } = await supabase
+        .from('helper_status_logs')
+        .insert([{
+          helper_id: selectedUser.id,
+          previous_status: previousStatus,
+          new_status: newStatus,
+          changed_by: "admin", // Ideally use actual admin ID
+          changed_at: new Date().toISOString(),
+          notes: statusNote,
+        }]);
+
+      if (logError) throw logError;
+
+      // Update local state
+      setUsers(users.map(user => 
+        user.id === selectedUser.id ? { ...user, status: newStatus } : user
+      ));
+      
+      setIsEditStatusDialogOpen(false);
+      
+      SystemLogs.addLog(
+        "Assistant Status Change",
+        `Assistant ${selectedUser.first_name} ${selectedUser.last_name}'s status changed from ${previousStatus} to ${newStatus}`,
+        "admin",
+        "admin"
+      );
+
+      toast({
+        title: "Status Updated",
+        description: `${selectedUser.first_name} ${selectedUser.last_name}'s status updated to ${newStatus}`,
+      });
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update assistant status. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const downloadData = (data: any[], filename: string) => {
     const csvContent = "data:text/csv;charset=utf-8," 
       + "Name,Email,Role,Phone,Additional Info\n"
       + data.map(user => {
           const additionalInfo = user.role === "helper" 
-            ? `Type: ${user.assistant_type || "-"}, Level: ${user.assistant_level || "-"}, Specialization: ${user.assistant_specialization || "-"}, Bank: ${user.bank_account || "-"}, Account: ${user.bank_account_number || "-"}`
+            ? `Type: ${user.assistant_type || "-"}, Level: ${user.assistant_level || "-"}, Specialization: ${user.assistant_specialization || "-"}, Bank: ${user.bank_account || "-"}, Account: ${user.bank_account_number || "-"}, Status: ${user.status || "active"}`
             : user.role === "student"
             ? `Disability: ${user.disability_type || "-"}`
             : "";
@@ -232,6 +302,7 @@ const AdminUsers = () => {
         assistant_level: "",
         bank_account: "",
         bank_account_number: "",
+        status: "active",
       });
 
       SystemLogs.addLog(
@@ -252,6 +323,19 @@ const AdminUsers = () => {
         description: "Failed to create user. Please try again.",
         variant: "destructive",
       });
+    }
+  };
+
+  const getStatusBadge = (status?: string) => {
+    switch (status) {
+      case 'active':
+        return <Badge variant="default" className="bg-green-500">Active</Badge>;
+      case 'completed':
+        return <Badge variant="default" className="bg-blue-500">Completed</Badge>;
+      case 'inactive':
+        return <Badge variant="secondary">Inactive</Badge>;
+      default:
+        return <Badge variant="default" className="bg-green-500">Active</Badge>;
     }
   };
 
@@ -302,6 +386,7 @@ const AdminUsers = () => {
                   <TableHead className="whitespace-nowrap">Role</TableHead>
                   <TableHead className="whitespace-nowrap">Phone</TableHead>
                   <TableHead className="whitespace-nowrap">Additional Info</TableHead>
+                  <TableHead className="whitespace-nowrap">Status</TableHead>
                   <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -358,6 +443,9 @@ const AdminUsers = () => {
                           </div>
                         )}
                       </TableCell>
+                      <TableCell>
+                        {user.role === "helper" && getStatusBadge(user.status)}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
@@ -374,6 +462,15 @@ const AdminUsers = () => {
                           >
                             <MessageSquare className="h-4 w-4" />
                           </Button>
+                          {user.role === "helper" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditStatus(user)}
+                            >
+                              Change Status
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -387,7 +484,7 @@ const AdminUsers = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No users found.
                     </TableCell>
                   </TableRow>
@@ -534,7 +631,7 @@ const AdminUsers = () => {
             </DialogDescription>
           </DialogHeader>
           {selectedUser && (
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium">First Name</p>
@@ -568,6 +665,12 @@ const AdminUsers = () => {
                   <p className="text-sm font-medium">Last Login</p>
                   <p className="text-sm">{selectedUser.last_login ? new Date(selectedUser.last_login).toLocaleString() : "-"}</p>
                 </div>
+                {selectedUser.role === "helper" && (
+                  <div>
+                    <p className="text-sm font-medium">Status</p>
+                    <p className="text-sm">{selectedUser.status || "active"}</p>
+                  </div>
+                )}
               </div>
 
               {selectedUser.role === "helper" && (
@@ -659,12 +762,59 @@ const AdminUsers = () => {
           <DialogHeader>
             <DialogTitle>Message {selectedUserForMessage?.first_name} {selectedUserForMessage?.last_name}</DialogTitle>
           </DialogHeader>
-          <div className="flex-1">
+          <div className="flex-1 overflow-y-auto">
             <MessageSystem 
               recipient={selectedUserForMessage?.email} 
               onClose={() => setIsMessageDialogOpen(false)}
             />
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Status Dialog */}
+      <Dialog open={isEditStatusDialogOpen} onOpenChange={setIsEditStatusDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Assistant Status</DialogTitle>
+            <DialogDescription>
+              Change the status for {selectedUser?.first_name} {selectedUser?.last_name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Current Status</Label>
+              <div>{getStatusBadge(selectedUser?.status)}</div>
+            </div>
+            <div className="space-y-2">
+              <Label>New Status</Label>
+              <Select value={newStatus} onValueChange={(value: 'active' | 'completed' | 'inactive') => setNewStatus(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes (Optional)</Label>
+              <Input 
+                placeholder="Add notes about this status change..."
+                value={statusNote}
+                onChange={(e) => setStatusNote(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditStatusDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmStatusUpdate}>
+              Update Status
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -677,7 +827,7 @@ const AdminUsers = () => {
               Fill in the details to create a new user account.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="first_name">First Name</Label>
@@ -786,6 +936,21 @@ const AdminUsers = () => {
                       onChange={(e) => setNewUser({ ...newUser, bank_account_number: e.target.value })}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Initial Status</Label>
+                    <Select 
+                      value={newUser.status}
+                      onValueChange={(value) => setNewUser({ ...newUser, status: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             )}
@@ -802,4 +967,4 @@ const AdminUsers = () => {
   );
 };
 
-export default AdminUsers; 
+export default AdminUsers;
