@@ -116,7 +116,7 @@ export interface GadgetLoan {
   regNumber?: string;
   course?: string;
   disabilityType?: string;
-  gadgetTypes?: string;
+  gadgetTypes?: string[] | string;
   dateBorrowed?: string;
   dateReturned?: string;
 }

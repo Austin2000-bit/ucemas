@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import {
   Table,
@@ -72,9 +73,16 @@ const AdminGadgetLending = () => {
 
     const newLoan: GadgetLoan = {
       id: Date.now().toString(),
-      ...formData,
+      user_id: formData.regNumber, // Using regNumber as user_id
+      gadget_name: formData.gadgetTypes.join(", "),
+      status: "borrowed", // Changed from "active" to "borrowed"
+      borrowed_date: new Date().toISOString(),
+      fullName: formData.fullName,
+      regNumber: formData.regNumber,
+      course: formData.course,
+      disabilityType: formData.disabilityType,
+      gadgetTypes: formData.gadgetTypes,
       dateBorrowed: new Date().toISOString(),
-      status: "active",
     };
 
     const updatedLoans = [...loans, newLoan];
@@ -101,6 +109,7 @@ const AdminGadgetLending = () => {
         ? { 
             ...loan, 
             status: "returned" as const,
+            return_date: new Date().toISOString(),
             dateReturned: new Date().toISOString()
           } 
         : loan
@@ -273,20 +282,20 @@ const AdminGadgetLending = () => {
                   <TableCell>{loan.regNumber}</TableCell>
                   <TableCell>{loan.course}</TableCell>
                   <TableCell>{loan.disabilityType}</TableCell>
-                  <TableCell>{loan.gadgetTypes.join(", ")}</TableCell>
-                  <TableCell>{new Date(loan.dateBorrowed).toLocaleDateString()}</TableCell>
+                  <TableCell>{Array.isArray(loan.gadgetTypes) ? loan.gadgetTypes.join(", ") : loan.gadget_name}</TableCell>
+                  <TableCell>{new Date(loan.dateBorrowed || loan.borrowed_date).toLocaleDateString()}</TableCell>
                   <TableCell>
-                    {loan.dateReturned ? new Date(loan.dateReturned).toLocaleDateString() : "-"}
+                    {loan.dateReturned || loan.return_date ? new Date(loan.dateReturned || loan.return_date).toLocaleDateString() : "-"}
                   </TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 text-xs rounded-full ${
-                      loan.status === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                      loan.status === "borrowed" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
                     }`}>
                       {loan.status}
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    {loan.status === "active" && (
+                    {loan.status === "borrowed" && (
                       <Button
                         variant="outline"
                         size="sm"
