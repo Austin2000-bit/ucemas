@@ -7,6 +7,7 @@ import NavigationLinks from "./navbar/NavigationLinks";
 import UserMenu from "./navbar/UserMenu";
 import MobileMenuToggle from "./navbar/MobileMenuToggle";
 import MobileMenu from "./navbar/MobileMenu";
+import { User } from "@/types";
 
 interface NavbarProps {
   title?: string;
@@ -28,6 +29,9 @@ const Navbar: React.FC<NavbarProps> = ({ title = "UDSNMS", hideLinks = false }) 
     setIsMenuOpen(!isMenuOpen);
   };
 
+  // Cast user to the correct User type from types/index.ts
+  const typedUser = user as unknown as User;
+
   return (
     <nav className="bg-blue-500 shadow dark:bg-gray-800">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -39,15 +43,15 @@ const Navbar: React.FC<NavbarProps> = ({ title = "UDSNMS", hideLinks = false }) 
               </Link>
             </div>
 
-            <NavigationLinks user={user} hideLinks={hideLinks} />
+            <NavigationLinks user={typedUser} hideLinks={hideLinks} />
           </div>
 
-          <UserMenu user={user} handleLogout={handleLogout} hideLinks={hideLinks} />
+          <UserMenu user={typedUser} handleLogout={handleLogout} hideLinks={hideLinks} />
           <MobileMenuToggle isMenuOpen={isMenuOpen} toggleMenu={toggleMenu} />
         </div>
       </div>
 
-      <MobileMenu isOpen={isMenuOpen} user={user} handleLogout={handleLogout} />
+      <MobileMenu isOpen={isMenuOpen} user={typedUser} handleLogout={handleLogout} />
     </nav>
   );
 };
