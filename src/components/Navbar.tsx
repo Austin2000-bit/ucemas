@@ -17,7 +17,6 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ title = "UDSNMS", hideLinks = false }) => {
   const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const navigate = useNavigate();
 
   const handleLogout = () => {
     if (logout) {
@@ -33,7 +32,7 @@ const Navbar: React.FC<NavbarProps> = ({ title = "UDSNMS", hideLinks = false }) 
   const typedUser = user as unknown as User;
 
   return (
-    <nav className="bg-blue-500 shadow dark:bg-gray-800">
+    <nav className="bg-blue-500 shadow">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 justify-between">
           <div className="flex">
@@ -51,7 +50,8 @@ const Navbar: React.FC<NavbarProps> = ({ title = "UDSNMS", hideLinks = false }) 
         </div>
       </div>
 
-      <MobileMenu isOpen={isMenuOpen} user={typedUser} handleLogout={handleLogout} />
+      {/* Only render mobile menu when open to save resources */}
+      {isMenuOpen && <MobileMenu isOpen={true} user={typedUser} handleLogout={handleLogout} />}
     </nav>
   );
 };
