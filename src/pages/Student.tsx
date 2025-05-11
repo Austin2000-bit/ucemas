@@ -20,6 +20,7 @@ import { useAuth } from "@/utils/auth";
 import { SystemLogs } from "@/utils/systemLogs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { User } from "@/types";
+import { supabase } from "@/lib/supabase";
 
 const Student = () => {
   const { user } = useAuth();
@@ -44,39 +45,69 @@ const Student = () => {
     const loadData = async () => {
       if (!studentId) return;
 
-      // Get student's confirmations
-      const confirmations = await db.getStudentConfirmationsByStudent(studentId);
-      setRecentConfirmations(confirmations);
-      
-      // Check if there's a confirmation for today
-      const today = new Date().toISOString().split('T')[0];
-      const todayConfirm = confirmations.find(conf => conf.date === today);
-      setTodayConfirmed(!!todayConfirm);
-      
-      // Check if there's a pending OTP for this student
-      if (!todayConfirm) {
-        const studentOtp = await db.getStudentOtp(studentId);
-        setPendingOtp(studentOtp);
+      try {
+        // Get student's confirmations
+        const confirmations = await db.getStudentConfirmationsByStudent(studentId);
+        setRecentConfirmations(confirmations);
         
-        // Auto-fill the OTP field if there's a pending OTP
-        if (studentOtp?.otp) {
-          form.setValue("otp", studentOtp.otp);
+        // Check if there's a confirmation for today
+        const today = new Date().toISOString().split('T')[0];
+        const todayConfirm = confirmations.find(conf => conf.date === today);
+        setTodayConfirmed(!!todayConfirm);
+        
+        // Check if there's a pending OTP for this student
+        if (!todayConfirm) {
+          const studentOtp = await db.getStudentOtp(studentId);
+          setPendingOtp(studentOtp);
+          
+          // Auto-fill the OTP field if there's a pending OTP
+          if (studentOtp?.otp) {
+            form.setValue("otp", studentOtp.otp);
+          }
+        } else {
+          setPendingOtp(null);
         }
-      } else {
-        setPendingOtp(null);
-      }
 
-      // Load assigned helper
-      const assignments = JSON.parse(localStorage.getItem("helperStudentAssignments") || "[]");
-      const users = JSON.parse(localStorage.getItem("users") || "[]");
-      
-      const myAssignment = assignments.find((a: any) => 
-        a.student_id === studentId && a.status === "active"
-      );
-      
-      if (myAssignment) {
-        const helper = users.find((u: any) => u.id === myAssignment.helper_id);
-        setAssignedHelper(helper || null);
+        // Load assigned helper from Supabase
+        const { data: assignmentsData, error: assignmentsError } = await supabase
+          .from('helper_student_assignments')
+          .select('*')
+          .eq('student_id', studentId)
+          .eq('status', 'active')
+          .single();
+        
+        if (assignmentsError) {
+          if (assignmentsError.code !== 'PGRST116') { // No rows found is not an error
+            console.error("Error fetching assignments:", assignmentsError);
+          }
+        } else if (assignmentsData) {
+          // Get the helper details
+          const { data: helperData, error: helperError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', assignmentsData.helper_id)
+            .single();
+          
+          if (helperError) {
+            console.error("Error fetching helper:", helperError);
+          } else if (helperData) {
+            setAssignedHelper(helperData);
+          }
+        }
+        
+        // Load complaints for the student
+        const { data: complaintsData, error: complaintsError } = await supabase
+          .from('complaints')
+          .select('*')
+          .eq('student_id', studentId);
+          
+        if (complaintsError) {
+          console.error("Error fetching complaints:", complaintsError);
+        } else {
+          setComplaints(complaintsData || []);
+        }
+      } catch (error) {
+        console.error("Error loading student data:", error);
       }
     };
     
@@ -105,9 +136,23 @@ const Student = () => {
   
   useEffect(() => {
     // Load user profile
-    const users = JSON.parse(localStorage.getItem("users") || "[]");
-    const currentUser = users.find((u: any) => u.id === user?.id);
-    setUserProfile(currentUser);
+    const loadUserProfile = async () => {
+      if (!user?.id) return;
+      
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+        
+      if (error) {
+        console.error("Error loading user profile:", error);
+      } else if (data) {
+        setUserProfile(data);
+      }
+    };
+    
+    loadUserProfile();
   }, [user?.id]);
   
   const handleConfirm = async () => {
@@ -139,49 +184,76 @@ const Student = () => {
       return;
     }
 
-    // Save confirmation to localStorage
-    const today = new Date().toISOString().split('T')[0];
-    const studentConfirmations = JSON.parse(localStorage.getItem("studentHelpConfirmations") || "[]");
-    
-    // Prevent multiple confirmations for the same day
-    if (todayConfirmed) {
+    try {
+      // Save confirmation to both localStorage and Supabase
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Store in localStorage for backwards compatibility
+      const studentConfirmations = JSON.parse(localStorage.getItem("studentHelpConfirmations") || "[]");
+      
+      // Prevent multiple confirmations for the same day
+      if (todayConfirmed) {
+        toast({
+          title: "Already Confirmed",
+          description: "You have already confirmed help for today",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const newConfirmation = {
+        date: today,
+        helperId: pendingOtp.helperId,
+        student: studentId,
+        timestamp: Date.now()
+      };
+      
+      studentConfirmations.push(newConfirmation);
+      localStorage.setItem("studentHelpConfirmations", JSON.stringify(studentConfirmations));
+      
+      // Store in Supabase if available
+      if (supabase) {
+        const { error } = await supabase
+          .from('student_confirmations')
+          .insert({
+            date: today,
+            helper_id: pendingOtp.helperId,
+            student_id: studentId,
+            created_at: new Date().toISOString()
+          });
+          
+        if (error) {
+          console.error("Error saving confirmation to Supabase:", error);
+        }
+      }
+      
+      // Update state
+      setTodayConfirmed(true);
+      setRecentConfirmations(prev => [newConfirmation, ...prev]);
+      setPendingOtp(null);
+      
+      // Log the confirmation
+      SystemLogs.addLog(
+        "Help confirmed",
+        `Student ${user?.first_name} ${user?.last_name} confirmed help from helper ${pendingOtp.helperName}`,
+        studentId,
+        "student"
+      );
+      
       toast({
-        title: "Already Confirmed",
-        description: "You have already confirmed help for today",
+        title: "Help confirmed",
+        description: "Thank you for confirming the help provision.",
+      });
+      
+      form.reset();
+    } catch (error) {
+      console.error("Error confirming help:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save confirmation. Please try again.",
         variant: "destructive",
       });
-      return;
     }
-    
-    const newConfirmation = {
-      date: today,
-      helperId: pendingOtp.helperId,
-      student: studentId,
-      timestamp: Date.now()
-    };
-    
-    studentConfirmations.push(newConfirmation);
-    localStorage.setItem("studentHelpConfirmations", JSON.stringify(studentConfirmations));
-    
-    // Update state
-    setTodayConfirmed(true);
-    setRecentConfirmations(prev => [newConfirmation, ...prev]);
-    setPendingOtp(null);
-    
-    // Log the confirmation
-    SystemLogs.addLog(
-      "Help confirmed",
-      `Student ${user?.first_name} ${user?.last_name} confirmed help from helper ${pendingOtp.helperName}`,
-      studentId,
-      "student"
-    );
-    
-    toast({
-      title: "Help confirmed",
-      description: "Thank you for confirming the help provision.",
-    });
-    
-    form.reset();
   };
   
   const getHelperName = (helperId: string) => {

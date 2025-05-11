@@ -1,6 +1,6 @@
 
 import * as React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/utils/auth";
 import { User } from "@/types";
 
@@ -12,6 +12,7 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ title = "UDSNMS", hideLinks = false }) => {
   const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     if (logout) {
@@ -25,9 +26,9 @@ const Navbar: React.FC<NavbarProps> = ({ title = "UDSNMS", hideLinks = false }) 
         <div className="flex h-16 justify-between">
           <div className="flex">
             <div className="flex flex-shrink-0 items-center">
-              <span className="text-white font-bold text-lg">
+              <Link to="/" className="text-white font-bold text-lg">
                 {title || "UDSNMS"}
-              </span>
+              </Link>
             </div>
 
             {!hideLinks && (
@@ -80,12 +81,6 @@ const Navbar: React.FC<NavbarProps> = ({ title = "UDSNMS", hideLinks = false }) 
                     >
                       Submit Complaint
                     </Link>
-                    <Link
-                      to="/messages"
-                      className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-white hover:border-white hover:text-gray-100"
-                    >
-                      Messages
-                    </Link>
                   </>
                 )}
 
@@ -96,12 +91,6 @@ const Navbar: React.FC<NavbarProps> = ({ title = "UDSNMS", hideLinks = false }) 
                       className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-white hover:border-white hover:text-gray-100"
                     >
                       Dashboard
-                    </Link>
-                    <Link
-                      to="/messages"
-                      className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-white hover:border-white hover:text-gray-100"
-                    >
-                      Messages
                     </Link>
                     <Link
                       to="/confirmation-logs"
@@ -246,12 +235,6 @@ const Navbar: React.FC<NavbarProps> = ({ title = "UDSNMS", hideLinks = false }) 
                 >
                   Submit Complaint
                 </Link>
-                <Link
-                  to="/messages"
-                  className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-white hover:bg-blue-700 hover:border-white"
-                >
-                  Messages
-                </Link>
               </>
             )}
 
@@ -262,12 +245,6 @@ const Navbar: React.FC<NavbarProps> = ({ title = "UDSNMS", hideLinks = false }) 
                   className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-white hover:bg-blue-700 hover:border-white"
                 >
                   Dashboard
-                </Link>
-                <Link
-                  to="/messages"
-                  className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-white hover:bg-blue-700 hover:border-white"
-                >
-                  Messages
                 </Link>
                 <Link
                   to="/confirmation-logs"

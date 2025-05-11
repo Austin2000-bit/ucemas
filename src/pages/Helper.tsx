@@ -57,6 +57,8 @@ const Helper = () => {
           console.error("Error fetching assignments:", assignmentsError);
           return;
         }
+
+        console.log("Assignments found:", assignmentsData);
         
         // If there are assignments, fetch the corresponding students
         if (assignmentsData && assignmentsData.length > 0) {
@@ -71,6 +73,8 @@ const Helper = () => {
             console.error("Error fetching students:", studentsError);
             return;
           }
+
+          console.log("Students found:", studentsData);
           
           setAssignedStudents(studentsData || []);
           
@@ -85,6 +89,7 @@ const Helper = () => {
         console.error("Error in loadData:", error);
       }
 
+      // Load sign-in history
       const today = new Date().toISOString().split('T')[0];
       const storedSignIns = localStorage.getItem('helperSignIns');
       const signIns: SignInRecord[] = storedSignIns ? JSON.parse(storedSignIns) : [];
@@ -97,6 +102,7 @@ const Helper = () => {
       setIsSigned(signedToday);
       setSignInHistory(signIns);
 
+      // Load confirmation history
       const storedConfirmations = localStorage.getItem('helpConfirmations');
       const helpConfirmations: HelpConfirmation[] = storedConfirmations 
         ? JSON.parse(storedConfirmations) 
@@ -107,7 +113,17 @@ const Helper = () => {
     loadData();
     
     // Setup periodic refresh
-    const interval = setInterval(loadData, 30000);
+    const interval = setInterval(() => {
+      if (user?.id) {
+        // We'll just check for new OTP confirmations
+        const storedConfirmations = localStorage.getItem('helpConfirmations');
+        const helpConfirmations: HelpConfirmation[] = storedConfirmations 
+          ? JSON.parse(storedConfirmations) 
+          : [];
+        setConfirmations(helpConfirmations);
+      }
+    }, 30000);
+    
     return () => clearInterval(interval);
   }, [user, selectedStudent]);
 
@@ -155,10 +171,6 @@ const Helper = () => {
     const studentOtps = JSON.parse(localStorage.getItem("studentOtps") || "[]");
     studentOtps.push(newOtpEntry);
     localStorage.setItem("studentOtps", JSON.stringify(studentOtps));
-    
-    // Trigger a custom event to notify the student's page
-    const event = new CustomEvent('newOtpGenerated', { detail: newOtpEntry });
-    window.dispatchEvent(event);
     
     toast({
       title: "OTP Generated",
