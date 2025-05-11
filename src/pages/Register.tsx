@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -8,80 +9,98 @@ import { toast } from "@/hooks/use-toast";
 import { SystemLogs } from "@/utils/systemLogs";
 import { signUp, UserRole } from "@/lib/supabase";
 import Navbar from "@/components/Navbar";
+import * as z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Phone, ShieldCheck, User, Bank } from "lucide-react";
+
+// Define form schema with validation
+const formSchema = z.object({
+  first_name: z.string().min(2, { message: "First name must be at least 2 characters." }),
+  last_name: z.string().min(2, { message: "Last name must be at least 2 characters." }),
+  email: z.string().email({ message: "Invalid email address." }),
+  role: z.enum(["admin", "helper", "student", "driver"], { required_error: "Please select a role." }),
+  phone: z.string().regex(/^(\+\d{1,3})?\d{9,12}$/, { message: "Enter valid phone number with country code (+XXX)" }),
+  disability_type: z.string().optional(),
+  bank_account: z.string().optional(),
+  bank_name: z.enum(["CRDB", "NBC"]).optional(),
+  bank_account_number: z.string()
+    .regex(/^\d{10,16}$/, { message: "Bank account number must be between 10 and 16 digits." })
+    .optional(),
+  assistant_type: z.string().optional(),
+  assistant_specialization: z.string().optional(),
+  time_period: z.enum(["full_year", "semester", "half_semester"]).optional(),
+  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  confirm_password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  terms_accepted: z.boolean().refine(val => val === true, { message: "You must accept terms and conditions." })
+}).refine(data => data.password === data.confirm_password, {
+  message: "Passwords do not match",
+  path: ["confirm_password"]
+});
+
+type FormValues = z.infer<typeof formSchema>;
 
 const Register = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    first_name: "",
-    last_name: "",
-    email: "",
-    role: "" as UserRole,
-    phone: "",
-    disability_type: "",
-    bank_account: "",
-    bank_account_number: "",
-    assistant_type: "",
-    assistant_specialization: "",
-    password: ""
+
+  // Initialize form with default values and validation schema
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      first_name: "",
+      last_name: "",
+      email: "",
+      role: undefined,
+      phone: "",
+      disability_type: "",
+      bank_account: "",
+      bank_name: undefined,
+      bank_account_number: "",
+      assistant_type: "",
+      assistant_specialization: "",
+      time_period: undefined,
+      password: "",
+      confirm_password: "",
+      terms_accepted: false
+    }
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRegister = async (data: FormValues) => {
     setLoading(true);
-
-    if (!formData.first_name || !formData.last_name || !formData.email || !formData.role || !formData.phone || !formData.password) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-
-    // Validate role
-    if (!["admin", "helper", "student", "driver"].includes(formData.role)) {
-      toast({
-        title: "Invalid Role",
-        description: "Please select a valid role.",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
 
     try {
       const { success, error } = await signUp(
-        formData.email,
-        formData.password,
+        data.email,
+        data.password,
         {
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          role: formData.role
+          first_name: data.first_name,
+          last_name: data.last_name,
+          role: data.role as UserRole,
+          phone: data.phone,
+          disability_type: data.role === "student" ? data.disability_type : undefined,
+          bank_name: data.role === "helper" ? data.bank_name : undefined,
+          bank_account_number: data.role === "helper" ? data.bank_account_number : undefined,
+          assistant_type: data.role === "helper" ? data.assistant_type : undefined,
+          assistant_specialization: data.role === "helper" ? data.assistant_specialization : undefined,
+          time_period: data.role === "helper" ? data.time_period : undefined,
+          status: data.role === "helper" ? "active" : undefined
         }
       );
 
       if (success) {
         SystemLogs.addLog(
           "User Registration",
-          `New ${formData.role} registered: ${formData.first_name} ${formData.last_name}`,
+          `New ${data.role} registered: ${data.first_name} ${data.last_name}`,
           "system",
-          formData.role
+          data.role
         );
 
         toast({
           title: "Registration Successful",
-          description: `Welcome ${formData.first_name} ${formData.last_name}! You can now log in with your email and password.`,
+          description: `Welcome ${data.first_name} ${data.last_name}! You can now log in with your email and password.`,
         });
 
         navigate("/login");
@@ -104,15 +123,17 @@ const Register = () => {
     }
   };
 
+  const role = form.watch("role");
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       <Navbar title="Register" />
       
       <main className="flex-grow flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded shadow-sm">
-          <h2 className="text-center text-xl font-medium mb-8 text-gray-900 dark:text-gray-100">Welcome onboard</h2>
+        <div className="w-full max-w-md bg-white dark:bg-gray-800 p-6 rounded shadow-sm">
+          <h2 className="text-center text-xl font-medium mb-6 text-gray-900 dark:text-gray-100">Welcome to UDSNMS</h2>
           
-          <div className="flex justify-center mb-8">
+          <div className="flex justify-center mb-6">
             <img 
               src="/undraw_sign-up_z2ku.png" 
               alt="Registration illustration" 
@@ -120,166 +141,366 @@ const Register = () => {
             />
           </div>
           
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div>
-              <Input
-                type="text"
-                name="first_name"
-                placeholder="First name"
-                value={formData.first_name}
-                onChange={handleChange}
-                className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                required
-              />
-            </div>
-            
-            <div>
-              <Input
-                type="text"
-                name="last_name"
-                placeholder="Last name"
-                value={formData.last_name}
-                onChange={handleChange}
-                className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                required
-              />
-            </div>
-            
-            <div>
-              <Input
-                type="email"
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleRegister)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="first_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First name</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <User className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="First name"
+                            className="pl-8"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="last_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last name</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <User className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Last name"
+                            className="pl-8"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
                 name="email"
-                placeholder="Email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                required
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="email@example.com"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            
-            <div>
-              <Select onValueChange={(value) => handleSelectChange("role", value)}>
-                <SelectTrigger className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600">
-                  <SelectValue placeholder="Role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="helper">Assistant</SelectItem>
-                  <SelectItem value="driver">Driver</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
 
-            <div>
-              <Input
-                type="tel"
+              <FormField
+                control={form.control}
                 name="phone"
-                placeholder="Phone number"
-                value={formData.phone}
-                onChange={handleChange}
-                className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                required
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Phone className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="+255XXXXXXXXX"
+                          className="pl-8"
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      Enter with country code (e.g. +255)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
 
-            {formData.role === 'helper' && (
-              <>
-                <div>
-                  <Select onValueChange={(value) => handleSelectChange("assistant_type", value)}>
-                    <SelectTrigger className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600">
-                      <SelectValue placeholder="Assistant Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="undergraduate">Undergraduate</SelectItem>
-                      <SelectItem value="postgraduate">Postgraduate</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="student">Student</SelectItem>
+                        <SelectItem value="helper">Assistant</SelectItem>
+                        <SelectItem value="driver">Driver</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <div>
-                  <Select onValueChange={(value) => handleSelectChange("assistant_specialization", value)}>
-                    <SelectTrigger className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600">
-                      <SelectValue placeholder="Assistant Specialization" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="reader">Reader</SelectItem>
-                      <SelectItem value="note_taker">Note Taker</SelectItem>
-                      <SelectItem value="mobility_assistant">Personal Assistant for Students with Mobility Problems</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              {role === "student" && (
+                <FormField
+                  control={form.control}
+                  name="disability_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Disability Type</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        value={field.value || ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select disability type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="visual">Visual Impairment</SelectItem>
+                          <SelectItem value="hearing">Hearing Impairment</SelectItem>
+                          <SelectItem value="mobility">Mobility Impairment</SelectItem>
+                          <SelectItem value="multiple">Multiple Disabilities</SelectItem>
+                          <SelectItem value="albinism">Albinism</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
-                <div>
-                  <Input
-                    type="text"
-                    name="bank_account"
-                    placeholder="Bank Name"
-                    value={formData.bank_account}
-                    onChange={handleChange}
-                    className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                    required
+              {role === "helper" && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="assistant_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Assistant Category</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Assistant Category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="undergraduate">Undergraduate</SelectItem>
+                            <SelectItem value="postgraduate">Postgraduate</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
 
-                <div>
-                  <Input
-                    type="text"
+                  <FormField
+                    control={form.control}
+                    name="assistant_specialization"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Assistant Specialization</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Assistant Specialization" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="reader">Reader</SelectItem>
+                            <SelectItem value="note_taker">Note Taker</SelectItem>
+                            <SelectItem value="mobility_assistant">Personal Assistant for Students with Mobility Problems</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="time_period"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Time Period Availability</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select availability period" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="full_year">Full Academic Year</SelectItem>
+                            <SelectItem value="semester">Semester</SelectItem>
+                            <SelectItem value="half_semester">Half Semester</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="bank_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bank Name</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <div className="flex items-center gap-2">
+                                <Bank className="h-4 w-4" />
+                                <SelectValue placeholder="Select bank" />
+                              </div>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="CRDB">CRDB Bank</SelectItem>
+                            <SelectItem value="NBC">NBC Bank</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name="bank_account_number"
-                    placeholder="Bank Account Number"
-                    value={formData.bank_account_number}
-                    onChange={handleChange}
-                    className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                    required
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bank Account Number</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Bank className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              type="text"
+                              placeholder="Bank Account Number"
+                              className="pl-8"
+                              {...field}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
-              </>
-            )}
+                </>
+              )}
 
-            {formData.role === 'student' && (
-              <>
-                <div>
-                  <Select onValueChange={(value) => handleSelectChange("disability_type", value)}>
-                    <SelectTrigger className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600">
-                      <SelectValue placeholder="Disability Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="visual">Visual Impairment</SelectItem>
-                      <SelectItem value="hearing">Hearing Impairment</SelectItem>
-                      <SelectItem value="mobility">Mobility Impairment</SelectItem>
-                      <SelectItem value="multiple">Multiple Disabilities</SelectItem>
-                      <SelectItem value="albinism">Albinism</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
-            )}
-            
-            <div>
-              <Input
-                type="password"
+              <FormField
+                control={form.control}
                 name="password"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                required
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <ShieldCheck className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="password"
+                          placeholder="Password"
+                          className="pl-8"
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            
-            <Button 
-              type="submit" 
-              className="w-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
-              disabled={loading}
-            >
-              {loading ? "Registering..." : "Register"}
-            </Button>
-            
-            <p className="text-center text-gray-600 dark:text-gray-400">
-              Already have an account? <Link to="/login" className="text-blue-500 hover:underline dark:text-blue-400">Sign in</Link>
-            </p>
-          </form>
+              
+              <FormField
+                control={form.control}
+                name="confirm_password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <ShieldCheck className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="password"
+                          placeholder="Confirm Password"
+                          className="pl-8"
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="terms_accepted"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-4 shadow">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        I accept the terms and conditions
+                      </FormLabel>
+                      <FormDescription>
+                        You agree to our terms of service and privacy policy.
+                      </FormDescription>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <Button 
+                type="submit" 
+                className="w-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+                disabled={loading}
+              >
+                {loading ? "Registering..." : "Register"}
+              </Button>
+              
+              <p className="text-center text-gray-600 dark:text-gray-400">
+                Already have an account? <Link to="/login" className="text-blue-500 hover:underline dark:text-blue-400">Sign in</Link>
+              </p>
+            </form>
+          </Form>
         </div>
       </main>
     </div>

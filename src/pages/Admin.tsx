@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/utils/auth";
 import { SystemLogs } from "@/utils/systemLogs";
@@ -23,12 +24,21 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { AlertTriangle, Car, Laptop, UserCog } from "lucide-react";
+import { 
+  AlertTriangle, 
+  Car, 
+  Laptop, 
+  UserCog,
+  List,
+  BarChart,
+  MonitorDot
+} from "lucide-react";
 import AdminGadgetLending from "@/components/Admin/AdminGadgetLending";
 import AdminUsers from "@/components/Admin/AdminUsers";
 import AdminRideRequests from "@/components/Admin/AdminRideRequests";
 import Navbar from "@/components/Navbar";
 import HelperStudentAssignment from "@/components/Admin/HelperStudentAssignment";
+import HelperStatusTracking from "@/components/Admin/HelperStatusTracking";
 import { supabase } from "@/lib/supabase";
 import { Complaint } from "@/types";
 
@@ -79,13 +89,17 @@ const Admin: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [complaintUsers, setComplaintUsers] = useState<Record<string, User>>({});
+  const [systemLogsOpen, setSystemLogsOpen] = useState(false);
+  const [systemLogs, setSystemLogs] = useState<any[]>([]);
   
-  // Navigation items for the sidebar - removed Messages
+  // Navigation items for the sidebar - with Reports added
   const sidebarItems: SidebarItem[] = [
     { icon: AlertTriangle, label: "Complaints", url: "complaints", id: "complaints", title: "Complaints" },
     { icon: Car, label: "Ride Requests", url: "ride-requests", id: "ride-requests", title: "Ride Requests" },
     { icon: Laptop, label: "Gadget Lending", url: "gadgets", id: "gadgets", title: "Gadget Lending" },
     { icon: UserCog, label: "User Management", url: "user-management", id: "user-management", title: "User Management" },
+    { icon: List, label: "Helper Status", url: "helper-status", id: "helper-status", title: "Helper Status Tracking" },
+    { icon: BarChart, label: "Reports", url: "reports", id: "reports", title: "Reports Overview" },
   ];
   
   // Load complaints from database
@@ -138,6 +152,12 @@ const Admin: React.FC = () => {
     
     fetchComplaints();
   }, [activeSection]);
+
+  // Fetch system logs
+  useEffect(() => {
+    const logs = SystemLogs.getLogs();
+    setSystemLogs(logs);
+  }, []);
 
   // Fetch dashboard data
   useEffect(() => {
@@ -238,6 +258,250 @@ const Admin: React.FC = () => {
     }
   };
 
+  const renderReports = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Helper Reports</CardTitle>
+            <CardDescription>Status and activity of assistants</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-medium">Active Helpers</p>
+                  <p className="text-2xl font-bold">{dashboardData?.helpers || 0}</p>
+                </div>
+                <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                  <UserCog className="h-6 w-6" />
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                <div className="flex justify-between mb-1">
+                  <span>Active</span>
+                  <span>75%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: "75%" }}></div>
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                <div className="flex justify-between mb-1">
+                  <span>Completed</span>
+                  <span>15%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div className="bg-green-500 h-1.5 rounded-full" style={{ width: "15%" }}></div>
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                <div className="flex justify-between mb-1">
+                  <span>Inactive</span>
+                  <span>10%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div className="bg-red-500 h-1.5 rounded-full" style={{ width: "10%" }}></div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Gadget Usage</CardTitle>
+            <CardDescription>Equipment lending statistics</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-medium">Currently Borrowed</p>
+                  <p className="text-2xl font-bold">24</p>
+                </div>
+                <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
+                  <Laptop className="h-6 w-6" />
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                <div className="flex justify-between mb-1">
+                  <span>Laptops</span>
+                  <span>45%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div className="bg-purple-600 h-1.5 rounded-full" style={{ width: "45%" }}></div>
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                <div className="flex justify-between mb-1">
+                  <span>Tablets</span>
+                  <span>30%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div className="bg-purple-400 h-1.5 rounded-full" style={{ width: "30%" }}></div>
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                <div className="flex justify-between mb-1">
+                  <span>Accessories</span>
+                  <span>25%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div className="bg-purple-300 h-1.5 rounded-full" style={{ width: "25%" }}></div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Ride Services</CardTitle>
+            <CardDescription>Transport request analysis</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-medium">Monthly Rides</p>
+                  <p className="text-2xl font-bold">{dashboardData?.totalRides || 0}</p>
+                </div>
+                <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                  <Car className="h-6 w-6" />
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                <div className="flex justify-between mb-1">
+                  <span>Completed</span>
+                  <span>60%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div className="bg-green-600 h-1.5 rounded-full" style={{ width: "60%" }}></div>
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                <div className="flex justify-between mb-1">
+                  <span>Pending</span>
+                  <span>30%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div className="bg-yellow-500 h-1.5 rounded-full" style={{ width: "30%" }}></div>
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                <div className="flex justify-between mb-1">
+                  <span>Cancelled</span>
+                  <span>10%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div className="bg-red-500 h-1.5 rounded-full" style={{ width: "10%" }}></div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Historical vs Current Data</CardTitle>
+          <CardDescription>Comparing current performance with historical averages</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <h4 className="text-sm font-medium mb-2">Helper Assignments</h4>
+              <div className="flex items-center mb-4">
+                <div className="w-full mr-2">
+                  <div className="text-xs flex justify-between mb-1">
+                    <span>Current</span>
+                    <span>{dashboardData?.helpers || 0}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: "80%" }}></div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <div className="w-full mr-2">
+                  <div className="text-xs flex justify-between mb-1">
+                    <span>Historical</span>
+                    <span>{Math.floor((dashboardData?.helpers || 0) * 0.8)}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-blue-300 h-2 rounded-full" style={{ width: "60%" }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium mb-2">Ride Completion Rate</h4>
+              <div className="flex items-center mb-4">
+                <div className="w-full mr-2">
+                  <div className="text-xs flex justify-between mb-1">
+                    <span>Current</span>
+                    <span>85%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-green-600 h-2 rounded-full" style={{ width: "85%" }}></div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <div className="w-full mr-2">
+                  <div className="text-xs flex justify-between mb-1">
+                    <span>Historical</span>
+                    <span>78%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-green-300 h-2 rounded-full" style={{ width: "78%" }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium mb-2">Help Confirmations</h4>
+              <div className="flex items-center mb-4">
+                <div className="w-full mr-2">
+                  <div className="text-xs flex justify-between mb-1">
+                    <span>Current</span>
+                    <span>{dashboardData?.verifiedHelpConfirmations || 0}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-purple-600 h-2 rounded-full" style={{ width: "75%" }}></div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <div className="w-full mr-2">
+                  <div className="text-xs flex justify-between mb-1">
+                    <span>Historical</span>
+                    <span>{Math.floor((dashboardData?.verifiedHelpConfirmations || 0) * 0.9)}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-purple-300 h-2 rounded-full" style={{ width: "70%" }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   const renderContent = () => {
     switch (activeSection) {
       case "users":
@@ -318,6 +582,10 @@ const Admin: React.FC = () => {
         return <AdminGadgetLending />;
       case "user-management":
         return <AdminUsers />;
+      case "helper-status":
+        return <HelperStatusTracking />;
+      case "reports":
+        return renderReports();
       case "dashboard":
       default:
         return (
@@ -397,8 +665,8 @@ const Admin: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-      <Navbar title="Admin Control Center" />
-      <div className="flex flex-grow">
+      <Navbar title="UDSNMS Admin Control Center" />
+      <div className="flex flex-grow relative">
         {/* Sidebar */}
         <div className="w-64 bg-gray-200 dark:bg-gray-800 min-h-[calc(100vh-6rem)]">
           <div className="p-4">
@@ -452,17 +720,30 @@ const Admin: React.FC = () => {
 
         {/* Main content */}
         <div className="flex-1 p-6">
-          <h1 className="text-2xl font-bold mb-6 dark:text-white">
-            {activeSection === "dashboard" ? "Admin Dashboard" : 
-             activeSection === "helpers" ? "Manage Helpers" :
-             activeSection === "students" ? "Manage Students" :
-             activeSection === "complaints" ? "View Complaints" :
-             activeSection === "ride-requests" ? "Ride Requests" :
-             activeSection === "gadgets" ? "Gadget Lending" :
-             activeSection === "users" ? "Users" :
-             activeSection === "user-management" ? "User Management" : 
-             activeSection === "assignments" ? "Student Assignments" : "Reports"}
-          </h1>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold dark:text-white">
+              {activeSection === "dashboard" ? "Admin Dashboard" : 
+               activeSection === "helpers" ? "Manage Helpers" :
+               activeSection === "students" ? "Manage Students" :
+               activeSection === "complaints" ? "View Complaints" :
+               activeSection === "ride-requests" ? "Ride Requests" :
+               activeSection === "gadgets" ? "Gadget Lending" :
+               activeSection === "users" ? "Users" :
+               activeSection === "user-management" ? "User Management" :
+               activeSection === "helper-status" ? "Helper Status Tracking" : 
+               activeSection === "reports" ? "Reports Overview" :
+               activeSection === "assignments" ? "Student Assignments" : "Reports"}
+            </h1>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="flex items-center gap-2"
+              onClick={() => setSystemLogsOpen(!systemLogsOpen)}
+            >
+              <MonitorDot className="h-4 w-4" />
+              <span>System Logs</span>
+            </Button>
+          </div>
           
           {activeSection === "assignments" ? (
             <div className="space-y-6">
@@ -471,6 +752,57 @@ const Admin: React.FC = () => {
           ) : (
             renderContent()
           )}
+        </div>
+
+        {/* System Logs Side Panel */}
+        <div 
+          className={`fixed top-0 right-0 h-full bg-white dark:bg-gray-800 shadow-lg w-96 transform transition-transform duration-300 ease-in-out z-40 ${
+            systemLogsOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+          style={{ marginTop: "4rem" }}
+        >
+          <div className="h-full flex flex-col">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="font-medium text-lg">System Logs</h3>
+              <Button variant="ghost" size="sm" onClick={() => setSystemLogsOpen(false)}>
+                &times;
+              </Button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="space-y-3">
+                {systemLogs.map((log, index) => (
+                  <div key={index} className="border-b pb-2 last:border-0">
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium">{log.type}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(log.timestamp).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-sm">{log.message}</p>
+                    <div className="flex gap-2 mt-1">
+                      {log.userId && (
+                        <Badge variant="outline" className="text-xs">
+                          User: {log.userId}
+                        </Badge>
+                      )}
+                      {log.userRole && (
+                        <Badge variant="outline" className="text-xs">
+                          Role: {log.userRole}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                
+                {systemLogs.length === 0 && (
+                  <p className="text-center text-muted-foreground py-8">
+                    No system logs to display
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

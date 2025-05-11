@@ -8,6 +8,10 @@ export interface User {
   created_at: string;
   updated_at: string;
   photo?: string;
+  phone?: string;
+  disability_type?: string;
+  time_period?: 'full_year' | 'semester' | 'half_semester';
+  status?: 'active' | 'completed' | 'inactive';
 }
 
 export interface HelperStudentAssignment {
@@ -119,4 +123,25 @@ export interface GadgetLoan {
   gadgetTypes?: string[] | string;
   dateBorrowed?: string;
   dateReturned?: string;
+  usage_duration?: number; // Added for time tracking
+  usage_logs?: GadgetUsageLog[];
+}
+
+export interface GadgetUsageLog {
+  id?: string;
+  gadget_loan_id: string;
+  start_time: string;
+  end_time?: string;
+  duration?: number;
+  notes?: string;
+  created_at: string;
+}
+
+export interface HelperStatusLog {
+  id?: string;
+  helper_id: string;
+  status: 'active' | 'completed' | 'inactive';
+  changed_at: string;
+  changed_by?: string;
+  notes?: string;
 }

@@ -1,5 +1,7 @@
+
 import { createClient } from '@supabase/supabase-js'
 import { Database } from '@/types/supabase'
+import { User } from '@/types';
 
 // Types for our database tables
 export interface SignInRecord {
@@ -56,16 +58,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 // User types
 export type UserRole = 'admin' | 'helper' | 'student' | 'driver';
 
-export interface User {
-  id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  role: UserRole;
-  created_at: string;
-  updated_at: string;
-}
-
 // Auth functions
 export const signUp = async (
   email: string,
@@ -74,9 +66,35 @@ export const signUp = async (
     first_name: string;
     last_name: string;
     role: UserRole;
+    phone?: string;
+    disability_type?: string;
+    bank_name?: string;
+    bank_account_number?: string;
+    assistant_type?: string;
+    assistant_specialization?: string;
+    time_period?: 'full_year' | 'semester' | 'half_semester';
+    status?: 'active' | 'completed' | 'inactive';
   }
 ) => {
   try {
+    // Validate phone number
+    if (!userData.phone) {
+      return { success: false, error: new Error('Phone number is required') };
+    }
+    
+    const phoneRegex = /^(\+\d{1,3})?\d{9,12}$/;
+    if (!phoneRegex.test(userData.phone)) {
+      return { success: false, error: new Error('Invalid phone number format. Use format: +XXX123456789') };
+    }
+    
+    // Validate bank account for helpers
+    if (userData.role === 'helper' && userData.bank_account_number) {
+      const bankAccountRegex = /^\d{10,16}$/;
+      if (!bankAccountRegex.test(userData.bank_account_number)) {
+        return { success: false, error: new Error('Bank account number must be between 10 and 16 digits') };
+      }
+    }
+    
     // Check if the current user is an admin
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) {
@@ -120,6 +138,14 @@ export const signUp = async (
           first_name: userData.first_name,
           last_name: userData.last_name,
           role: userData.role,
+          phone: userData.phone,
+          disability_type: userData.role === 'student' ? userData.disability_type : null,
+          bank_name: userData.role === 'helper' ? userData.bank_name : null,
+          bank_account_number: userData.role === 'helper' ? userData.bank_account_number : null,
+          assistant_type: userData.role === 'helper' ? userData.assistant_type : null,
+          assistant_specialization: userData.role === 'helper' ? userData.assistant_specialization : null,
+          time_period: userData.role === 'helper' ? userData.time_period : null,
+          status: userData.role === 'helper' ? 'active' : null,
         },
       ]);
 
@@ -211,7 +237,7 @@ export const getCurrentUser = async () => {
       return { success: false, error: userError };
     }
 
-    return { success: true, user: { ...session.user, ...userData } };
+    return { success: true, user: { ...session.user, ...userData } as unknown as User };
   } catch (error) {
     console.error('Error in getCurrentUser:', error);
     return { success: false, error };
@@ -376,5 +402,122 @@ export const db = {
     }
     
     return true
+  },
+  
+  // Gadget usage logs
+  async addGadgetUsageLog(
+    gadgetLoanId: string, 
+    startTime: string, 
+    endTime?: string, 
+    duration?: number, 
+    notes?: string
+  ) {
+    const { data, error } = await supabase
+      .from('gadget_usage_logs')
+      .insert({
+        gadget_loan_id: gadgetLoanId,
+        start_time: startTime,
+        end_time: endTime,
+        duration: duration,
+        notes: notes,
+        created_at: new Date().toISOString()
+      })
+      .select();
+      
+    if (error) {
+      console.error('Error adding gadget usage log:', error);
+      return { success: false, error };
+    }
+    
+    return { success: true, data };
+  },
+  
+  async getGadgetUsageLogs(gadgetLoanId: string) {
+    const { data, error } = await supabase
+      .from('gadget_usage_logs')
+      .select('*')
+      .eq('gadget_loan_id', gadgetLoanId)
+      .order('start_time', { ascending: false });
+      
+    if (error) {
+      console.error('Error fetching gadget usage logs:', error);
+      return { success: false, error };
+    }
+    
+    return { success: true, data };
+  },
+  
+  async updateGadgetUsageLog(
+    logId: string, 
+    endTime: string, 
+    duration: number
+  ) {
+    const { data, error } = await supabase
+      .from('gadget_usage_logs')
+      .update({
+        end_time: endTime,
+        duration: duration
+      })
+      .eq('id', logId)
+      .select();
+      
+    if (error) {
+      console.error('Error updating gadget usage log:', error);
+      return { success: false, error };
+    }
+    
+    return { success: true, data };
+  },
+  
+  // Helper status logs
+  async addHelperStatusLog(
+    helperId: string,
+    status: 'active' | 'completed' | 'inactive',
+    notes?: string,
+    changedBy?: string
+  ) {
+    // First update the helper's status
+    const { error: userError } = await supabase
+      .from('users')
+      .update({ status })
+      .eq('id', helperId);
+      
+    if (userError) {
+      console.error('Error updating helper status:', userError);
+      return { success: false, error: userError };
+    }
+    
+    // Then create a log entry
+    const { data, error: logError } = await supabase
+      .from('helper_status_logs')
+      .insert({
+        helper_id: helperId,
+        status,
+        notes,
+        changed_at: new Date().toISOString(),
+        changed_by: changedBy
+      })
+      .select();
+      
+    if (logError) {
+      console.error('Error adding helper status log:', logError);
+      return { success: false, error: logError };
+    }
+    
+    return { success: true, data };
+  },
+  
+  async getHelperStatusLogs() {
+    const { data, error } = await supabase
+      .from('helper_status_logs')
+      .select('*')
+      .order('changed_at', { ascending: false });
+      
+    if (error) {
+      console.error('Error fetching helper status logs:', error);
+      return { success: false, error };
+    }
+    
+    return { success: true, data };
   }
 }
