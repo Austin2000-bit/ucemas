@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useAuth } from "@/utils/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,8 @@ import { toast } from "@/hooks/use-toast";
 import { SystemLogs } from "@/utils/systemLogs";
 import GoogleMap from "@/components/GoogleMap";
 import DriverRides from "@/components/DriverRides";
-import { supabase } from '@/lib/supabase';
-import { RideRequest } from '@/types';
+import { supabase } from "@/lib/supabase";
+import { RideRequest } from "@/types";
 import Navbar from "@/components/Navbar";
 import { v4 as uuidv4 } from "uuid";
 
@@ -19,12 +19,6 @@ const RideBooking = () => {
   const [estimatedTime, setEstimatedTime] = useState("");
   const [distance, setDistance] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  // Memoize the route calculation handler to prevent unnecessary re-renders
-  const handleRouteCalculated = useCallback((time: string, dist: string) => {
-    setEstimatedTime(time);
-    setDistance(dist);
-  }, []);
 
   const handleFindDriver = async () => {
     if (!pickupLocation || !destination) {
@@ -48,8 +42,10 @@ const RideBooking = () => {
     setIsLoading(true);
 
     try {
+      // Create a unique ID for the ride request
       const rideId = uuidv4();
       
+      // Create the ride request object
       const newRide: RideRequest = {
         id: rideId,
         student_id: user.id,
@@ -61,14 +57,21 @@ const RideBooking = () => {
         updated_at: new Date().toISOString()
       };
 
-      const { error } = await supabase
+      console.log("Creating ride request:", newRide);
+
+      // Save to Supabase
+      const { data, error } = await supabase
         .from('ride_requests')
         .insert([newRide]);
 
       if (error) {
+        console.error("Error creating ride request:", error);
         throw new Error("Failed to create ride request");
       }
 
+      console.log("Ride request created successfully:", data);
+
+      // Add to system logs
       SystemLogs.addLog(
         "Ride requested",
         `Student requested ride from ${pickupLocation} to ${destination}`,
@@ -86,6 +89,7 @@ const RideBooking = () => {
       setEstimatedTime("");
       setDistance("");
     } catch (error) {
+      console.error("Error requesting ride:", error);
       toast({
         title: "Error",
         description: "Failed to request ride. Please try again.",
@@ -96,16 +100,15 @@ const RideBooking = () => {
     }
   };
 
-  // For driver role, show the driver rides component
   if (user?.role === "driver") {
     return <DriverRides />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       <Navbar title="Book a Ride" />
       <div className="container mx-auto p-4">
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
           <div className="bg-blue-500 text-white p-4 text-center text-xl font-bold">
             BOOK A RIDE
           </div>
@@ -129,17 +132,17 @@ const RideBooking = () => {
               />
             </div>
 
-            {/* Only load GoogleMap when both fields have values to prevent unnecessary API calls */}
-            {(pickupLocation && destination) && (
-              <GoogleMap
-                pickupLocation={pickupLocation}
-                destination={destination}
-                onRouteCalculated={handleRouteCalculated}
-              />
-            )}
+            <GoogleMap
+              pickupLocation={pickupLocation}
+              destination={destination}
+              onRouteCalculated={(time, dist) => {
+                setEstimatedTime(time);
+                setDistance(dist);
+              }}
+            />
 
             {estimatedTime && (
-              <div className="bg-gray-100 rounded-lg p-4">
+              <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Estimated time</span>
                   <span className="text-sm font-bold">{estimatedTime}</span>

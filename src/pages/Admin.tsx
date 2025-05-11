@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { AlertTriangle, Car, Laptop, UserCog, BarChart, History, Clock } from "lucide-react";
+import { AlertTriangle, Car, Laptop, UserCog } from "lucide-react";
 import AdminGadgetLending from "@/components/Admin/AdminGadgetLending";
 import AdminUsers from "@/components/Admin/AdminUsers";
 import AdminRideRequests from "@/components/Admin/AdminRideRequests";
@@ -79,17 +79,13 @@ const Admin: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [complaintUsers, setComplaintUsers] = useState<Record<string, User>>({});
-  const [showLogsSidebar, setShowLogsSidebar] = useState(false);
-  const [systemLogs, setSystemLogs] = useState<any[]>([]);
   
-  // Navigation items for the sidebar
+  // Navigation items for the sidebar - removed Messages
   const sidebarItems: SidebarItem[] = [
-    { icon: BarChart, label: "Dashboard", url: "dashboard", id: "dashboard", title: "Dashboard" },
     { icon: AlertTriangle, label: "Complaints", url: "complaints", id: "complaints", title: "Complaints" },
     { icon: Car, label: "Ride Requests", url: "ride-requests", id: "ride-requests", title: "Ride Requests" },
     { icon: Laptop, label: "Gadget Lending", url: "gadgets", id: "gadgets", title: "Gadget Lending" },
     { icon: UserCog, label: "User Management", url: "user-management", id: "user-management", title: "User Management" },
-    { icon: Clock, label: "Assignments", url: "assignments", id: "assignments", title: "Student Assignments" },
   ];
   
   // Load complaints from database
@@ -142,12 +138,6 @@ const Admin: React.FC = () => {
     
     fetchComplaints();
   }, [activeSection]);
-
-  // Fetch system logs
-  useEffect(() => {
-    const logs = SystemLogs.getSystemLogs();
-    setSystemLogs(logs);
-  }, [showLogsSidebar]);
 
   // Fetch dashboard data
   useEffect(() => {
@@ -248,10 +238,6 @@ const Admin: React.FC = () => {
     }
   };
 
-  const toggleLogsSidebar = () => {
-    setShowLogsSidebar(!showLogsSidebar);
-  };
-
   const renderContent = () => {
     switch (activeSection) {
       case "users":
@@ -332,13 +318,11 @@ const Admin: React.FC = () => {
         return <AdminGadgetLending />;
       case "user-management":
         return <AdminUsers />;
-      case "assignments":
-        return <HelperStudentAssignment />;
       case "dashboard":
       default:
         return (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Total Students</CardTitle>
@@ -366,107 +350,35 @@ const Admin: React.FC = () => {
                   <p className="text-3xl font-bold">{dashboardData?.pendingRides}</p>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Gadget Loans</CardTitle>
-                  <CardDescription>Active gadget loans</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-3xl font-bold">
-                    {(JSON.parse(localStorage.getItem("gadgetLoans") || "[]") as any[])
-                      .filter(loan => loan.status === "borrowed").length}
-                  </p>
-                </CardContent>
-              </Card>
             </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Latest actions in the system</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Time</TableHead>
-                        <TableHead>Action</TableHead>
-                        <TableHead>User</TableHead>
-                        <TableHead>Type</TableHead>
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>Latest actions in the system</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Action</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Type</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {dashboardData?.recentActivity.map((activity, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{new Date(activity.timestamp).toLocaleString()}</TableCell>
+                        <TableCell>{activity.action}</TableCell>
+                        <TableCell>{activity.user}</TableCell>
+                        <TableCell>{activity.type}</TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {dashboardData?.recentActivity.map((activity, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{new Date(activity.timestamp).toLocaleString()}</TableCell>
-                          <TableCell>{activity.action}</TableCell>
-                          <TableCell>{activity.user}</TableCell>
-                          <TableCell>{activity.type}</TableCell>
-                        </TableRow>
-                      ))}
-                      {(!dashboardData?.recentActivity || dashboardData.recentActivity.length === 0) && (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center py-4">No recent activity</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Reports Overview</CardTitle>
-                  <CardDescription>System statistics and metrics</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">Complaint Resolution</h3>
-                      <div className="mt-2 flex items-center">
-                        <div className="h-3 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-                          <div 
-                            className="h-3 rounded-full bg-green-500" 
-                            style={{ 
-                              width: dashboardData?.totalComplaints ? 
-                                `${(dashboardData.resolvedComplaints / dashboardData.totalComplaints) * 100}%` : '0%' 
-                            }}
-                          ></div>
-                        </div>
-                        <span className="ml-2 text-sm">
-                          {dashboardData?.resolvedComplaints || 0}/{dashboardData?.totalComplaints || 0}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">Ride Completion</h3>
-                      <div className="mt-2 flex items-center">
-                        <div className="h-3 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-                          <div 
-                            className="h-3 rounded-full bg-blue-500" 
-                            style={{ 
-                              width: dashboardData?.totalRides ? 
-                                `${(dashboardData.completedRides / dashboardData.totalRides) * 100}%` : '0%' 
-                            }}
-                          ></div>
-                        </div>
-                        <span className="ml-2 text-sm">
-                          {dashboardData?.completedRides || 0}/{dashboardData?.totalRides || 0}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end">
-                    <Button variant="outline" size="sm">
-                      View Full Reports
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </div>
         );
     }
@@ -475,7 +387,7 @@ const Admin: React.FC = () => {
   if (!dashboardData) {
     return (
       <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-        <Navbar title="UDSNMS Admin Control Center" />
+        <Navbar title="Admin Control Center" />
         <div className="flex-1 flex items-center justify-center">
           <p>Loading...</p>
         </div>
@@ -485,9 +397,9 @@ const Admin: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-      <Navbar title="UDSNMS Admin Control Center" />
-      <div className="flex flex-grow relative">
-        {/* Main Sidebar */}
+      <Navbar title="Admin Control Center" />
+      <div className="flex flex-grow">
+        {/* Sidebar */}
         <div className="w-64 bg-gray-200 dark:bg-gray-800 min-h-[calc(100vh-6rem)]">
           <div className="p-4">
             <div className="flex items-center gap-2 mb-8">
@@ -496,6 +408,30 @@ const Admin: React.FC = () => {
             </div>
             
             <nav className="space-y-1">
+              <button 
+                key="dashboard" 
+                onClick={() => setActiveSection("dashboard")}
+                className={`flex items-center gap-3 px-4 py-2.5 w-full text-left rounded-md transition-colors
+                  ${activeSection === "dashboard" 
+                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" 
+                    : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/30"}`
+                }
+              >
+                <UserCog className="h-5 w-5" />
+                <span>Dashboard</span>
+              </button>
+              <button 
+                key="assignments" 
+                onClick={() => setActiveSection("assignments")}
+                className={`flex items-center gap-3 px-4 py-2.5 w-full text-left rounded-md transition-colors
+                  ${activeSection === "assignments" 
+                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" 
+                    : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/30"}`
+                }
+              >
+                <UserCog className="h-5 w-5" />
+                <span>Student Assignments</span>
+              </button>
               {sidebarItems.map((item) => (
                 <button 
                   key={item.id} 
@@ -507,65 +443,35 @@ const Admin: React.FC = () => {
                   }
                 >
                   <item.icon className="h-5 w-5" />
-                  <span>{item.label}</span>
+                  <span>{item.title}</span>
                 </button>
               ))}
             </nav>
-          </div>
-          
-          <div className="p-4 mt-4 border-t border-gray-300 dark:border-gray-700">
-            <button
-              onClick={toggleLogsSidebar}
-              className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-500 dark:hover:text-blue-400"
-            >
-              <History className="h-4 w-4" />
-              <span>System Logs</span>
-            </button>
           </div>
         </div>
 
         {/* Main content */}
         <div className="flex-1 p-6">
           <h1 className="text-2xl font-bold mb-6 dark:text-white">
-            {activeSection === "dashboard" ? "UDSNMS Dashboard" : 
+            {activeSection === "dashboard" ? "Admin Dashboard" : 
+             activeSection === "helpers" ? "Manage Helpers" :
+             activeSection === "students" ? "Manage Students" :
              activeSection === "complaints" ? "View Complaints" :
              activeSection === "ride-requests" ? "Ride Requests" :
              activeSection === "gadgets" ? "Gadget Lending" :
+             activeSection === "users" ? "Users" :
              activeSection === "user-management" ? "User Management" : 
              activeSection === "assignments" ? "Student Assignments" : "Reports"}
           </h1>
           
-          {renderContent()}
+          {activeSection === "assignments" ? (
+            <div className="space-y-6">
+              <HelperStudentAssignment />
+            </div>
+          ) : (
+            renderContent()
+          )}
         </div>
-        
-        {/* System Logs Sidebar */}
-        {showLogsSidebar && (
-          <div className="absolute right-0 top-0 h-full w-80 bg-white dark:bg-gray-800 border-l border-gray-300 dark:border-gray-700 shadow-lg overflow-y-auto">
-            <div className="p-4 border-b border-gray-300 dark:border-gray-700 flex justify-between items-center">
-              <h2 className="font-semibold text-lg">System Logs</h2>
-              <Button variant="ghost" size="sm" onClick={toggleLogsSidebar}>
-                ✕
-              </Button>
-            </div>
-            <div className="p-4">
-              <div className="space-y-4">
-                {systemLogs.slice().reverse().map((log, index) => (
-                  <div key={index} className="border-b border-gray-200 dark:border-gray-700 pb-3">
-                    <div className="flex justify-between items-start">
-                      <span className="text-xs text-gray-500">{new Date(log.timestamp).toLocaleString()}</span>
-                      <Badge variant="outline">{log.userRole}</Badge>
-                    </div>
-                    <p className="font-medium mt-1">{log.action}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{log.details}</p>
-                  </div>
-                ))}
-                {systemLogs.length === 0 && (
-                  <p className="text-center text-gray-500 py-4">No system logs found</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Complaint Review Dialog */}
@@ -578,7 +484,7 @@ const Admin: React.FC = () => {
                 ID: {selectedComplaint.id} • {selectedComplaint.created_at ? new Date(selectedComplaint.created_at).toLocaleDateString() : '-'}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            <div className="space-y-4 py-4">
               <div>
                 <p className="text-sm font-medium mb-1">Submitted By</p>
                 <p className="text-sm">

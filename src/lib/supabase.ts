@@ -64,12 +64,6 @@ export interface User {
   role: UserRole;
   created_at: string;
   updated_at: string;
-  phone?: string;
-  bank_name?: string;
-  bank_account_number?: string;
-  disability_type?: string;
-  time_period?: string;
-  status?: string;
 }
 
 // Auth functions
@@ -80,12 +74,6 @@ export const signUp = async (
     first_name: string;
     last_name: string;
     role: UserRole;
-    phone?: string;
-    bank_name?: string;
-    bank_account_number?: string;
-    disability_type?: string;
-    time_period?: string;
-    status?: string;
   }
 ) => {
   try {
@@ -113,13 +101,7 @@ export const signUp = async (
         data: {
           first_name: userData.first_name,
           last_name: userData.last_name,
-          role: userData.role,
-          phone: userData.phone,
-          bank_name: userData.bank_name,
-          bank_account_number: userData.bank_account_number,
-          disability_type: userData.disability_type,
-          time_period: userData.time_period,
-          status: userData.status || 'active'
+          role: userData.role
         }
       }
     });
@@ -138,12 +120,6 @@ export const signUp = async (
           first_name: userData.first_name,
           last_name: userData.last_name,
           role: userData.role,
-          phone: userData.phone,
-          bank_name: userData.bank_name,
-          bank_account_number: userData.bank_account_number,
-          disability_type: userData.disability_type,
-          time_period: userData.time_period,
-          status: userData.status || 'active'
         },
       ]);
 

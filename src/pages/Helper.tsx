@@ -42,54 +42,23 @@ const Helper = () => {
 
   useEffect(() => {
     // Load assigned students
-    const loadData = async () => {
-      if (!user?.id) return;
+    const loadData = () => {
+      const assignments = JSON.parse(localStorage.getItem("helperStudentAssignments") || "[]");
+      const users = JSON.parse(localStorage.getItem("users") || "[]");
       
-      try {
-        // Fetch assignments directly from Supabase
-        const { data: assignmentsData, error: assignmentsError } = await supabase
-          .from('helper_student_assignments')
-          .select('*')
-          .eq('helper_id', user.id)
-          .eq('status', 'active');
-        
-        if (assignmentsError) {
-          console.error("Error fetching assignments:", assignmentsError);
-          return;
-        }
-
-        console.log("Assignments found:", assignmentsData);
-        
-        // If there are assignments, fetch the corresponding students
-        if (assignmentsData && assignmentsData.length > 0) {
-          const studentIds = assignmentsData.map(a => a.student_id);
-          
-          const { data: studentsData, error: studentsError } = await supabase
-            .from('users')
-            .select('*')
-            .in('id', studentIds);
-          
-          if (studentsError) {
-            console.error("Error fetching students:", studentsError);
-            return;
-          }
-
-          console.log("Students found:", studentsData);
-          
-          setAssignedStudents(studentsData || []);
-          
-          // If there's only one assigned student, select them automatically
-          if (studentsData && studentsData.length === 1 && !selectedStudent) {
-            setSelectedStudent(studentsData[0].id);
-          }
-        } else {
-          setAssignedStudents([]);
-        }
-      } catch (error) {
-        console.error("Error in loadData:", error);
+      const myAssignments = assignments.filter((a: any) => a.helper_id === user?.id && a.status === "active");
+      const myStudents = myAssignments.map((a: any) => {
+        const student = users.find((u: any) => u.id === a.student_id);
+        return student;
+      }).filter(Boolean);
+      
+      setAssignedStudents(myStudents);
+      
+      // If there's only one assigned student, select them automatically
+      if (myStudents.length === 1 && !selectedStudent) {
+        setSelectedStudent(myStudents[0].id);
       }
 
-      // Load sign-in history
       const today = new Date().toISOString().split('T')[0];
       const storedSignIns = localStorage.getItem('helperSignIns');
       const signIns: SignInRecord[] = storedSignIns ? JSON.parse(storedSignIns) : [];
@@ -102,7 +71,6 @@ const Helper = () => {
       setIsSigned(signedToday);
       setSignInHistory(signIns);
 
-      // Load confirmation history
       const storedConfirmations = localStorage.getItem('helpConfirmations');
       const helpConfirmations: HelpConfirmation[] = storedConfirmations 
         ? JSON.parse(storedConfirmations) 
@@ -113,17 +81,7 @@ const Helper = () => {
     loadData();
     
     // Setup periodic refresh
-    const interval = setInterval(() => {
-      if (user?.id) {
-        // We'll just check for new OTP confirmations
-        const storedConfirmations = localStorage.getItem('helpConfirmations');
-        const helpConfirmations: HelpConfirmation[] = storedConfirmations 
-          ? JSON.parse(storedConfirmations) 
-          : [];
-        setConfirmations(helpConfirmations);
-      }
-    }, 30000);
-    
+    const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, [user, selectedStudent]);
 
@@ -171,6 +129,10 @@ const Helper = () => {
     const studentOtps = JSON.parse(localStorage.getItem("studentOtps") || "[]");
     studentOtps.push(newOtpEntry);
     localStorage.setItem("studentOtps", JSON.stringify(studentOtps));
+    
+    // Trigger a custom event to notify the student's page
+    const event = new CustomEvent('newOtpGenerated', { detail: newOtpEntry });
+    window.dispatchEvent(event);
     
     toast({
       title: "OTP Generated",
