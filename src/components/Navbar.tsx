@@ -14,19 +14,19 @@ interface NavbarProps {
   hideLinks?: boolean;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ title = "UDSNMS", hideLinks = false }) => {
+const Navbar: React.FC<NavbarProps> = React.memo(({ title = "UDSNMS", hideLinks = false }) => {
   const { user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = React.useCallback(() => {
     if (logout) {
       logout();
     }
-  };
+  }, [logout]);
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+  const toggleMenu = React.useCallback(() => {
+    setIsMenuOpen(prev => !prev);
+  }, []);
 
   // Cast user to the correct User type from types/index.ts
   const typedUser = user as unknown as User;
@@ -38,7 +38,7 @@ const Navbar: React.FC<NavbarProps> = ({ title = "UDSNMS", hideLinks = false }) 
           <div className="flex">
             <div className="flex flex-shrink-0 items-center">
               <Link to="/" className="text-white font-bold text-lg">
-                {title || "UDSNMS"}
+                {title}
               </Link>
             </div>
 
@@ -54,6 +54,8 @@ const Navbar: React.FC<NavbarProps> = ({ title = "UDSNMS", hideLinks = false }) 
       {isMenuOpen && <MobileMenu isOpen={true} user={typedUser} handleLogout={handleLogout} />}
     </nav>
   );
-};
+});
+
+Navbar.displayName = "Navbar";
 
 export default Navbar;

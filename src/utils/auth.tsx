@@ -1,4 +1,5 @@
-import { ReactNode, createContext, useContext, useState, useEffect } from "react";
+
+import { ReactNode, createContext, useContext, useState, useEffect, useCallback } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { SystemLogs } from "@/utils/systemLogs";
@@ -41,7 +42,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     checkSession();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     try {
       setIsLoading(true);
       const { success, user: loggedInUser, error } = await signIn(email, password);
@@ -85,9 +86,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       const { success, error } = await signOut();
       
@@ -116,14 +117,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         variant: "destructive",
       });
     }
-  };
+  }, [user]);
 
-  const hasRole = (roles: string[]): boolean => {
+  const hasRole = useCallback((roles: string[]): boolean => {
     return user ? roles.includes(user.role) : false;
-  };
+  }, [user]);
 
   if (isLoading) {
-    return null; // or a loading spinner
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 
   return (
@@ -203,7 +204,6 @@ export const ProtectedRoute = ({
 
 export const PublicRoute = ({ children }: { children: ReactNode }) => {
   const { isAuthenticated, user } = useAuth();
-  const location = useLocation();
   
   // If authenticated, redirect based on role
   if (isAuthenticated && user) {
