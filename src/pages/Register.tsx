@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
@@ -14,7 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Phone, ShieldCheck, User, Bank } from "lucide-react";
+import { Phone, ShieldCheck, User, Building2 } from "lucide-react";
 
 // Define form schema with validation
 const formSchema = z.object({
@@ -381,7 +380,7 @@ const Register = () => {
                           <FormControl>
                             <SelectTrigger>
                               <div className="flex items-center gap-2">
-                                <Bank className="h-4 w-4" />
+                                <Building2 className="h-4 w-4" />
                                 <SelectValue placeholder="Select bank" />
                               </div>
                             </SelectTrigger>
@@ -404,7 +403,7 @@ const Register = () => {
                         <FormLabel>Bank Account Number</FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Bank className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Building2 className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
                               type="text"
                               placeholder="Bank Account Number"

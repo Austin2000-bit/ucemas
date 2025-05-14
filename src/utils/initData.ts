@@ -45,7 +45,16 @@ const defaultData = {
   complaints: [],
   rideRequests: [],
   messages: [],
-  systemLogs: []
+  systemLogs: [
+    {
+      id: "log1",
+      timestamp: new Date().toISOString(),
+      action: "System Initialized",
+      details: "System initialized with default data",
+      userId: "system",
+      userRole: "system"
+    }
+  ]
 };
 
 // Initialize localStorage with default data if it doesn't exist

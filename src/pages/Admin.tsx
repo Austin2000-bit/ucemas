@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/utils/auth";
 import { SystemLogs } from "@/utils/systemLogs";
@@ -155,7 +154,7 @@ const Admin: React.FC = () => {
 
   // Fetch system logs
   useEffect(() => {
-    const logs = SystemLogs.getLogs();
+    const logs = SystemLogs.getSystemLogs();
     setSystemLogs(logs);
   }, []);
 
