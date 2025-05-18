@@ -1,5 +1,6 @@
-
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { User } from "@/types";
 import { 
   Tabs, 
   TabsContent, 
@@ -28,6 +29,14 @@ import { CalendarIcon, Download, Filter } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
+// Add this interface for minimal user data
+interface MinimalUser {
+  id: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+}
+
 interface SignInRecord {
   date: string;
   helper: string;
@@ -53,51 +62,56 @@ const ConfirmationLogs = () => {
   const [studentConfirmations, setStudentConfirmations] = useState<StudentConfirmation[]>([]);
   const [filter, setFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
+  const [users, setUsers] = useState<MinimalUser[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load all sign-in and confirmation data
-    const loadData = () => {
-      // Helper sign-ins
-      const storedSignIns = localStorage.getItem('helperSignIns');
-      const signIns: SignInRecord[] = storedSignIns ? JSON.parse(storedSignIns) : [];
-      setHelperSignIns(signIns);
-      
-      // Helper confirmations
-      const storedHelpConfirmations = localStorage.getItem('helpConfirmations');
-      const helpConfs: HelpConfirmation[] = storedHelpConfirmations 
-        ? JSON.parse(storedHelpConfirmations) 
-        : [];
-      setHelpConfirmations(helpConfs);
-      
-      // Student confirmations
-      const storedStudentConfirmations = localStorage.getItem('studentHelpConfirmations');
-      const studentConfs: StudentConfirmation[] = storedStudentConfirmations 
-        ? JSON.parse(storedStudentConfirmations) 
-        : [];
-      setStudentConfirmations(studentConfs);
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch all users from Supabase
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id, first_name, last_name, role')
+          .order('first_name', { ascending: true });
+
+        if (userError) throw userError;
+        setUsers(userData || []);
+
+        // Load all sign-in and confirmation data
+        const storedSignIns = localStorage.getItem('helperSignIns');
+        const signIns: SignInRecord[] = storedSignIns ? JSON.parse(storedSignIns) : [];
+        setHelperSignIns(signIns);
+        
+        const storedHelpConfirmations = localStorage.getItem('helpConfirmations');
+        const helpConfs: HelpConfirmation[] = storedHelpConfirmations 
+          ? JSON.parse(storedHelpConfirmations) 
+          : [];
+        setHelpConfirmations(helpConfs);
+        
+        const storedStudentConfirmations = localStorage.getItem('studentHelpConfirmations');
+        const studentConfs: StudentConfirmation[] = storedStudentConfirmations 
+          ? JSON.parse(storedStudentConfirmations) 
+          : [];
+        setStudentConfirmations(studentConfs);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
     };
     
-    loadData();
+    fetchData();
     
     // Set up interval to refresh data periodically
-    const interval = setInterval(loadData, 30000);
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Helper function to get display names
-  const getHelperName = (helperId: string) => {
-    return helperId === "amanda" ? "Amanda Kusisqanya" : helperId;
-  };
-  
-  const getStudentName = (studentId: string) => {
-    const studentMap: {[key: string]: string} = {
-      'john': 'John Smith',
-      'maria': 'Maria Garcia',
-      'james': 'James Johnson',
-      'sarah': 'Sarah Williams',
-    };
-    
-    return studentMap[studentId] || studentId;
+  // Helper function to get display names from users array
+  const getUserFullName = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    return user ? `${user.first_name} ${user.last_name}` : userId;
   };
 
   // Format date for display
@@ -138,13 +152,17 @@ const ConfirmationLogs = () => {
   
   // Export data as CSV
   const exportCSV = (data: any[], filename: string) => {
-    // Convert object array to CSV string
+    // Convert object array to CSV string with full names
     const headers = Object.keys(data[0]).join(',');
-    const rows = data.map(row => 
-      Object.values(row).map(value => 
-        typeof value === 'string' ? `"${value}"` : value
-      ).join(',')
-    ).join('\n');
+    const rows = data.map(row => {
+      const values = Object.entries(row).map(([key, value]) => {
+        if (key === 'helper' || key === 'student') {
+          return `"${getUserFullName(value as string)}"`;
+        }
+        return typeof value === 'string' ? `"${value}"` : value;
+      });
+      return values.join(',');
+    }).join('\n');
     
     const csv = headers + '\n' + rows;
     
@@ -176,11 +194,14 @@ const ConfirmationLogs = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Users</SelectItem>
-                  <SelectItem value="amanda">Amanda Kusisqanya</SelectItem>
-                  <SelectItem value="john">John Smith</SelectItem>
-                  <SelectItem value="maria">Maria Garcia</SelectItem>
-                  <SelectItem value="james">James Johnson</SelectItem>
-                  <SelectItem value="sarah">Sarah Williams</SelectItem>
+                  {users
+                    .filter(user => user.role === 'helper' || user.role === 'student')
+                    .map(user => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.first_name} {user.last_name}
+                      </SelectItem>
+                    ))
+                  }
                 </SelectContent>
               </Select>
               
@@ -242,66 +263,40 @@ const ConfirmationLogs = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {/* Combine and sort all records by date/time */}
-                    {[
-                      ...helperSignIns.map(record => ({
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-4">
+                          Loading...
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      [...helperSignIns.map(record => ({
                         ...record,
                         type: 'sign-in',
                         student: '-'
                       })),
                       ...helpConfirmations.map(record => ({
                         ...record,
-                        type: 'help'
-                      }))
-                    ]
-                    .sort((a, b) => b.timestamp - a.timestamp)
-                    .filter(record => 
-                      (filter === "all" || record.helper === filter || record.student === filter) &&
-                      (!dateFilter || record.date === dateFilter)
-                    )
-                    .slice(0, 50)
-                    .map((record, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span>{formatDate(record.date)}</span>
-                            <span className="text-xs text-gray-500">{new Date(record.timestamp).toLocaleTimeString()}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {record.type === 'sign-in' ? (
-                            <Badge variant="outline" className="border-blue-500 text-blue-500">Sign-in</Badge>
-                          ) : (
-                            <Badge variant="outline" className="border-purple-500 text-purple-500">Help</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>{getHelperName(record.helper)}</TableCell>
-                        <TableCell>{record.student !== '-' ? getStudentName(record.student) : '-'}</TableCell>
-                        <TableCell>
-                          {record.type === 'help' ? (
-                            (() => {
-                              // Check if student has confirmed
-                              const isConfirmed = studentConfirmations.some(
-                                sc => sc.date === record.date && sc.helperId === record.student
-                              );
-                              return isConfirmed ? (
-                                <Badge className="bg-green-500">Verified</Badge>
-                              ) : (
-                                <Badge variant="outline" className="border-amber-500 text-amber-500">Pending</Badge>
-                              );
-                            })()
-                          ) : (
-                            <Badge className="bg-blue-500">Completed</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {(getFilteredHelperSignIns().length === 0 && getFilteredHelpConfirmations().length === 0) && (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-4 text-gray-500">
-                          No activities found matching the current filters
-                        </TableCell>
-                      </TableRow>
+                        type: 'confirmation'
+                      }))]
+                      .sort((a, b) => b.timestamp - a.timestamp)
+                      .map((record, index) => (
+                        <TableRow key={index}>
+                          <TableCell>{formatDate(record.date)}</TableCell>
+                          <TableCell>
+                            <Badge variant={record.type === 'sign-in' ? 'outline' : 'default'}>
+                              {record.type === 'sign-in' ? 'Sign In' : 'Confirmation'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{getUserFullName(record.helper)}</TableCell>
+                          <TableCell>{record.student === '-' ? '-' : getUserFullName(record.student)}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              {record.type === 'sign-in' ? 'Recorded' : 'Confirmed'}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
                     )}
                   </TableBody>
                 </Table>
@@ -337,7 +332,7 @@ const ConfirmationLogs = () => {
                         .map((record, idx) => (
                           <TableRow key={idx}>
                             <TableCell>{formatDate(record.date)}</TableCell>
-                            <TableCell>{getHelperName(record.helper)}</TableCell>
+                            <TableCell>{getUserFullName(record.helper)}</TableCell>
                             <TableCell>{new Date(record.timestamp).toLocaleTimeString()}</TableCell>
                           </TableRow>
                         ))
@@ -384,8 +379,8 @@ const ConfirmationLogs = () => {
                         .map((record, idx) => (
                           <TableRow key={idx}>
                             <TableCell>{formatDate(record.date)}</TableCell>
-                            <TableCell>{getHelperName(record.helper)}</TableCell>
-                            <TableCell>{getStudentName(record.student)}</TableCell>
+                            <TableCell>{getUserFullName(record.helper)}</TableCell>
+                            <TableCell>{getUserFullName(record.student)}</TableCell>
                             <TableCell className="max-w-xs truncate">{record.description}</TableCell>
                             <TableCell>
                               {(() => {

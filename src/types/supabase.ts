@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -17,6 +16,14 @@ export interface Database {
           first_name: string
           last_name: string
           role: 'admin' | 'helper' | 'student' | 'driver'
+          phone: string | null
+          disability_type: string | null
+          bank_name: 'CRDB' | 'NBC' | null
+          bank_account_number: string | null
+          assistant_type: 'undergraduate' | 'postgraduate' | null
+          assistant_specialization: 'reader' | 'note_taker' | 'mobility_assistant' | null
+          time_period: 'full_year' | 'semester' | 'half_semester' | null
+          status: 'active' | 'completed' | 'inactive' | null
           created_at: string
           updated_at: string
         }
@@ -26,6 +33,14 @@ export interface Database {
           first_name: string
           last_name: string
           role: 'admin' | 'helper' | 'student' | 'driver'
+          phone?: string | null
+          disability_type?: string | null
+          bank_name?: 'CRDB' | 'NBC' | null
+          bank_account_number?: string | null
+          assistant_type?: 'undergraduate' | 'postgraduate' | null
+          assistant_specialization?: 'reader' | 'note_taker' | 'mobility_assistant' | null
+          time_period?: 'full_year' | 'semester' | 'half_semester' | null
+          status?: 'active' | 'completed' | 'inactive' | null
           created_at?: string
           updated_at?: string
         }
@@ -35,6 +50,14 @@ export interface Database {
           first_name?: string
           last_name?: string
           role?: 'admin' | 'helper' | 'student' | 'driver'
+          phone?: string | null
+          disability_type?: string | null
+          bank_name?: 'CRDB' | 'NBC' | null
+          bank_account_number?: string | null
+          assistant_type?: 'undergraduate' | 'postgraduate' | null
+          assistant_specialization?: 'reader' | 'note_taker' | 'mobility_assistant' | null
+          time_period?: 'full_year' | 'semester' | 'half_semester' | null
+          status?: 'active' | 'completed' | 'inactive' | null
           created_at?: string
           updated_at?: string
         }

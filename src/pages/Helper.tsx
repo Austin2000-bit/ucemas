@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
@@ -24,6 +23,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Copy } from "lucide-react";
 
 import { useAuth } from "@/utils/auth";
 import { supabase } from "@/lib/supabase";
@@ -42,47 +44,69 @@ const Helper = () => {
 
   useEffect(() => {
     // Load assigned students
-    const loadData = () => {
-      const assignments = JSON.parse(localStorage.getItem("helperStudentAssignments") || "[]");
-      const users = JSON.parse(localStorage.getItem("users") || "[]");
-      
-      const myAssignments = assignments.filter((a: any) => a.helper_id === user?.id && a.status === "active");
-      const myStudents = myAssignments.map((a: any) => {
-        const student = users.find((u: any) => u.id === a.student_id);
-        return student;
-      }).filter(Boolean);
-      
-      setAssignedStudents(myStudents);
-      
-      // If there's only one assigned student, select them automatically
-      if (myStudents.length === 1 && !selectedStudent) {
-        setSelectedStudent(myStudents[0].id);
+    const loadData = async () => {
+      if (!user?.id) return;
+
+      try {
+        // Get assignments from Supabase
+        const { data: assignments, error: assignmentsError } = await supabase
+          .from('helper_student_assignments')
+          .select(`
+            *,
+            student:users!student_id(*)
+          `)
+          .eq('helper_id', user.id)
+          .eq('status', 'active');
+
+        if (assignmentsError) {
+          console.error('Error fetching assignments:', assignmentsError);
+          toast({
+            title: "Error",
+            description: "Failed to load assigned students. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Extract student data from assignments
+        const myStudents = assignments.map(a => a.student).filter(Boolean);
+        setAssignedStudents(myStudents);
+        
+        // If there's only one assigned student, select them automatically
+        if (myStudents.length === 1 && !selectedStudent) {
+          setSelectedStudent(myStudents[0].id);
+        }
+
+        // Check if helper has signed in today
+        const today = new Date().toISOString().split('T')[0];
+        const storedSignIns = localStorage.getItem('helperSignIns');
+        const signIns: SignInRecord[] = storedSignIns ? JSON.parse(storedSignIns) : [];
+        
+        const signedToday = signIns.some(record => 
+          record.date === today && 
+          record.helper === user.id
+        );
+        
+        setIsSigned(signedToday);
+        setSignInHistory(signIns);
+
+        const storedConfirmations = localStorage.getItem('helpConfirmations');
+        const helpConfirmations: HelpConfirmation[] = storedConfirmations 
+          ? JSON.parse(storedConfirmations) 
+          : [];
+        
+        setConfirmations(helpConfirmations);
+      } catch (error) {
+        console.error('Error in loadData:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load data. Please try again.",
+          variant: "destructive",
+        });
       }
-
-      const today = new Date().toISOString().split('T')[0];
-      const storedSignIns = localStorage.getItem('helperSignIns');
-      const signIns: SignInRecord[] = storedSignIns ? JSON.parse(storedSignIns) : [];
-      
-      const signedToday = signIns.some(record => 
-        record.date === today && 
-        record.helper === user?.id
-      );
-      
-      setIsSigned(signedToday);
-      setSignInHistory(signIns);
-
-      const storedConfirmations = localStorage.getItem('helpConfirmations');
-      const helpConfirmations: HelpConfirmation[] = storedConfirmations 
-        ? JSON.parse(storedConfirmations) 
-        : [];
-      setConfirmations(helpConfirmations);
     };
 
     loadData();
-    
-    // Setup periodic refresh
-    const interval = setInterval(loadData, 30000);
-    return () => clearInterval(interval);
   }, [user, selectedStudent]);
 
   const generateOTP = () => {
@@ -287,7 +311,7 @@ const Helper = () => {
                   disabled={assignedStudents.length === 1}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select assigned student" />
+                    <SelectValue defaultValue={undefined} placeholder="Select assigned student" />
                   </SelectTrigger>
                   <SelectContent>
                     {assignedStudents.map((student) => (

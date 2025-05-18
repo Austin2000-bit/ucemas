@@ -73,6 +73,7 @@ export const signUp = async (
     assistant_specialization?: string;
     time_period?: 'full_year' | 'semester' | 'half_semester';
     status?: 'active' | 'completed' | 'inactive';
+    metadata?: Record<string, any>;
   }
 ) => {
   try {

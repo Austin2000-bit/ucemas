@@ -68,7 +68,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Navbar title="Login" />
+      <Navbar />
       
       <main className="flex-grow flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-card rounded-lg shadow-md overflow-hidden">
@@ -138,33 +138,7 @@ const Login = () => {
               </form>
             </Form>
 
-            <div className="mt-6">
-              <p className="text-muted-foreground text-sm">
-                Demo accounts:
-              </p>
-              <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
-                <div className="text-left p-2 border rounded bg-muted/50">
-                  <p className="font-medium">Admin</p>
-                  <p>admin@example.com</p>
-                  <p>admin123</p>
-                </div>
-                <div className="text-left p-2 border rounded bg-muted/50">
-                  <p className="font-medium">Helper</p>
-                  <p>amanda@example.com</p>
-                  <p>helper123</p>
-                </div>
-                <div className="text-left p-2 border rounded bg-muted/50">
-                  <p className="font-medium">Student</p>
-                  <p>john@example.com</p>
-                  <p>student123</p>
-                </div>
-                <div className="text-left p-2 border rounded bg-muted/50">
-                  <p className="font-medium">Driver</p>
-                  <p>driver@example.com</p>
-                  <p>driver123</p>
-                </div>
-              </div>
-            </div>
+            
           </div>
         </div>
       </main>

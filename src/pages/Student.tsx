@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,7 @@ import { useAuth } from "@/utils/auth";
 import { SystemLogs } from "@/utils/systemLogs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { User } from "@/types";
+import { supabase } from "@/lib/supabase";
 
 const Student = () => {
   const { user } = useAuth();
@@ -44,39 +44,61 @@ const Student = () => {
     const loadData = async () => {
       if (!studentId) return;
 
-      // Get student's confirmations
-      const confirmations = await db.getStudentConfirmationsByStudent(studentId);
-      setRecentConfirmations(confirmations);
-      
-      // Check if there's a confirmation for today
-      const today = new Date().toISOString().split('T')[0];
-      const todayConfirm = confirmations.find(conf => conf.date === today);
-      setTodayConfirmed(!!todayConfirm);
-      
-      // Check if there's a pending OTP for this student
-      if (!todayConfirm) {
-        const studentOtp = await db.getStudentOtp(studentId);
-        setPendingOtp(studentOtp);
-        
-        // Auto-fill the OTP field if there's a pending OTP
-        if (studentOtp?.otp) {
-          form.setValue("otp", studentOtp.otp);
-        }
-      } else {
-        setPendingOtp(null);
-      }
+      try {
+        // Get student's assigned helper from Supabase
+        const { data: assignments, error: assignmentsError } = await supabase
+          .from('helper_student_assignments')
+          .select(`
+            *,
+            helper:users!helper_id(*)
+          `)
+          .eq('student_id', studentId)
+          .eq('status', 'active')
+          .single();
 
-      // Load assigned helper
-      const assignments = JSON.parse(localStorage.getItem("helperStudentAssignments") || "[]");
-      const users = JSON.parse(localStorage.getItem("users") || "[]");
-      
-      const myAssignment = assignments.find((a: any) => 
-        a.student_id === studentId && a.status === "active"
-      );
-      
-      if (myAssignment) {
-        const helper = users.find((u: any) => u.id === myAssignment.helper_id);
-        setAssignedHelper(helper || null);
+        if (assignmentsError) {
+          if (assignmentsError.code !== 'PGRST116') { // No rows returned
+            console.error('Error fetching assignment:', assignmentsError);
+            toast({
+              title: "Error",
+              description: "Failed to load helper assignment. Please try again.",
+              variant: "destructive",
+            });
+          }
+          setAssignedHelper(null);
+          return;
+        }
+
+        setAssignedHelper(assignments.helper);
+
+        // Get student's confirmations
+        const confirmations = await db.getStudentConfirmationsByStudent(studentId);
+        setRecentConfirmations(confirmations);
+        
+        // Check if there's a confirmation for today
+        const today = new Date().toISOString().split('T')[0];
+        const todayConfirm = confirmations.find(conf => conf.date === today);
+        setTodayConfirmed(!!todayConfirm);
+        
+        // Check if there's a pending OTP for this student
+        if (!todayConfirm) {
+          const studentOtp = await db.getStudentOtp(studentId);
+          setPendingOtp(studentOtp);
+          
+          // Auto-fill the OTP field if there's a pending OTP
+          if (studentOtp?.otp) {
+            form.setValue("otp", studentOtp.otp);
+          }
+        } else {
+          setPendingOtp(null);
+        }
+      } catch (error) {
+        console.error('Error in loadData:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load data. Please try again.",
+          variant: "destructive",
+        });
       }
     };
     
@@ -101,7 +123,7 @@ const Student = () => {
     }, 10000);
     
     return () => clearInterval(interval);
-  }, [form, pendingOtp, todayConfirmed, studentId]);
+  }, [studentId, todayConfirmed, form, pendingOtp]);
   
   useEffect(() => {
     // Load user profile

@@ -257,6 +257,20 @@ const Admin: React.FC = () => {
     }
   };
 
+  const getUserFullName = (userId: string): string => {
+    const user = users.find(u => u.id === userId);
+    if (user) {
+      return `${user.first_name} ${user.last_name}`;
+    }
+    return userId; // Fallback to ID if user not found
+  };
+
+  const formatComplaintId = (id: string, index: number): string => {
+    // Format the sequential number with leading zeros
+    const sequentialNumber = (index + 1).toString().padStart(3, '0');
+    return `COMP-${sequentialNumber}`;
+  };
+
   const renderReports = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -528,11 +542,13 @@ const Admin: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {complaints.map((complaint) => {
+                    {complaints
+                      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                      .map((complaint, index) => {
                       const user = complaintUsers[complaint.user_id];
                       return (
                         <TableRow key={complaint.id}>
-                          <TableCell>{complaint.id}</TableCell>
+                          <TableCell>{formatComplaintId(complaint.id!, index)}</TableCell>
                           <TableCell>
                             {user ? `${user.first_name} ${user.last_name}` : complaint.user_id}
                             <div className="text-xs text-muted-foreground">
@@ -638,7 +654,7 @@ const Admin: React.FC = () => {
                       <TableRow key={index}>
                         <TableCell>{new Date(activity.timestamp).toLocaleString()}</TableCell>
                         <TableCell>{activity.action}</TableCell>
-                        <TableCell>{activity.user}</TableCell>
+                        <TableCell>{getUserFullName(activity.user)}</TableCell>
                         <TableCell>{activity.type}</TableCell>
                       </TableRow>
                     ))}
@@ -812,7 +828,7 @@ const Admin: React.FC = () => {
             <DialogHeader>
               <DialogTitle>Review Complaint</DialogTitle>
               <DialogDescription>
-                ID: {selectedComplaint.id} • {selectedComplaint.created_at ? new Date(selectedComplaint.created_at).toLocaleDateString() : '-'}
+                ID: {formatComplaintId(selectedComplaint.id!, complaints.findIndex(c => c.id === selectedComplaint.id))} • {selectedComplaint.created_at ? new Date(selectedComplaint.created_at).toLocaleDateString() : '-'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -836,7 +852,7 @@ const Admin: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Status</label>
-                <Select value={status} onValueChange={(value: "pending" | "in_progress" | "resolved") => setStatus(value)}>
+                <Select value={status} onValueChange={(value: "pending" | "in_progress" | "resolved" | undefined) => setStatus(value as "pending" | "in_progress" | "resolved")}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>

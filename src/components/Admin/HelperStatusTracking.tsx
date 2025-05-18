@@ -34,29 +34,47 @@ const HelperStatusTracking = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch all helpers
+        // Fetch all helpers with specific columns
         const { data: helpersData, error: helpersError } = await supabase
           .from('users')
-          .select('*')
-          .eq('role', 'helper');
+          .select('id, first_name, last_name, email, role, status, created_at, updated_at')
+          .eq('role', 'helper')
+          .order('first_name', { ascending: true });
           
-        if (helpersError) throw helpersError;
-        
-        // Fetch all status logs
-        const { data: logsData, error: logsError } = await supabase
-          .from('helper_status_logs')
-          .select('*')
-          .order('changed_at', { ascending: false });
-          
-        if (logsError) throw logsError;
+        if (helpersError) {
+          console.error('Error fetching helpers:', helpersError);
+          throw helpersError;
+        }
         
         setHelpers(helpersData || []);
-        setStatusLogs(logsData || []);
+        
+        try {
+          // Fetch all status logs
+          const { data: logsData, error: logsError } = await supabase
+            .from('helper_status_logs')
+            .select('*')
+            .order('changed_at', { ascending: false });
+            
+          if (logsError) {
+            // If table doesn't exist, just set empty array
+            if (logsError.code === '42P01') {
+              setStatusLogs([]);
+              return;
+            }
+            throw logsError;
+          }
+          
+          setStatusLogs(logsData || []);
+        } catch (error) {
+          console.error('Error fetching status logs:', error);
+          // If status logs fail to load, we can still show helpers
+          setStatusLogs([]);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
         toast({
           title: "Error",
-          description: "Failed to load helper status data.",
+          description: "Failed to load helper data. Please try again.",
           variant: "destructive",
         });
       } finally {
@@ -81,27 +99,37 @@ const HelperStatusTracking = () => {
       // Update the helper status
       const { error: updateError } = await supabase
         .from('users')
-        .update({ status: newStatus })
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', selectedHelper);
         
       if (updateError) throw updateError;
       
-      // Create a status log
-      const { error: logError } = await supabase
-        .from('helper_status_logs')
-        .insert([{
-          helper_id: selectedHelper,
-          status: newStatus,
-          notes: notes,
-          changed_at: new Date().toISOString(),
-          changed_by: "admin" // This should be the current user's ID
-        }]);
-        
-      if (logError) throw logError;
+      try {
+        // Try to create a status log
+        const { error: logError } = await supabase
+          .from('helper_status_logs')
+          .insert([{
+            helper_id: selectedHelper,
+            status: newStatus,
+            notes: notes,
+            changed_at: new Date().toISOString(),
+            changed_by: "admin" // This should be the current user's ID
+          }]);
+          
+        if (logError && logError.code !== '42P01') throw logError;
+      } catch (error) {
+        console.error('Error creating status log:', error);
+        // Continue even if logging fails
+      }
       
       // Update local state
       setHelpers(helpers.map(helper => 
-        helper.id === selectedHelper ? { ...helper, status: newStatus } : helper
+        helper.id === selectedHelper 
+          ? { ...helper, status: newStatus, updated_at: new Date().toISOString() } 
+          : helper
       ));
       
       const newLog: HelperStatusLog = {
@@ -133,7 +161,7 @@ const HelperStatusTracking = () => {
       console.error('Error updating status:', error);
       toast({
         title: "Error",
-        description: "Failed to update helper status.",
+        description: "Failed to update helper status. Please try again.",
         variant: "destructive",
       });
     }

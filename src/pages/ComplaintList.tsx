@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { 
@@ -159,6 +158,12 @@ const ComplaintList = () => {
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   };
+
+  const formatComplaintId = (id: string, index: number): string => {
+    // Format the sequential number with leading zeros
+    const sequentialNumber = (index + 1).toString().padStart(3, '0');
+    return `COMP-${sequentialNumber}`;
+  };
   
   return (
     <div className="min-h-screen bg-background">
@@ -262,9 +267,11 @@ const ComplaintList = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredComplaints.length > 0 ? (
-                    filteredComplaints.map((complaint) => (
+                    filteredComplaints
+                      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                      .map((complaint, index) => (
                       <TableRow key={complaint.id}>
-                        <TableCell className="font-medium font-poppins">{complaint.id?.substring(0, 8)}</TableCell>
+                        <TableCell className="font-medium font-poppins">{formatComplaintId(complaint.id!, index)}</TableCell>
                         <TableCell className="font-poppins">{getUserName(complaint.user_id)}</TableCell>
                         <TableCell className="font-poppins">{complaint.title}</TableCell>
                         <TableCell className="font-poppins">
@@ -334,7 +341,7 @@ const ComplaintList = () => {
             <DialogHeader>
               <DialogTitle>Complaint Details</DialogTitle>
               <DialogDescription>
-                ID: {selectedComplaint.id} • {selectedComplaint.created_at ? new Date(selectedComplaint.created_at).toLocaleDateString() : 'N/A'}
+                ID: {formatComplaintId(selectedComplaint.id!, complaints.findIndex(c => c.id === selectedComplaint.id))} • {selectedComplaint.created_at ? new Date(selectedComplaint.created_at).toLocaleDateString() : 'N/A'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { SystemLogs } from "@/utils/systemLogs";
-import { signUp, UserRole } from "@/lib/supabase";
+import { signUp, UserRole, supabase } from "@/lib/supabase";
 import Navbar from "@/components/Navbar";
 import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,6 +23,7 @@ const formSchema = z.object({
   role: z.enum(["admin", "helper", "student", "driver"], { required_error: "Please select a role." }),
   phone: z.string().regex(/^(\+\d{1,3})?\d{9,12}$/, { message: "Enter valid phone number with country code (+XXX)" }),
   disability_type: z.string().optional(),
+  disability_video: z.custom<File>().optional(),
   bank_account: z.string().optional(),
   bank_name: z.enum(["CRDB", "NBC"]).optional(),
   bank_account_number: z.string()
@@ -71,6 +72,29 @@ const Register = () => {
     setLoading(true);
 
     try {
+      let videoUrl = null;
+      
+      // Upload video if provided for students
+      if (data.role === "student" && data.disability_video) {
+        const videoFile = data.disability_video;
+        const videoFileName = `disability_videos/${Date.now()}_${videoFile.name}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('videos')
+          .upload(videoFileName, videoFile);
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        // Get the public URL for the uploaded video
+        const { data: { publicUrl } } = supabase.storage
+          .from('videos')
+          .getPublicUrl(videoFileName);
+        
+        videoUrl = publicUrl;
+      }
+
       const { success, error } = await signUp(
         data.email,
         data.password,
@@ -85,7 +109,8 @@ const Register = () => {
           assistant_type: data.role === "helper" ? data.assistant_type : undefined,
           assistant_specialization: data.role === "helper" ? data.assistant_specialization : undefined,
           time_period: data.role === "helper" ? data.time_period : undefined,
-          status: data.role === "helper" ? "active" : undefined
+          status: data.role === "helper" ? "active" : undefined,
+          metadata: data.role === "student" && videoUrl ? { disability_video_url: videoUrl } : undefined
         }
       );
 
@@ -256,36 +281,84 @@ const Register = () => {
               />
 
               {role === "student" && (
-                <FormField
-                  control={form.control}
-                  name="disability_type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Disability Type</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        value={field.value || ""}
-                      >
+                <>
+                  <FormField
+                    control={form.control}
+                    name="disability_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Disability Type</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          value={field.value || undefined}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select disability type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="visual">Visual Impairment</SelectItem>
+                            <SelectItem value="hearing">Hearing Impairment</SelectItem>
+                            <SelectItem value="mobility">Mobility Impairment</SelectItem>
+                            <SelectItem value="multiple">Multiple Disabilities</SelectItem>
+                            <SelectItem value="albinism">Albinism</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="disability_video"
+                    render={({ field: { value, onChange, ...field } }) => (
+                      <FormItem>
+                        <FormLabel>Disability Video (Optional)</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select disability type" />
-                          </SelectTrigger>
+                          <div className="grid w-full items-center gap-1.5">
+                            <Input
+                              type="file"
+                              accept="video/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  // Check if file is a video
+                                  if (!file.type.startsWith('video/')) {
+                                    toast({
+                                      title: "Invalid file type",
+                                      description: "Please upload a video file",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+                                  // Check if file size is less than 100MB
+                                  if (file.size > 100 * 1024 * 1024) {
+                                    toast({
+                                      title: "File too large",
+                                      description: "Video must be less than 100MB",
+                                      variant: "destructive",
+                                    });
+                                    return;
+                                  }
+                                  onChange(file);
+                                }
+                              }}
+                              {...field}
+                            />
+                          </div>
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">None</SelectItem>
-                          <SelectItem value="visual">Visual Impairment</SelectItem>
-                          <SelectItem value="hearing">Hearing Impairment</SelectItem>
-                          <SelectItem value="mobility">Mobility Impairment</SelectItem>
-                          <SelectItem value="multiple">Multiple Disabilities</SelectItem>
-                          <SelectItem value="albinism">Albinism</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormDescription>
+                          Upload a video file (max 100MB) demonstrating your disability type. This helps us better understand your needs.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
               )}
 
               {role === "helper" && (
