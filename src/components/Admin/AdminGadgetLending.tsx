@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   Table,
@@ -31,6 +30,7 @@ const AdminGadgetLending = () => {
     course: "",
     disabilityType: "",
     gadgetTypes: [] as string[],
+    duration: "",
   });
 
   // Load loans from localStorage
@@ -83,6 +83,7 @@ const AdminGadgetLending = () => {
       disabilityType: formData.disabilityType,
       gadgetTypes: formData.gadgetTypes,
       dateBorrowed: new Date().toISOString(),
+      duration: formData.duration,
     };
 
     const updatedLoans = [...loans, newLoan];
@@ -94,6 +95,7 @@ const AdminGadgetLending = () => {
       course: "",
       disabilityType: "",
       gadgetTypes: [],
+      duration: "",
     });
     setIsAdding(false);
     
@@ -185,6 +187,23 @@ const AdminGadgetLending = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label>Duration</Label>
+                <Select
+                  value={formData.duration}
+                  onValueChange={(value) => handleSelectChange("duration", value)}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="semester">Semester</SelectItem>
+                    <SelectItem value="halfSemester">Half Semester</SelectItem>
+                    <SelectItem value="fullYear">Full Academic Year</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div>
@@ -268,6 +287,7 @@ const AdminGadgetLending = () => {
               <TableHead>Course</TableHead>
               <TableHead>Disability</TableHead>
               <TableHead>Gadgets</TableHead>
+              <TableHead>Duration</TableHead>
               <TableHead>Date Borrowed</TableHead>
               <TableHead>Date Returned</TableHead>
               <TableHead>Status</TableHead>
@@ -283,6 +303,7 @@ const AdminGadgetLending = () => {
                   <TableCell>{loan.course}</TableCell>
                   <TableCell>{loan.disabilityType}</TableCell>
                   <TableCell>{Array.isArray(loan.gadgetTypes) ? loan.gadgetTypes.join(", ") : loan.gadget_name}</TableCell>
+                  <TableCell>{loan.duration || "-"}</TableCell>
                   <TableCell>{new Date(loan.dateBorrowed || loan.borrowed_date).toLocaleDateString()}</TableCell>
                   <TableCell>
                     {loan.dateReturned || loan.return_date ? new Date(loan.dateReturned || loan.return_date).toLocaleDateString() : "-"}

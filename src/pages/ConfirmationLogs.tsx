@@ -27,7 +27,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CalendarIcon, Download, Filter } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 
 // Add this interface for minimal user data
 interface MinimalUser {
@@ -411,8 +410,6 @@ const ConfirmationLogs = () => {
           </div>
         </div>
       </div>
-      
-      <Footer />
     </div>
   );
 };

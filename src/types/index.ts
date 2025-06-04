@@ -122,8 +122,9 @@ export interface GadgetLoan {
   gadgetTypes?: string[] | string;
   dateBorrowed?: string;
   dateReturned?: string;
-  usage_duration?: number; // Added for time tracking
+  usage_duration?: number;
   usage_logs?: GadgetUsageLog[];
+  duration?: string;
 }
 
 export interface GadgetUsageLog {

@@ -99,6 +99,7 @@ const Admin: React.FC = () => {
     { icon: UserCog, label: "User Management", url: "user-management", id: "user-management", title: "User Management" },
     { icon: List, label: "Helper Status", url: "helper-status", id: "helper-status", title: "Helper Status Tracking" },
     { icon: BarChart, label: "Reports", url: "reports", id: "reports", title: "Reports Overview" },
+    { icon: MonitorDot, label: "System Logs", url: "system-logs", id: "system-logs", title: "System Logs" }
   ];
   
   // Load complaints from database
@@ -519,6 +520,50 @@ const Admin: React.FC = () => {
     switch (activeSection) {
       case "users":
         return <AdminUsers />;
+      case "system-logs":
+        return (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>System Logs</CardTitle>
+                <CardDescription>View all system activities and events</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {systemLogs.map((log, index) => (
+                    <div key={index} className="border-b pb-2 last:border-0">
+                      <div className="flex justify-between">
+                        <span className="text-sm font-medium">{log.type}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(log.timestamp).toLocaleString()}
+                        </span>
+                      </div>
+                      <p className="text-sm">{log.message}</p>
+                      <div className="flex gap-2 mt-1">
+                        {log.userId && (
+                          <Badge variant="outline" className="text-xs">
+                            User: {getUserFullName(log.userId)}
+                          </Badge>
+                        )}
+                        {log.userRole && (
+                          <Badge variant="outline" className="text-xs">
+                            Role: {log.userRole}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {systemLogs.length === 0 && (
+                    <p className="text-center text-muted-foreground py-8">
+                      No system logs to display
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
       case "complaints":
         return (
           <div className="space-y-4">
@@ -747,77 +792,12 @@ const Admin: React.FC = () => {
                activeSection === "user-management" ? "User Management" :
                activeSection === "helper-status" ? "Helper Status Tracking" : 
                activeSection === "reports" ? "Reports Overview" :
-               activeSection === "assignments" ? "Student Assignments" : "Reports"}
+               activeSection === "system-logs" ? "System Logs" :
+               "Reports"}
             </h1>
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="flex items-center gap-2"
-              onClick={() => setSystemLogsOpen(!systemLogsOpen)}
-            >
-              <MonitorDot className="h-4 w-4" />
-              <span>System Logs</span>
-            </Button>
           </div>
           
-          {activeSection === "assignments" ? (
-            <div className="space-y-6">
-              <HelperStudentAssignment />
-            </div>
-          ) : (
-            renderContent()
-          )}
-        </div>
-
-        {/* System Logs Side Panel */}
-        <div 
-          className={`fixed top-0 right-0 h-full bg-white dark:bg-gray-800 shadow-lg w-96 transform transition-transform duration-300 ease-in-out z-40 ${
-            systemLogsOpen ? "translate-x-0" : "translate-x-full"
-          }`}
-          style={{ marginTop: "4rem" }}
-        >
-          <div className="h-full flex flex-col">
-            <div className="p-4 border-b flex justify-between items-center">
-              <h3 className="font-medium text-lg">System Logs</h3>
-              <Button variant="ghost" size="sm" onClick={() => setSystemLogsOpen(false)}>
-                &times;
-              </Button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-4">
-              <div className="space-y-3">
-                {systemLogs.map((log, index) => (
-                  <div key={index} className="border-b pb-2 last:border-0">
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium">{log.type}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(log.timestamp).toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="text-sm">{log.message}</p>
-                    <div className="flex gap-2 mt-1">
-                      {log.userId && (
-                        <Badge variant="outline" className="text-xs">
-                          User: {log.userId}
-                        </Badge>
-                      )}
-                      {log.userRole && (
-                        <Badge variant="outline" className="text-xs">
-                          Role: {log.userRole}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                
-                {systemLogs.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">
-                    No system logs to display
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
+          {renderContent()}
         </div>
       </div>
 

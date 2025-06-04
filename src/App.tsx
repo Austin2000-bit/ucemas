@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -17,9 +16,9 @@ import Helper from "./pages/Helper";
 import Student from "./pages/Student";
 import RideBooking from "./pages/RideBooking";
 import ConfirmationLogs from "./pages/ConfirmationLogs";
-import Footer from "./components/Footer";
 import Messages from "@/pages/Messages";
 import Driver from "@/pages/Driver";
+import Footer from "@/components/Footer";
 import { testSupabaseConnection } from '@/lib/supabase';
 import { initializeData } from "@/utils/initData";
 

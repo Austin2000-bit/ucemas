@@ -27,7 +27,7 @@ const formSchema = z.object({
   bank_account: z.string().optional(),
   bank_name: z.enum(["CRDB", "NBC"]).optional(),
   bank_account_number: z.string()
-    .regex(/^\d{10,16}$/, { message: "Bank account number must be between 10 and 16 digits." })
+    .regex(/^\d{13}$/, { message: "Bank account number must be exactly 13 digits." })
     .optional(),
   assistant_type: z.string().optional(),
   assistant_specialization: z.string().optional(),
@@ -173,7 +173,7 @@ const Register = () => {
                   name="first_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First name</FormLabel>
+                      <FormLabel>First name *</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <User className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -194,7 +194,7 @@ const Register = () => {
                   name="last_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last name</FormLabel>
+                      <FormLabel>Last name *</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <User className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -216,7 +216,7 @@ const Register = () => {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Email *</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
@@ -234,7 +234,7 @@ const Register = () => {
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone Number</FormLabel>
+                    <FormLabel>Phone Number *</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <Phone className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -258,7 +258,7 @@ const Register = () => {
                 name="role"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Role</FormLabel>
+                    <FormLabel>Role *</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
@@ -481,6 +481,13 @@ const Register = () => {
                               type="text"
                               placeholder="Bank Account Number"
                               className="pl-8"
+                              maxLength={13}
+                              onKeyPress={(e) => {
+                                // Allow only numeric input
+                                if (!/[0-9]/.test(e.key)) {
+                                  e.preventDefault();
+                                }
+                              }}
                               {...field}
                             />
                           </div>
@@ -497,7 +504,7 @@ const Register = () => {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>Password *</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <ShieldCheck className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -519,7 +526,7 @@ const Register = () => {
                 name="confirm_password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
+                    <FormLabel>Confirm Password *</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <ShieldCheck className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -549,7 +556,7 @@ const Register = () => {
                     </FormControl>
                     <div className="space-y-1 leading-none">
                       <FormLabel>
-                        I accept the terms and conditions
+                        I accept the terms and conditions *
                       </FormLabel>
                       <FormDescription>
                         You agree to our terms of service and privacy policy.
