@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -23,9 +23,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Copy } from "lucide-react";
 
 import { useAuth } from "@/utils/auth";
 import { supabase } from "@/lib/supabase";
@@ -40,236 +37,284 @@ const Helper = () => {
   const [signInHistory, setSignInHistory] = useState<SignInRecord[]>([]);
   const [confirmations, setConfirmations] = useState<HelpConfirmation[]>([]);
   const [assignedStudents, setAssignedStudents] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
   useEffect(() => {
-    // Load assigned students
+    let isSubscribed = true;
+    const POLL_INTERVAL = 60000; // Increased to 60 seconds
+
     const loadData = async () => {
-      if (!user?.id) return;
-
+      if (!user?.id || !isSubscribed) return;
+      
       try {
-        // Get assignments from Supabase
-        const { data: assignments, error: assignmentsError } = await supabase
-          .from('helper_student_assignments')
-          .select(`
-            *,
-            student:users!student_id(*)
-          `)
-          .eq('helper_id', user.id)
-          .eq('status', 'active');
+        setIsLoading(true);
+        
+        // Use a single query to fetch all required data
+        const [assignmentsResponse, signInResponse, confirmationsResponse] = await Promise.all([
+          // Fetch assignments
+          supabase
+            .from('helper_student_assignments')
+            .select(`
+              id,
+              student:student_id (
+                id,
+                first_name,
+                last_name,
+                email,
+                role,
+                created_at,
+                updated_at
+              )
+            `)
+            .eq('helper_id', user.id)
+            .eq('status', 'active'),
+            
+          // Check today's sign in
+          supabase
+            .from('helper_sign_ins')
+            .select('*')
+            .eq('helper_id', user.id)
+            .eq('date', new Date().toISOString().split('T')[0])
+            .single(),
+            
+          // Fetch recent confirmations
+          supabase
+            .from('student_help_confirmations')
+            .select('*')
+            .eq('helper_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(10)
+        ]);
 
-        if (assignmentsError) {
-          console.error('Error fetching assignments:', assignmentsError);
+        if (assignmentsResponse.error) throw assignmentsResponse.error;
+        
+        // Process assignments with proper typing
+        const myStudents = (assignmentsResponse.data || [])
+          .map(a => ({
+            id: a.student.id,
+            first_name: a.student.first_name,
+            last_name: a.student.last_name,
+            email: a.student.email,
+            role: a.student.role,
+            created_at: a.student.created_at,
+            updated_at: a.student.updated_at
+          } as User))
+          .filter((student): student is User => !!student);
+          
+        if (isSubscribed) {
+          setAssignedStudents(myStudents);
+          
+          // Auto-select single student
+          if (myStudents.length === 1 && !selectedStudent && myStudents[0]) {
+            setSelectedStudent(myStudents[0].id);
+          }
+          
+          // Update sign in status
+          setIsSigned(!!signInResponse.data);
+          
+          // Update confirmations
+          setConfirmations(confirmationsResponse.data || []);
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+        if (isSubscribed) {
           toast({
             title: "Error",
-            description: "Failed to load assigned students. Please try again.",
+            description: "Failed to load data. Please refresh the page.",
             variant: "destructive",
           });
-          return;
         }
-
-        // Extract student data from assignments
-        const myStudents = assignments.map(a => a.student).filter(Boolean);
-        setAssignedStudents(myStudents);
-        
-        // If there's only one assigned student, select them automatically
-        if (myStudents.length === 1 && !selectedStudent) {
-          setSelectedStudent(myStudents[0].id);
+      } finally {
+        if (isSubscribed) {
+          setIsLoading(false);
         }
-
-        // Check if helper has signed in today
-        const today = new Date().toISOString().split('T')[0];
-        const storedSignIns = localStorage.getItem('helperSignIns');
-        const signIns: SignInRecord[] = storedSignIns ? JSON.parse(storedSignIns) : [];
-        
-        const signedToday = signIns.some(record => 
-          record.date === today && 
-          record.helper === user.id
-        );
-        
-        setIsSigned(signedToday);
-        setSignInHistory(signIns);
-
-        const storedConfirmations = localStorage.getItem('helpConfirmations');
-        const helpConfirmations: HelpConfirmation[] = storedConfirmations 
-          ? JSON.parse(storedConfirmations) 
-          : [];
-        
-        setConfirmations(helpConfirmations);
-      } catch (error) {
-        console.error('Error in loadData:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load data. Please try again.",
-          variant: "destructive",
-        });
       }
     };
 
     loadData();
-  }, [user, selectedStudent]);
-
-  const generateOTP = () => {
-    const newOtp = Math.floor(100000 + Math.random() * 900000).toString().substring(0, 4);
-    setOtp(newOtp);
     
-    // Get the selected student's email
-    const selectedStudentData = assignedStudents.find(s => s.id === selectedStudent);
-    if (!selectedStudentData) {
-      toast({
-        title: "Error",
-        description: "Could not find selected student's information",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Setup polling with increased interval
+    const pollInterval = setInterval(loadData, POLL_INTERVAL);
     
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "User not authenticated",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Store OTP in localStorage with student's email
-    const otps = JSON.parse(localStorage.getItem("otps") || "[]");
-    const newOtpEntry = {
-      code: newOtp,
-      email: selectedStudentData.email,
-      timestamp: Date.now(),
-      expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
-      helperId: user.id,
-      helperName: `${user.first_name} ${user.last_name}`,
-      studentId: selectedStudent,
-      otp: newOtp
+    // Cleanup function
+    return () => {
+      isSubscribed = false;
+      clearInterval(pollInterval);
     };
-    otps.push(newOtpEntry);
-    
-    localStorage.setItem("otps", JSON.stringify(otps));
-    
-    // Store in studentOtps for the student to access
-    const studentOtps = JSON.parse(localStorage.getItem("studentOtps") || "[]");
-    studentOtps.push(newOtpEntry);
-    localStorage.setItem("studentOtps", JSON.stringify(studentOtps));
-    
-    // Trigger a custom event to notify the student's page
-    const event = new CustomEvent('newOtpGenerated', { detail: newOtpEntry });
-    window.dispatchEvent(event);
-    
-    toast({
-      title: "OTP Generated",
-      description: `OTP has been sent to ${selectedStudentData.first_name} ${selectedStudentData.last_name}`,
-    });
+  }, [user?.id, selectedStudent]); // Only re-run when user ID or selected student changes
 
-    setHasCopied(false);
+  const generateOTP = async () => {
+    if (!user?.id || !selectedStudent) return;
+    
+    try {
+      // First create a session
+      const { data: session, error: sessionError } = await supabase
+        .from('sessions')
+        .insert([{
+          helper_id: user.id,
+          student_id: selectedStudent,
+          status: 'pending_confirmation',
+          created_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (sessionError) throw sessionError;
+
+      // Generate OTP using the Edge Function
+      const { data, error: otpError } = await supabase.functions.invoke('generate-otp', {
+        body: { sessionId: session.id }
+      });
+
+      if (otpError || !data?.otp) {
+        throw new Error(otpError?.message || 'Failed to generate OTP');
+      }
+
+      // Set the OTP in state for display
+      setOtp(data.otp);
+      
+      // Get the selected student's name for the toast
+      const selectedStudentData = assignedStudents.find(s => s.id === selectedStudent);
+      if (selectedStudentData) {
+        toast({
+          title: "OTP Generated",
+          description: `OTP has been sent to ${selectedStudentData.first_name} ${selectedStudentData.last_name}`,
+        });
+      }
+
+      setHasCopied(false);
+    } catch (error) {
+      console.error('Error generating OTP:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate OTP",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleSignIn = () => {
-    if (!user?.id) {
+  const handleSignIn = async () => {
+    if (!user?.id) return;
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Check if already signed in
+      const { data: existingSignIn } = await supabase
+        .from('helper_sign_ins')
+        .select('*')
+        .eq('helper_id', user.id)
+        .eq('date', today)
+        .single();
+
+      if (existingSignIn) {
+        toast({
+          title: "Already signed in",
+          description: "You have already signed in for today.",
+        });
+        return;
+      }
+
+      // Create new sign in record
+      const { error: signInError } = await supabase
+        .from('helper_sign_ins')
+        .insert([{
+          helper_id: user.id,
+          date: today
+        }]);
+
+      if (signInError) throw signInError;
+
+      setIsSigned(true);
+      toast({
+        title: "Signed in successfully",
+        description: "You have successfully signed in for today.",
+      });
+    } catch (error) {
+      console.error('Error signing in:', error);
       toast({
         title: "Error",
-        description: "User not authenticated",
+        description: "Failed to sign in",
         variant: "destructive",
       });
-      return;
     }
-
-    const today = new Date().toISOString().split('T')[0];
-    
-    const storedSignIns = localStorage.getItem('helperSignIns');
-    const signIns: SignInRecord[] = storedSignIns ? JSON.parse(storedSignIns) : [];
-    
-    const signedToday = signIns.some(record => 
-      record.date === today && 
-      record.helper === user.id
-    );
-    
-    if (signedToday) {
-      toast({
-        title: "Already signed in",
-        description: "You have already signed in for today.",
-      });
-      return;
-    }
-    
-    const newSignIn: SignInRecord = {
-      date: today,
-      helper: user.id,
-      timestamp: Date.now()
-    };
-    
-    signIns.push(newSignIn);
-    localStorage.setItem('helperSignIns', JSON.stringify(signIns));
-    
-    setIsSigned(true);
-    setSignInHistory(signIns);
-    
-    toast({
-      title: "Signed in successfully",
-      description: "You have successfully signed in for today.",
-    });
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedStudent) {
+    if (!selectedStudent || !description.trim() || !user?.id) {
       toast({
-        title: "Student selection required",
-        description: "Please select an assigned student",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!description.trim()) {
-      toast({
-        title: "Description required",
-        description: "Please briefly describe help provided",
+        title: "Missing information",
+        description: "Please fill in all required fields",
         variant: "destructive",
       });
       return;
     }
 
-    if (!user?.id) {
+    try {
+      // Create help confirmation first
+      console.log('Creating help confirmation...');
+      const { error: confirmationError } = await supabase
+        .from('student_help_confirmations')
+        .insert({
+          helper_id: user.id,
+          student_id: selectedStudent,
+          description: description.trim(),
+          date: new Date().toISOString().split('T')[0],
+          status: 'pending'
+        });
+
+      if (confirmationError) {
+        console.error('Help confirmation error:', confirmationError);
+        throw new Error(`Failed to create help confirmation: ${confirmationError.message}`);
+      }
+
+      // Generate a simple 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Create a session with the OTP
+      console.log('Creating session with OTP...');
+      const { error: sessionError } = await supabase
+        .from('sessions')
+        .insert({
+          helper_id: user.id,
+          student_id: selectedStudent,
+          otp: otp,
+          otp_expiry: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 minutes from now
+          status: 'pending_confirmation'
+        });
+
+      if (sessionError) {
+        console.error('Session creation error:', sessionError);
+        throw new Error(`Failed to create session: ${sessionError.message}`);
+      }
+
+      // Set the OTP in state for display
+      setOtp(otp);
+      
+      // Get the selected student's name for the toast
+      const selectedStudentData = assignedStudents.find(s => s.id === selectedStudent);
+      if (selectedStudentData) {
+        toast({
+          title: "Help Confirmation Created",
+          description: `OTP has been generated for ${selectedStudentData.first_name} ${selectedStudentData.last_name}`,
+        });
+      }
+
+      setDescription("");
+      setHasCopied(false);
+    } catch (error) {
+      console.error('Error submitting help confirmation:', error);
       toast({
         title: "Error",
-        description: "User not authenticated",
+        description: error instanceof Error ? error.message : "Failed to submit help confirmation",
         variant: "destructive",
       });
-      return;
     }
-
-    const today = new Date().toISOString().split('T')[0];
-    const storedConfirmations = localStorage.getItem('helpConfirmations');
-    const helpConfirmations: HelpConfirmation[] = storedConfirmations 
-      ? JSON.parse(storedConfirmations) 
-      : [];
-    
-    const newConfirmation: HelpConfirmation = {
-      date: today,
-      helper: user.id,
-      student: selectedStudent,
-      description: description,
-      timestamp: Date.now()
-    };
-    
-    helpConfirmations.push(newConfirmation);
-    localStorage.setItem('helpConfirmations', JSON.stringify(helpConfirmations));
-    setConfirmations(helpConfirmations);
-    
-    generateOTP();
-    
-    toast({
-      title: "Help confirmation submitted",
-      description: "Thank you for confirming the help provision.",
-    });
-    
-    setDescription("");
   };
-  
+
   const getStudentName = (studentId: string) => {
     const student = assignedStudents.find(s => s.id === studentId);
     return student ? `${student.first_name} ${student.last_name}` : 'Unknown Student';
@@ -311,7 +356,7 @@ const Helper = () => {
                   disabled={assignedStudents.length === 1}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue defaultValue={undefined} placeholder="Select assigned student" />
+                    <SelectValue placeholder="Select assigned student" />
                   </SelectTrigger>
                   <SelectContent>
                     {assignedStudents.map((student) => (

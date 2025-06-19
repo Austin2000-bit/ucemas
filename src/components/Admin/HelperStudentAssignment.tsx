@@ -264,6 +264,7 @@ const HelperStudentAssignment = () => {
                 <TableHead>Helper</TableHead>
                 <TableHead>Student</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Period</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -279,6 +280,13 @@ const HelperStudentAssignment = () => {
                     >
                       {assignment.status}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {assignment.academic_year
+                      ? assignment.academic_year
+                      : assignment.semester
+                        ? assignment.semester
+                        : "-"}
                   </TableCell>
                   <TableCell>
                     {assignment.created_at 

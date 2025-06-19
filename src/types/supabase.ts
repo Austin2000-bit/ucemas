@@ -207,6 +207,38 @@ export interface Database {
           updated_at?: string
         }
       }
+      sessions: {
+        Row: {
+          id: string
+          helper_id: string
+          student_id: string
+          otp: string | null
+          otp_expiry: string | null
+          status: 'pending_confirmation' | 'confirmed' | 'expired'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          helper_id: string
+          student_id: string
+          otp?: string | null
+          otp_expiry?: string | null
+          status?: 'pending_confirmation' | 'confirmed' | 'expired'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          helper_id?: string
+          student_id?: string
+          otp?: string | null
+          otp_expiry?: string | null
+          status?: 'pending_confirmation' | 'confirmed' | 'expired'
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never

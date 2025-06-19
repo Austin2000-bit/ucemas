@@ -89,9 +89,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const logout = async () => {
     try {
-      const { success, error } = await signOut();
-      
-      if (success) {
+      // First clear the local user state
         if (user) {
           SystemLogs.addLog(
             "User Logout",
@@ -100,14 +98,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             user.role
           );
         }
-        setUser(null);
-      } else if (error) {
-        toast({
-          title: "Logout Error",
-          description: error.message || "Failed to log out.",
-          variant: "destructive",
-        });
+
+      // Then attempt to sign out from Supabase
+      const { error } = await signOut();
+      if (error) {
+        // If it's an AuthSessionMissingError, we can ignore it since we've already cleared the state
+        if (error.message?.includes('Auth session missing')) {
+          console.log('Session already cleared');
+        } else {
+          throw error;
+        }
       }
+
+      // Add a small delay before clearing the state to ensure Supabase has time to clear its session
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Clear any stored auth data
+      localStorage.removeItem('supabase.auth.token');
+      sessionStorage.clear();
+      
+      // Finally clear the user state
+      setUser(null);
     } catch (error) {
       console.error("Logout error:", error);
       toast({

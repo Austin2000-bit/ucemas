@@ -110,21 +110,19 @@ export interface HelpConfirmation {
 
 export interface GadgetLoan {
   id: string;
-  user_id: string;
+  student_id: string;
   gadget_name: string;
   status: 'borrowed' | 'returned';
   borrowed_date: string;
   return_date?: string;
-  fullName?: string;
-  regNumber?: string;
-  course?: string;
-  disabilityType?: string;
-  gadgetTypes?: string[] | string;
-  dateBorrowed?: string;
-  dateReturned?: string;
-  usage_duration?: number;
-  usage_logs?: GadgetUsageLog[];
-  duration?: string;
+  full_name: string;
+  reg_number: string;
+  course: string;
+  disability_type: string;
+  gadget_types: string[];
+  duration: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface GadgetUsageLog {
@@ -140,7 +138,7 @@ export interface GadgetUsageLog {
 export interface HelperStatusLog {
   id?: string;
   helper_id: string;
-  status: 'active' | 'completed' | 'inactive';
+  status: 'available' | 'busy' | 'offline';
   changed_at: string;
   changed_by?: string;
   notes?: string;

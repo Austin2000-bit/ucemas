@@ -57,6 +57,41 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
 // User types
 export type UserRole = 'admin' | 'helper' | 'student' | 'driver';
 
+// Helper function for delay with exponential backoff
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper function to handle rate limiting
+const handleRateLimit = async (retryCount: number): Promise<number> => {
+  // Exponential backoff: 2^retryCount seconds (2, 4, 8, 16, 32 seconds)
+  const waitTime = Math.min(1000 * Math.pow(2, retryCount), 32000); // Max 32 seconds
+  await delay(waitTime);
+  return waitTime;
+};
+
+// Helper function to upload file to Supabase Storage
+const uploadToStorage = async (file: File, bucket: string, userId: string): Promise<string> => {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${userId}-${Date.now()}.${fileExt}`;
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .upload(`${userId}/${fileName}`, file, {
+      cacheControl: '3600',
+      upsert: true
+    });
+
+  if (error) {
+    console.error(`Error uploading to ${bucket}:`, error);
+    throw error;
+  }
+
+  // Get public URL
+  const { data: { publicUrl } } = supabase.storage
+    .from(bucket)
+    .getPublicUrl(`${userId}/${fileName}`);
+
+  return publicUrl;
+};
+
 // Auth functions
 export const signUp = async (
   email: string,
@@ -65,96 +100,197 @@ export const signUp = async (
     first_name: string;
     last_name: string;
     role: UserRole;
-    phone?: string;
+    phone: string;
     disability_type?: string;
     bank_name?: string;
     bank_account_number?: string;
-    assistant_type?: string;
-    assistant_specialization?: string;
-    time_period?: 'full_year' | 'semester' | 'half_semester';
-    status?: 'active' | 'completed' | 'inactive';
-    metadata?: Record<string, any>;
+    category?: 'undergraduate' | 'postgraduate';
+    specialization?: 'reader' | 'note_taker' | 'mobility_assistant';
+    profile_picture?: File;
+    application_letter?: File;
+    disability_video?: File;
   }
 ) => {
   try {
-    // Validate phone number
-    if (!userData.phone) {
-      return { success: false, error: new Error('Phone number is required') };
-    }
-    
-    const phoneRegex = /^(\+\d{1,3})?\d{9,12}$/;
-    if (!phoneRegex.test(userData.phone)) {
-      return { success: false, error: new Error('Invalid phone number format. Use format: +XXX123456789') };
-    }
-    
-    // Validate bank account for helpers
-    if (userData.role === 'helper' && userData.bank_account_number) {
-      const bankAccountRegex = /^\d{10,16}$/;
-      if (!bankAccountRegex.test(userData.bank_account_number)) {
-        return { success: false, error: new Error('Bank account number must be between 10 and 16 digits') };
+    // Validate bank account number for helpers
+    if (userData.role === "assistant" && userData.bank_account_number) {
+      if (!/^\d{10,16}$/.test(userData.bank_account_number)) {
+        return {
+          success: false,
+          error: {
+            message: "Bank account number must be 10-16 digits"
+          }
+        };
       }
     }
-    
-    // Check if the current user is an admin
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) {
-      return { success: false, error: new Error('Authentication required') };
-    }
 
-    const { data: currentUser, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', session.user.id)
-      .single();
+    // Retry logic for auth signup with exponential backoff
+    let authData = null;
+    let authError = null;
+    let retryCount = 0;
+    const maxRetries = 5;
 
-    if (userError || currentUser?.role !== 'admin') {
-      return { success: false, error: new Error('Only admins can create new users') };
-    }
-
-    // 1. Sign up the user with Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: userData.first_name,
-          last_name: userData.last_name,
-          role: userData.role
+    while (retryCount < maxRetries) {
+      try {
+        console.log(`Signup attempt ${retryCount + 1} of ${maxRetries}`);
+        
+        const response = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        
+        if (response.error) {
+          console.log('Signup error:', response.error.message);
+          
+          if (response.error.status === 429 || 
+              response.error.message.includes('Too many requests') ||
+              response.error.message.includes('security purposes')) {
+            const waitTime = await handleRateLimit(retryCount);
+            console.log(`Rate limited. Waiting ${waitTime/1000} seconds before retry...`);
+            retryCount++;
+            continue;
+          }
+          
+          throw response.error;
         }
+        
+        authData = response.data;
+        console.log('Signup successful!');
+        break;
+      } catch (error: any) {
+        console.log('Caught error:', error.message);
+        
+        if (error.status === 429 || 
+            error.message?.includes('Too many requests') ||
+            error.message?.includes('security purposes')) {
+          const waitTime = await handleRateLimit(retryCount);
+          console.log(`Rate limited. Waiting ${waitTime/1000} seconds before retry...`);
+          retryCount++;
+          continue;
+        }
+        
+        authError = error;
+        break;
       }
-    });
+    }
 
-    if (authError) throw authError;
+    if (retryCount >= maxRetries) {
+      console.log('Max retries reached');
+      return {
+        success: false,
+        error: {
+          message: "Service is currently busy. Please try again in a few minutes."
+        }
+      };
+    }
 
-    if (!authData.user) throw new Error('No user data returned');
+    if (authError || !authData?.user) {
+      return {
+        success: false,
+        error: authError || {
+          message: "Failed to create user. Please try again."
+        }
+      };
+    }
 
-    // 2. Create the user profile in the users table
-    const { error: profileError } = await supabase
+    const userId = authData.user.id;
+
+    // Upload files to storage and get URLs
+    let profilePictureUrl = null;
+    let applicationLetterUrl = null;
+    let disabilityVideoUrl = null;
+
+    try {
+      // Upload files to appropriate storage buckets
+      if (userData.profile_picture) {
+        profilePictureUrl = await uploadToStorage(userData.profile_picture, 'profile-pictures', userId);
+      }
+
+      if (userData.role === "assistant" && userData.application_letter) {
+        applicationLetterUrl = await uploadToStorage(userData.application_letter, 'application-letters', userId);
+      }
+
+      if (userData.role === "student" && userData.disability_video) {
+        disabilityVideoUrl = await uploadToStorage(userData.disability_video, 'disability-videos', userId);
+      }
+    } catch (error) {
+      console.error("File upload error:", error);
+      // Clean up the created auth user if file upload fails
+      try {
+        await supabase.auth.admin.deleteUser(userId);
+      } catch (deleteError) {
+        console.error("Failed to clean up auth user:", deleteError);
+      }
+      return {
+        success: false,
+        error: {
+          message: "Failed to upload files. Please try again."
+        }
+      };
+    }
+
+    // Create user profile in users table with file URLs
+    const { data: profileData, error: profileError } = await supabase
       .from('users')
       .insert([
         {
-          id: authData.user.id,
-          email,
+          id: userId,
+          email: email,
           first_name: userData.first_name,
           last_name: userData.last_name,
           role: userData.role,
           phone: userData.phone,
-          disability_type: userData.role === 'student' ? userData.disability_type : null,
-          bank_name: userData.role === 'helper' ? userData.bank_name : null,
-          bank_account_number: userData.role === 'helper' ? userData.bank_account_number : null,
-          assistant_type: userData.role === 'helper' ? userData.assistant_type : null,
-          assistant_specialization: userData.role === 'helper' ? userData.assistant_specialization : null,
-          time_period: userData.role === 'helper' ? userData.time_period : null,
-          status: userData.role === 'helper' ? 'active' : null,
-        },
-      ]);
+          disability_type: userData.disability_type,
+          bank_name: userData.bank_name,
+          bank_account_number: userData.bank_account_number,
+          category: userData.category,
+          specialization: userData.specialization,
+          profile_picture_url: profilePictureUrl,
+          application_letter_url: applicationLetterUrl,
+          disability_video_url: disabilityVideoUrl,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ])
+      .select()
+      .single();
 
-    if (profileError) throw profileError;
+    if (profileError) {
+      console.error("Profile creation error:", profileError);
+      // Clean up the created auth user and uploaded files if profile creation fails
+      try {
+        await supabase.auth.admin.deleteUser(userId);
+        // Clean up uploaded files
+        if (profilePictureUrl) {
+          await supabase.storage.from('profile-pictures').remove([`${userId}`]);
+        }
+        if (applicationLetterUrl) {
+          await supabase.storage.from('application-letters').remove([`${userId}`]);
+        }
+        if (disabilityVideoUrl) {
+          await supabase.storage.from('disability-videos').remove([`${userId}`]);
+        }
+      } catch (cleanupError) {
+        console.error("Failed to clean up resources:", cleanupError);
+      }
+      return {
+        success: false,
+        error: profileError
+      };
+    }
 
-    return { success: true, user: authData.user };
+    return {
+      success: true,
+      data: profileData
+    };
   } catch (error) {
-    console.error('Error in signUp:', error);
-    return { success: false, error };
+    console.error("Signup error:", error);
+    return {
+      success: false,
+      error: {
+        message: "An unexpected error occurred. Please try again later."
+      }
+    };
   }
 };
 
@@ -203,8 +339,25 @@ export const signIn = async (email: string, password: string) => {
 
 export const signOut = async () => {
   try {
+    // Check if there's a session first
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    // If no session, return success since we're already signed out
+    if (!session) {
+      return { success: true };
+    }
+    
+    // Sign out from Supabase
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+
+    // Clear any stored auth data
+    localStorage.removeItem('supabase.auth.token');
+    
+    // Reinitialize the Supabase client
+    const newClient = createClient<Database>(supabaseUrl, supabaseAnonKey);
+    Object.assign(supabase, newClient);
+
     return { success: true };
   } catch (error) {
     console.error('Error in signOut:', error);
@@ -529,5 +682,214 @@ export const db = {
     }
     
     return { success: true, data };
+  },
+
+  async createGadgetLoansTable() {
+    const { error } = await supabase.rpc('create_gadget_loans_table', {});
+    if (error) {
+      console.error('Error creating gadget_loans table:', error);
+      return { success: false, error };
+    }
+    return { success: true };
   }
 }
+
+export const generateOTP = async (sessionId: string) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('generate-otp', {
+      body: { sessionId }
+    });
+
+    if (error) {
+      console.error("Error generating OTP:", error);
+      return {
+        success: false,
+        error: {
+          message: error.message || "Failed to generate OTP"
+        }
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        message: "OTP generated and sent to student successfully",
+        otp: data.otp // Only available in development environment
+      }
+    };
+  } catch (error) {
+    console.error("Error in generateOTP:", error);
+    return {
+      success: false,
+      error: {
+        message: "An unexpected error occurred"
+      }
+    };
+  }
+};
+
+export const verifyOTP = async (sessionId: string, otp: string) => {
+  try {
+    // Get the session details
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError) {
+      console.error("Error fetching session:", sessionError);
+      return {
+        success: false,
+        error: {
+          message: "Failed to fetch session details"
+        }
+      };
+    }
+
+    if (!session) {
+      return {
+        success: false,
+        error: {
+          message: "Session not found"
+        }
+      };
+    }
+
+    // Check if OTP is expired
+    const now = new Date();
+    const otpExpiry = new Date(session.otp_expiry);
+    if (now > otpExpiry) {
+      return {
+        success: false,
+        error: {
+          message: "OTP has expired"
+        }
+      };
+    }
+
+    // Verify OTP
+    if (session.otp !== otp) {
+      return {
+        success: false,
+        error: {
+          message: "Invalid OTP"
+        }
+      };
+    }
+
+    // Update session status
+    const { error: updateError } = await supabase
+      .from('sessions')
+      .update({
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString()
+      })
+      .eq('id', sessionId);
+
+    if (updateError) {
+      console.error("Error updating session:", updateError);
+      return {
+        success: false,
+        error: {
+          message: "Failed to update session status"
+        }
+      };
+    }
+
+    // Create confirmation record
+    const { error: confirmationError } = await supabase
+      .from('student_help_confirmations')
+      .insert({
+        student_id: session.student_id,
+        helper_id: session.helper_id,
+        session_id: sessionId,
+        date: new Date().toISOString().split('T')[0],
+        status: 'confirmed',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (confirmationError) {
+      console.error("Error creating confirmation:", confirmationError);
+      return {
+        success: false,
+        error: {
+          message: "Failed to create confirmation record"
+        }
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        message: "Session confirmed successfully"
+      }
+    };
+  } catch (error) {
+    console.error("Error in verifyOTP:", error);
+    return {
+      success: false,
+      error: {
+        message: "An unexpected error occurred"
+      }
+    };
+  }
+};
+
+export const getStudentOtp = async (studentId: string) => {
+  try {
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select(`
+        *,
+        helper:helper_id (
+          id,
+          first_name,
+          last_name
+        )
+      `)
+      .eq('student_id', studentId)
+      .eq('status', 'pending_confirmation')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (sessionError) {
+      if (sessionError.code === 'PGRST116') { // No rows returned
+        return null;
+      }
+      console.error("Error fetching session:", sessionError);
+      return null;
+    }
+
+    if (!session) {
+      return null;
+    }
+
+    // Check if OTP is expired
+    const now = new Date();
+    const otpExpiry = new Date(session.otp_expiry);
+    if (now > otpExpiry) {
+      // Update session status to expired
+      await supabase
+        .from('sessions')
+        .update({
+          status: 'expired'
+        })
+        .eq('id', session.id);
+      return null;
+    }
+
+    return {
+      sessionId: session.id,
+      otp: session.otp,
+      helperId: session.helper_id,
+      helperName: `${session.helper.first_name} ${session.helper.last_name}`,
+      timestamp: new Date(session.created_at).getTime()
+    };
+  } catch (error) {
+    console.error("Error in getStudentOtp:", error);
+    return null;
+  }
+};

@@ -20,10 +20,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { GadgetLoan } from "@/types";
+import { supabase } from "@/lib/supabase";
+import { SystemLogs } from "@/utils/systemLogs";
 
 const AdminGadgetLending = () => {
   const [loans, setLoans] = useState<GadgetLoan[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     fullName: "",
     regNumber: "",
@@ -33,11 +36,33 @@ const AdminGadgetLending = () => {
     duration: "",
   });
 
-  // Load loans from localStorage
+  // Load loans from Supabase
   useEffect(() => {
-    const storedLoans = JSON.parse(localStorage.getItem("gadgetLoans") || "[]");
-    setLoans(storedLoans);
+    fetchLoans();
   }, []);
+
+  const fetchLoans = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('gadget_loans')
+        .select('*')
+        .order('borrowed_date', { ascending: false });
+
+      if (error) throw error;
+
+      setLoans(data || []);
+    } catch (error) {
+      console.error('Error fetching gadget loans:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load gadget loans",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -57,7 +82,7 @@ const AdminGadgetLending = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate form
@@ -71,59 +96,100 @@ const AdminGadgetLending = () => {
       return;
     }
 
-    const newLoan: GadgetLoan = {
-      id: Date.now().toString(),
-      user_id: formData.regNumber, // Using regNumber as user_id
-      gadget_name: formData.gadgetTypes.join(", "),
-      status: "borrowed", // Changed from "active" to "borrowed"
-      borrowed_date: new Date().toISOString(),
-      fullName: formData.fullName,
-      regNumber: formData.regNumber,
-      course: formData.course,
-      disabilityType: formData.disabilityType,
-      gadgetTypes: formData.gadgetTypes,
-      dateBorrowed: new Date().toISOString(),
-      duration: formData.duration,
-    };
+    try {
+      const newLoan = {
+        student_id: formData.regNumber,
+        gadget_name: formData.gadgetTypes.join(", "),
+        status: "borrowed",
+        borrowed_date: new Date().toISOString(),
+        full_name: formData.fullName,
+        reg_number: formData.regNumber,
+        course: formData.course,
+        disability_type: formData.disabilityType,
+        gadget_types: formData.gadgetTypes,
+        duration: formData.duration,
+      };
 
-    const updatedLoans = [...loans, newLoan];
-    localStorage.setItem("gadgetLoans", JSON.stringify(updatedLoans));
-    setLoans(updatedLoans);
-    setFormData({
-      fullName: "",
-      regNumber: "",
-      course: "",
-      disabilityType: "",
-      gadgetTypes: [],
-      duration: "",
-    });
-    setIsAdding(false);
-    
-    toast({
-      title: "Success",
-      description: "Gadget loan recorded successfully",
-    });
+      const { data, error } = await supabase
+        .from('gadget_loans')
+        .insert(newLoan)
+        .select();
+
+      if (error) throw error;
+
+      setLoans([data[0], ...loans]);
+      setFormData({
+        fullName: "",
+        regNumber: "",
+        course: "",
+        disabilityType: "",
+        gadgetTypes: [],
+        duration: "",
+      });
+      setIsAdding(false);
+      
+      toast({
+        title: "Success",
+        description: "Gadget loan recorded successfully",
+      });
+
+      SystemLogs.addLog(
+        "Gadget Loan",
+        `Issued ${formData.gadgetTypes.join(", ")} to ${formData.fullName}`,
+        "admin",
+        "admin"
+      );
+    } catch (error) {
+      console.error('Error recording gadget loan:', error);
+      toast({
+        title: "Error",
+        description: "Failed to record gadget loan",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleReturn = (id: string) => {
-    const updatedLoans: GadgetLoan[] = loans.map(loan => 
-      loan.id === id 
-        ? { 
-            ...loan, 
-            status: "returned" as const,
-            return_date: new Date().toISOString(),
-            dateReturned: new Date().toISOString()
-          } 
-        : loan
-    );
-    
-    localStorage.setItem("gadgetLoans", JSON.stringify(updatedLoans));
-    setLoans(updatedLoans);
-    
-    toast({
-      title: "Success",
-      description: "Gadget returned successfully",
-    });
+  const handleReturn = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('gadget_loans')
+        .update({
+          status: "returned",
+          return_date: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setLoans(loans.map(loan => 
+        loan.id === id 
+          ? { 
+              ...loan, 
+              status: "returned",
+              return_date: new Date().toISOString()
+            } 
+          : loan
+      ));
+      
+      toast({
+        title: "Success",
+        description: "Gadget returned successfully",
+      });
+
+      SystemLogs.addLog(
+        "Gadget Return",
+        `Marked gadget as returned for loan ID: ${id}`,
+        "admin",
+        "admin"
+      );
+    } catch (error) {
+      console.error('Error returning gadget:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark gadget as returned",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -278,7 +344,7 @@ const AdminGadgetLending = () => {
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
         <Table>
           <TableHeader>
             <TableRow>
@@ -295,18 +361,24 @@ const AdminGadgetLending = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loans.length > 0 ? (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={10} className="text-center py-8">
+                  Loading gadget loans...
+                </TableCell>
+              </TableRow>
+            ) : loans.length > 0 ? (
               loans.map((loan) => (
                 <TableRow key={loan.id}>
-                  <TableCell>{loan.fullName}</TableCell>
-                  <TableCell>{loan.regNumber}</TableCell>
+                  <TableCell>{loan.full_name}</TableCell>
+                  <TableCell>{loan.reg_number}</TableCell>
                   <TableCell>{loan.course}</TableCell>
-                  <TableCell>{loan.disabilityType}</TableCell>
-                  <TableCell>{Array.isArray(loan.gadgetTypes) ? loan.gadgetTypes.join(", ") : loan.gadget_name}</TableCell>
+                  <TableCell>{loan.disability_type}</TableCell>
+                  <TableCell>{Array.isArray(loan.gadget_types) ? loan.gadget_types.join(", ") : loan.gadget_name}</TableCell>
                   <TableCell>{loan.duration || "-"}</TableCell>
-                  <TableCell>{new Date(loan.dateBorrowed || loan.borrowed_date).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(loan.borrowed_date).toLocaleDateString()}</TableCell>
                   <TableCell>
-                    {loan.dateReturned || loan.return_date ? new Date(loan.dateReturned || loan.return_date).toLocaleDateString() : "-"}
+                    {loan.return_date ? new Date(loan.return_date).toLocaleDateString() : "-"}
                   </TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 text-xs rounded-full ${
@@ -330,7 +402,7 @@ const AdminGadgetLending = () => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   No gadget loans recorded yet.
                 </TableCell>
               </TableRow>

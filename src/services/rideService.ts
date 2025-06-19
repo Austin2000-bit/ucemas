@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabase';
 import { RideRequest, User } from '@/types';
 
@@ -8,6 +7,122 @@ export interface RideRequestWithDetails extends RideRequest {
   student_name?: string;
   driver_name?: string;
 }
+
+// Interface for nearby rides
+export interface NearbyRide {
+  id: string;
+  driver_id: string;
+  driver_name: string;
+  location: {
+    lat: number;
+    lng: number;
+  };
+  vehicle_type: string;
+  status: 'available' | 'busy';
+  last_updated: string;
+}
+
+// Function to get nearby rides within a radius (in kilometers)
+export const getNearbyRides = async (
+  userLat: number,
+  userLng: number,
+  radiusKm: number = 5
+): Promise<NearbyRide[]> => {
+  try {
+    // First, get all available drivers
+    const { data: drivers, error: driversError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, current_location, vehicle_type, status')
+      .eq('role', 'driver')
+      .eq('status', 'available');
+
+    if (driversError) {
+      throw new Error(driversError.message);
+    }
+
+    // Filter drivers by distance
+    const nearbyRides = drivers
+      .filter(driver => {
+        if (!driver.current_location) return false;
+        
+        const driverLat = driver.current_location.lat;
+        const driverLng = driver.current_location.lng;
+        
+        // Calculate distance using Haversine formula
+        const distance = calculateDistance(
+          userLat,
+          userLng,
+          driverLat,
+          driverLng
+        );
+        
+        return distance <= radiusKm;
+      })
+      .map(driver => ({
+        id: driver.id,
+        driver_id: driver.id,
+        driver_name: `${driver.first_name} ${driver.last_name}`,
+        location: driver.current_location,
+        vehicle_type: driver.vehicle_type || 'Bajaj',
+        status: driver.status as 'available' | 'busy',
+        last_updated: new Date().toISOString()
+      }));
+
+    return nearbyRides;
+  } catch (error) {
+    console.error('Error getting nearby rides:', error);
+    throw error;
+  }
+};
+
+// Function to update driver's location
+export const updateDriverLocation = async (
+  driverId: string,
+  lat: number,
+  lng: number
+): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({
+        current_location: { lat, lng },
+        location_updated_at: new Date().toISOString()
+      })
+      .eq('id', driverId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error updating driver location:', error);
+    return false;
+  }
+};
+
+// Helper function to calculate distance between two points using Haversine formula
+const calculateDistance = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number => {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+// Helper function to convert degrees to radians
+const toRad = (degrees: number): number => {
+  return degrees * (Math.PI / 180);
+};
 
 // Function to create a new ride request
 export const createRideRequest = async (
@@ -240,11 +355,32 @@ export const getAllRideRequests = async (): Promise<RideRequestWithDetails[]> =>
   }
 };
 
-// Additional functions for DriverRides.tsx
+// Function to get pending rides for drivers
 export const getPendingRides = async (): Promise<RideRequestWithDetails[]> => {
-  return getAvailableRideRequests();
+  try {
+    const { data, error } = await supabase
+      .from('ride_requests')
+      .select('*, users!student_id(first_name, last_name)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching pending rides:', error);
+      throw new Error(error.message);
+    }
+
+    return data.map(ride => ({
+      ...ride,
+      student_name: `${ride.users.first_name} ${ride.users.last_name}`,
+      estimatedTime: Math.floor(Math.random() * 20) + 5
+    }));
+  } catch (error) {
+    console.error('Error in getPendingRides:', error);
+    throw error;
+  }
 };
 
+// Function to get ride statistics for a driver
 export const getRideStats = async (driverId: string): Promise<{
   totalRides: number;
   completedRides: number;
@@ -286,6 +422,7 @@ export const getRideStats = async (driverId: string): Promise<{
   }
 };
 
+// Function to accept a ride
 export const acceptRide = async (rideId: string, driverId: string): Promise<boolean> => {
   try {
     const { error } = await supabase
@@ -293,14 +430,15 @@ export const acceptRide = async (rideId: string, driverId: string): Promise<bool
       .update({
         driver_id: driverId,
         status: 'accepted',
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
-      .eq('id', rideId);
-      
+      .eq('id', rideId)
+      .eq('status', 'pending');
+
     if (error) {
       throw new Error(error.message);
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error accepting ride:', error);
@@ -308,23 +446,22 @@ export const acceptRide = async (rideId: string, driverId: string): Promise<bool
   }
 };
 
+// Function to reject a ride
 export const rejectRide = async (rideId: string, driverId: string): Promise<boolean> => {
   try {
-    // We log the driver who rejected it even though we don't store it
-    console.log(`Driver ${driverId} rejected ride ${rideId}`);
-    
     const { error } = await supabase
       .from('ride_requests')
       .update({
         status: 'rejected',
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
-      .eq('id', rideId);
-      
+      .eq('id', rideId)
+      .eq('status', 'pending');
+
     if (error) {
       throw new Error(error.message);
     }
-    
+
     return true;
   } catch (error) {
     console.error('Error rejecting ride:', error);

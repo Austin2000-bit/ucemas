@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { User, HelperStatusLog } from "@/types";
@@ -21,54 +20,63 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
+interface HelperStatus {
+  id: string;
+  helper_id: string;
+  status: 'available' | 'busy' | 'offline';
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 const HelperStatusTracking = () => {
   const [helpers, setHelpers] = useState<User[]>([]);
+  const [helperStatuses, setHelperStatuses] = useState<HelperStatus[]>([]);
   const [statusLogs, setStatusLogs] = useState<HelperStatusLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedHelper, setSelectedHelper] = useState<string | null>(null);
-  const [newStatus, setNewStatus] = useState<'active' | 'completed' | 'inactive'>('active');
+  const [newStatus, setNewStatus] = useState<'available' | 'busy' | 'offline'>('available');
   const [notes, setNotes] = useState("");
-  const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'inactive'>('all');
+  const [filter, setFilter] = useState<'all' | 'available' | 'busy' | 'offline'>('all');
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // Fetch all helpers with specific columns
+        // Fetch all helpers
         const { data: helpersData, error: helpersError } = await supabase
           .from('users')
-          .select('id, first_name, last_name, email, role, status, created_at, updated_at')
+          .select('id, first_name, last_name, email, role')
           .eq('role', 'helper')
           .order('first_name', { ascending: true });
           
-        if (helpersError) {
-          console.error('Error fetching helpers:', helpersError);
-          throw helpersError;
-        }
+        if (helpersError) throw helpersError;
         
         setHelpers(helpersData || []);
         
-        try {
-          // Fetch all status logs
+        // Fetch helper statuses
+        const { data: statusesData, error: statusesError } = await supabase
+          .from('helper_statuses')
+          .select('*')
+          .order('updated_at', { ascending: false });
+
+        if (statusesError) throw statusesError;
+        setHelperStatuses(statusesData || []);
+        
+        // Fetch status logs
           const { data: logsData, error: logsError } = await supabase
             .from('helper_status_logs')
             .select('*')
             .order('changed_at', { ascending: false });
             
           if (logsError) {
-            // If table doesn't exist, just set empty array
             if (logsError.code === '42P01') {
               setStatusLogs([]);
-              return;
-            }
+          } else {
             throw logsError;
           }
-          
+        } else {
           setStatusLogs(logsData || []);
-        } catch (error) {
-          console.error('Error fetching status logs:', error);
-          // If status logs fail to load, we can still show helpers
-          setStatusLogs([]);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -96,51 +104,61 @@ const HelperStatusTracking = () => {
     }
     
     try {
-      // Update the helper status
+      // Update or insert helper status
+      const { data: existingStatus } = await supabase
+        .from('helper_statuses')
+        .select('id')
+        .eq('helper_id', selectedHelper)
+        .single();
+
+      if (existingStatus) {
+        // Update existing status
       const { error: updateError } = await supabase
-        .from('users')
+          .from('helper_statuses')
         .update({ 
           status: newStatus,
+            notes: notes,
           updated_at: new Date().toISOString()
         })
-        .eq('id', selectedHelper);
+          .eq('id', existingStatus.id);
         
       if (updateError) throw updateError;
-      
-      try {
-        // Try to create a status log
-        const { error: logError } = await supabase
-          .from('helper_status_logs')
-          .insert([{
+      } else {
+        // Insert new status
+        const { error: insertError } = await supabase
+          .from('helper_statuses')
+          .insert({
             helper_id: selectedHelper,
             status: newStatus,
             notes: notes,
-            changed_at: new Date().toISOString(),
-            changed_by: "admin" // This should be the current user's ID
-          }]);
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
           
-        if (logError && logError.code !== '42P01') throw logError;
-      } catch (error) {
-        console.error('Error creating status log:', error);
-        // Continue even if logging fails
+        if (insertError) throw insertError;
       }
       
-      // Update local state
-      setHelpers(helpers.map(helper => 
-        helper.id === selectedHelper 
-          ? { ...helper, status: newStatus, updated_at: new Date().toISOString() } 
-          : helper
-      ));
-      
-      const newLog: HelperStatusLog = {
+      // Create status log
+      const { error: logError } = await supabase
+        .from('helper_status_logs')
+        .insert({
         helper_id: selectedHelper,
         status: newStatus,
         notes: notes,
         changed_at: new Date().toISOString(),
         changed_by: "admin"
-      };
+        });
+        
+      if (logError && logError.code !== '42P01') throw logError;
       
-      setStatusLogs([newLog, ...statusLogs]);
+      // Refresh data
+      const { data: newStatuses, error: fetchError } = await supabase
+        .from('helper_statuses')
+        .select('*')
+        .order('updated_at', { ascending: false });
+      
+      if (fetchError) throw fetchError;
+      setHelperStatuses(newStatuses || []);
       
       // Clear form
       setNotes("");
@@ -169,12 +187,12 @@ const HelperStatusTracking = () => {
   
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'active':
-        return <Badge variant="default" className="bg-green-500"><CheckCircle className="h-3 w-3 mr-1" /> Active</Badge>;
-      case 'completed':
-        return <Badge variant="secondary"><ClockIcon className="h-3 w-3 mr-1" /> Completed</Badge>;
-      case 'inactive':
-        return <Badge variant="destructive"><PauseCircle className="h-3 w-3 mr-1" /> Inactive</Badge>;
+      case 'available':
+        return <Badge variant="default" className="bg-green-500"><CheckCircle className="h-3 w-3 mr-1" /> Available</Badge>;
+      case 'busy':
+        return <Badge variant="secondary"><ClockIcon className="h-3 w-3 mr-1" /> Busy</Badge>;
+      case 'offline':
+        return <Badge variant="destructive"><PauseCircle className="h-3 w-3 mr-1" /> Offline</Badge>;
       default:
         return <Badge variant="outline"><XCircle className="h-3 w-3 mr-1" /> Unknown</Badge>;
     }
@@ -241,7 +259,7 @@ const HelperStatusTracking = () => {
                 <SelectContent>
                   {helpers.map((helper) => (
                     <SelectItem key={helper.id} value={helper.id}>
-                      {helper.first_name} {helper.last_name} {helper.status && `(${helper.status})`}
+                      {helper.first_name} {helper.last_name} {helperStatuses.find(s => s.helper_id === helper.id)?.status && `(${helperStatuses.find(s => s.helper_id === helper.id)?.status})`}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -249,14 +267,14 @@ const HelperStatusTracking = () => {
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">New Status</label>
-              <Select value={newStatus} onValueChange={(value: 'active' | 'completed' | 'inactive') => setNewStatus(value)}>
+              <Select value={newStatus} onValueChange={(value: 'available' | 'busy' | 'offline') => setNewStatus(value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="busy">Busy</SelectItem>
+                  <SelectItem value="offline">Offline</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -281,15 +299,15 @@ const HelperStatusTracking = () => {
             <span>Status History</span>
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4" />
-              <Select value={filter} onValueChange={(value: 'all' | 'active' | 'completed' | 'inactive') => setFilter(value)}>
+              <Select value={filter} onValueChange={(value: 'all' | 'available' | 'busy' | 'offline') => setFilter(value)}>
                 <SelectTrigger className="w-32 h-8">
                   <SelectValue placeholder="Filter" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="busy">Busy</SelectItem>
+                  <SelectItem value="offline">Offline</SelectItem>
                 </SelectContent>
               </Select>
             </div>

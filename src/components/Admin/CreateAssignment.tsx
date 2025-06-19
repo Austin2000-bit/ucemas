@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +27,9 @@ const formSchema = z.object({
   helper_id: z.string().min(1, { message: "Helper is required" }),
   student_id: z.string().min(1, { message: "Student is required" }),
   status: z.enum(["active", "inactive"]),
+  period_type: z.enum(["year", "semester"]),
+  academic_year: z.string().optional(),
+  semester: z.string().optional(),
 });
 
 interface CreateAssignmentProps {
@@ -45,12 +47,42 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
       helper_id: "",
       student_id: "",
       status: "active",
+      period_type: "year",
+      academic_year: "",
+      semester: "",
     },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsSubmitting(true);
     try {
+      // Check for duplicate assignment
+      let duplicateCheck;
+      if (values.period_type === "year") {
+        duplicateCheck = await supabase
+          .from('helper_student_assignments')
+          .select('id')
+          .eq('student_id', values.student_id)
+          .eq('helper_id', values.helper_id)
+          .eq('academic_year', values.academic_year);
+      } else {
+        duplicateCheck = await supabase
+          .from('helper_student_assignments')
+          .select('id')
+          .eq('student_id', values.student_id)
+          .eq('helper_id', values.helper_id)
+          .eq('semester', values.semester);
+      }
+      if (duplicateCheck.data && duplicateCheck.data.length > 0) {
+        toast({
+          title: "Duplicate Assignment",
+          description: "This assignment already exists.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       console.log("Creating assignment:", values);
 
       // Get the current authenticated session to ensure proper auth
@@ -64,6 +96,8 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
         helper_id: values.helper_id,
         student_id: values.student_id,
         status: values.status,
+        academic_year: values.period_type === "year" ? values.academic_year : null,
+        semester: values.period_type === "semester" ? values.semester : null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -112,6 +146,17 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const getAcademicYearOptions = () => {
+    const options = [];
+    const currentYear = new Date().getFullYear();
+    for (let i = -1; i < 4; i++) {
+      const start = currentYear + i;
+      const end = start + 1;
+      options.push(`${start}-${end}`);
+    }
+    return options;
   };
 
   return (
@@ -191,6 +236,77 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
               </FormItem>
             )}
           />
+          
+          <FormField
+            control={form.control}
+            name="period_type"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Assignment Period</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select period" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="year">Full Academic Year</SelectItem>
+                    <SelectItem value="semester">Single Semester</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {form.watch("period_type") === "year" && (
+            <FormField
+              control={form.control}
+              name="academic_year"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Academic Year</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select academic year" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {getAcademicYearOptions().map(option => (
+                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+          {form.watch("period_type") === "semester" && (
+            <FormField
+              control={form.control}
+              name="semester"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Semester</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select semester" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Semester 1">Semester 1</SelectItem>
+                      <SelectItem value="Semester 2">Semester 2</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
           
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Creating..." : "Create Assignment"}

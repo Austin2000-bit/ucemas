@@ -30,7 +30,8 @@ import {
   UserCog,
   List,
   BarChart,
-  MonitorDot
+  MonitorDot,
+  Users
 } from "lucide-react";
 import AdminGadgetLending from "@/components/Admin/AdminGadgetLending";
 import AdminUsers from "@/components/Admin/AdminUsers";
@@ -98,7 +99,6 @@ const Admin: React.FC = () => {
     { icon: Laptop, label: "Gadget Lending", url: "gadgets", id: "gadgets", title: "Gadget Lending" },
     { icon: UserCog, label: "User Management", url: "user-management", id: "user-management", title: "User Management" },
     { icon: List, label: "Helper Status", url: "helper-status", id: "helper-status", title: "Helper Status Tracking" },
-    { icon: BarChart, label: "Reports", url: "reports", id: "reports", title: "Reports Overview" },
     { icon: MonitorDot, label: "System Logs", url: "system-logs", id: "system-logs", title: "System Logs" }
   ];
   
@@ -222,22 +222,25 @@ const Admin: React.FC = () => {
         .update({ 
           status,
           feedback,
-          followUp
+          follow_up: followUp,
+          updated_at: new Date().toISOString()
         })
         .eq('id', selectedComplaint.id);
 
       if (error) {
         console.error("Error updating complaint:", error);
-        throw new Error("Failed to update complaint");
+        throw new Error(error.message || "Failed to update complaint");
       }
 
+      // Update local state
       setComplaints(complaints.map(complaint => 
         complaint.id === selectedComplaint.id 
           ? { 
               ...complaint, 
               status, 
               feedback, 
-              followUp 
+              follow_up: followUp,
+              updated_at: new Date().toISOString()
             } 
           : complaint
       ));
@@ -246,13 +249,13 @@ const Admin: React.FC = () => {
       
       toast({
         title: "Complaint updated",
-        description: `Complaint has been updated.`,
+        description: "Complaint has been updated successfully.",
       });
     } catch (error) {
       console.error("Error:", error);
       toast({
         title: "Error",
-        description: "Failed to update complaint. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to update complaint. Please try again.",
         variant: "destructive",
       });
     }
@@ -272,357 +275,59 @@ const Admin: React.FC = () => {
     return `COMP-${sequentialNumber}`;
   };
 
-  const renderReports = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Helper Reports</CardTitle>
-            <CardDescription>Status and activity of assistants</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm font-medium">Active Helpers</p>
-                  <p className="text-2xl font-bold">{dashboardData?.helpers || 0}</p>
-                </div>
-                <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-                  <UserCog className="h-6 w-6" />
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                <div className="flex justify-between mb-1">
-                  <span>Active</span>
-                  <span>75%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: "75%" }}></div>
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                <div className="flex justify-between mb-1">
-                  <span>Completed</span>
-                  <span>15%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div className="bg-green-500 h-1.5 rounded-full" style={{ width: "15%" }}></div>
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                <div className="flex justify-between mb-1">
-                  <span>Inactive</span>
-                  <span>10%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div className="bg-red-500 h-1.5 rounded-full" style={{ width: "10%" }}></div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Gadget Usage</CardTitle>
-            <CardDescription>Equipment lending statistics</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm font-medium">Currently Borrowed</p>
-                  <p className="text-2xl font-bold">24</p>
-                </div>
-                <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
-                  <Laptop className="h-6 w-6" />
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                <div className="flex justify-between mb-1">
-                  <span>Laptops</span>
-                  <span>45%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div className="bg-purple-600 h-1.5 rounded-full" style={{ width: "45%" }}></div>
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                <div className="flex justify-between mb-1">
-                  <span>Tablets</span>
-                  <span>30%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div className="bg-purple-400 h-1.5 rounded-full" style={{ width: "30%" }}></div>
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                <div className="flex justify-between mb-1">
-                  <span>Accessories</span>
-                  <span>25%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div className="bg-purple-300 h-1.5 rounded-full" style={{ width: "25%" }}></div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Ride Services</CardTitle>
-            <CardDescription>Transport request analysis</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm font-medium">Monthly Rides</p>
-                  <p className="text-2xl font-bold">{dashboardData?.totalRides || 0}</p>
-                </div>
-                <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center text-green-600">
-                  <Car className="h-6 w-6" />
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                <div className="flex justify-between mb-1">
-                  <span>Completed</span>
-                  <span>60%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div className="bg-green-600 h-1.5 rounded-full" style={{ width: "60%" }}></div>
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                <div className="flex justify-between mb-1">
-                  <span>Pending</span>
-                  <span>30%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div className="bg-yellow-500 h-1.5 rounded-full" style={{ width: "30%" }}></div>
-                </div>
-              </div>
-
-              <div className="text-xs text-muted-foreground">
-                <div className="flex justify-between mb-1">
-                  <span>Cancelled</span>
-                  <span>10%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div className="bg-red-500 h-1.5 rounded-full" style={{ width: "10%" }}></div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Historical vs Current Data</CardTitle>
-          <CardDescription>Comparing current performance with historical averages</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <h4 className="text-sm font-medium mb-2">Helper Assignments</h4>
-              <div className="flex items-center mb-4">
-                <div className="w-full mr-2">
-                  <div className="text-xs flex justify-between mb-1">
-                    <span>Current</span>
-                    <span>{dashboardData?.helpers || 0}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: "80%" }}></div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center">
-                <div className="w-full mr-2">
-                  <div className="text-xs flex justify-between mb-1">
-                    <span>Historical</span>
-                    <span>{Math.floor((dashboardData?.helpers || 0) * 0.8)}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-blue-300 h-2 rounded-full" style={{ width: "60%" }}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="text-sm font-medium mb-2">Ride Completion Rate</h4>
-              <div className="flex items-center mb-4">
-                <div className="w-full mr-2">
-                  <div className="text-xs flex justify-between mb-1">
-                    <span>Current</span>
-                    <span>85%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-green-600 h-2 rounded-full" style={{ width: "85%" }}></div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center">
-                <div className="w-full mr-2">
-                  <div className="text-xs flex justify-between mb-1">
-                    <span>Historical</span>
-                    <span>78%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-green-300 h-2 rounded-full" style={{ width: "78%" }}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="text-sm font-medium mb-2">Help Confirmations</h4>
-              <div className="flex items-center mb-4">
-                <div className="w-full mr-2">
-                  <div className="text-xs flex justify-between mb-1">
-                    <span>Current</span>
-                    <span>{dashboardData?.verifiedHelpConfirmations || 0}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-purple-600 h-2 rounded-full" style={{ width: "75%" }}></div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center">
-                <div className="w-full mr-2">
-                  <div className="text-xs flex justify-between mb-1">
-                    <span>Historical</span>
-                    <span>{Math.floor((dashboardData?.verifiedHelpConfirmations || 0) * 0.9)}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-purple-300 h-2 rounded-full" style={{ width: "70%" }}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
   const renderContent = () => {
     switch (activeSection) {
-      case "users":
-        return <AdminUsers />;
-      case "system-logs":
-        return (
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>System Logs</CardTitle>
-                <CardDescription>View all system activities and events</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {systemLogs.map((log, index) => (
-                    <div key={index} className="border-b pb-2 last:border-0">
-                      <div className="flex justify-between">
-                        <span className="text-sm font-medium">{log.type}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(log.timestamp).toLocaleString()}
-                        </span>
-                      </div>
-                      <p className="text-sm">{log.message}</p>
-                      <div className="flex gap-2 mt-1">
-                        {log.userId && (
-                          <Badge variant="outline" className="text-xs">
-                            User: {getUserFullName(log.userId)}
-                          </Badge>
-                        )}
-                        {log.userRole && (
-                          <Badge variant="outline" className="text-xs">
-                            Role: {log.userRole}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {systemLogs.length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">
-                      No system logs to display
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        );
       case "complaints":
         return (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Complaints Management</CardTitle>
-                <CardDescription>
-                  View and manage user complaints
-                </CardDescription>
+                <CardTitle>Complaints</CardTitle>
+                <CardDescription>View and manage student complaints</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Submitted By</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
+                      <TableHead className="w-24 font-poppins">ID</TableHead>
+                      <TableHead className="font-poppins">Name</TableHead>
+                      <TableHead className="font-poppins">Category</TableHead>
+                      <TableHead className="w-32 font-poppins">Created</TableHead>
+                      <TableHead className="w-24 font-poppins">Status</TableHead>
+                      <TableHead className="w-24 text-right font-poppins">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {complaints
-                      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-                      .map((complaint, index) => {
-                      const user = complaintUsers[complaint.user_id];
-                      return (
+                    {complaints.map((complaint, index) => (
                         <TableRow key={complaint.id}>
-                          <TableCell>{formatComplaintId(complaint.id!, index)}</TableCell>
-                          <TableCell>
-                            {user ? `${user.first_name} ${user.last_name}` : complaint.user_id}
-                            <div className="text-xs text-muted-foreground">
-                              {user?.email || ''}
-                            </div>
-                          </TableCell>
-                          <TableCell>{complaint.title}</TableCell>
-                          <TableCell>{complaint.created_at ? new Date(complaint.created_at).toLocaleDateString() : '-'}</TableCell>
-                          <TableCell>
-                            <Badge variant={
-                              complaint.status === "pending" ? "secondary" :
-                              complaint.status === "resolved" ? "default" :
-                              complaint.status === "in_progress" ? "outline" : "outline"
-                            }>
-                              {complaint.status}
-                            </Badge>
+                        <TableCell className="font-medium font-poppins">{formatComplaintId(complaint.id!, index)}</TableCell>
+                        <TableCell className="font-poppins">{complaintUsers[complaint.user_id]?.first_name} {complaintUsers[complaint.user_id]?.last_name}</TableCell>
+                        <TableCell className="font-poppins">{complaint.title}</TableCell>
+                        <TableCell className="font-poppins">{complaint.created_at ? new Date(complaint.created_at).toLocaleDateString() : 'N/A'}</TableCell>
+                        <TableCell className="font-poppins">
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            complaint.status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                            complaint.status === "in_progress" ? "bg-blue-100 text-blue-800" :
+                            complaint.status === "resolved" ? "bg-green-100 text-green-800" :
+                            "bg-gray-100 text-gray-800"
+                          }`}>
+                            {complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1).replace('_', ' ')}
+                          </span>
                           </TableCell>
                           <TableCell className="text-right">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleOpenComplaint(complaint)}
+                            onClick={() => {
+                              setSelectedComplaint(complaint);
+                              setIsDialogOpen(true);
+                            }}
                             >
                               Review
                             </Button>
                           </TableCell>
                         </TableRow>
-                      );
-                    })}
+                    ))}
                     {complaints.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
@@ -644,71 +349,93 @@ const Admin: React.FC = () => {
         return <AdminUsers />;
       case "helper-status":
         return <HelperStatusTracking />;
-      case "reports":
-        return renderReports();
       case "dashboard":
-      default:
         return (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>Total Students</CardTitle>
-                  <CardDescription>Active students in the system</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold">{dashboardData?.students}</p>
+                  <div className="text-2xl font-bold">{dashboardData?.totalUsers || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {dashboardData?.students || 0} students, {dashboardData?.helpers || 0} helpers
+                  </p>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle>Active Assistants</CardTitle>
-                  <CardDescription>Currently active helpers</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Complaints</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold">{dashboardData?.helpers}</p>
+                  <div className="text-2xl font-bold">{dashboardData?.totalComplaints || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {dashboardData?.pendingComplaints || 0} pending, {dashboardData?.resolvedComplaints || 0} resolved
+                  </p>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle>Pending Rides</CardTitle>
-                  <CardDescription>Rides waiting for assistance</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Ride Requests</CardTitle>
+                  <Car className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold">{dashboardData?.pendingRides}</p>
+                  <div className="text-2xl font-bold">{dashboardData?.totalRides || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {dashboardData?.pendingRides || 0} pending, {dashboardData?.completedRides || 0} completed
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Help Confirmations</CardTitle>
+                  <Laptop className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{dashboardData?.helpConfirmations || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {dashboardData?.verifiedHelpConfirmations || 0} verified
+                  </p>
                 </CardContent>
               </Card>
             </div>
+
             <Card>
               <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest actions in the system</CardDescription>
+                <CardDescription>Latest system activities and updates</CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>User</TableHead>
-                      <TableHead>Type</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <div className="space-y-4">
                     {dashboardData?.recentActivity.map((activity, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{new Date(activity.timestamp).toLocaleString()}</TableCell>
-                        <TableCell>{activity.action}</TableCell>
-                        <TableCell>{getUserFullName(activity.user)}</TableCell>
-                        <TableCell>{activity.type}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="h-8 w-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                          {activity.type === "complaint" && <AlertTriangle className="h-4 w-4" />}
+                          {activity.type === "ride" && <Car className="h-4 w-4" />}
+                          {activity.type === "help" && <Laptop className="h-4 w-4" />}
+                          {activity.type === "user" && <Users className="h-4 w-4" />}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{activity.action}</p>
+                          <p className="text-xs text-muted-foreground">{activity.user}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(activity.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </div>
         );
+      default:
+        return null;
     }
   };
 
@@ -748,18 +475,6 @@ const Admin: React.FC = () => {
                 <UserCog className="h-5 w-5" />
                 <span>Dashboard</span>
               </button>
-              <button 
-                key="assignments" 
-                onClick={() => setActiveSection("assignments")}
-                className={`flex items-center gap-3 px-4 py-2.5 w-full text-left rounded-md transition-colors
-                  ${activeSection === "assignments" 
-                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" 
-                    : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/30"}`
-                }
-              >
-                <UserCog className="h-5 w-5" />
-                <span>Student Assignments</span>
-              </button>
               {sidebarItems.map((item) => (
                 <button 
                   key={item.id} 
@@ -791,8 +506,6 @@ const Admin: React.FC = () => {
                activeSection === "users" ? "Users" :
                activeSection === "user-management" ? "User Management" :
                activeSection === "helper-status" ? "Helper Status Tracking" : 
-               activeSection === "reports" ? "Reports Overview" :
-               activeSection === "system-logs" ? "System Logs" :
                "Reports"}
             </h1>
           </div>
@@ -804,7 +517,7 @@ const Admin: React.FC = () => {
       {/* Complaint Review Dialog */}
       {selectedComplaint && (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Review Complaint</DialogTitle>
               <DialogDescription>
@@ -864,7 +577,7 @@ const Admin: React.FC = () => {
                 />
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="sticky bottom-0 bg-white dark:bg-gray-800 pt-4">
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleSaveComplaint}>Save Changes</Button>
             </DialogFooter>
