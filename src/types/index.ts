@@ -26,6 +26,7 @@ export interface StudentHelpConfirmation {
   id?: string;
   student_id: string;
   helper_id: string;
+  description?: string;
   date: string;
   status: 'pending' | 'confirmed' | 'rejected';
   created_at: string;
@@ -75,6 +76,7 @@ export interface Message {
 
 export interface StudentOtp {
   id?: string;
+  sessionId?: string;
   otp: string;
   timestamp: number;
   helperName: string;

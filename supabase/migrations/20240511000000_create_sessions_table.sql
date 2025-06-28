@@ -4,7 +4,7 @@ DROP POLICY IF EXISTS sessions_helper_update ON sessions;
 DROP POLICY IF EXISTS sessions_student_select ON sessions;
 DROP POLICY IF EXISTS sessions_student_update ON sessions;
 DROP POLICY IF EXISTS sessions_admin_all ON sessions;
-DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS sessions CASCADE;
 
 -- Create sessions table
 CREATE TABLE sessions (

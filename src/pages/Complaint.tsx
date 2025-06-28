@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -24,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/Navbar";
-import { useAuth } from "@/utils/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { SystemLogs } from "@/utils/systemLogs";
 import { supabase } from "@/lib/supabase";
 

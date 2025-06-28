@@ -24,9 +24,22 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-import { useAuth } from "@/utils/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
-import { User, SignInRecord, HelpConfirmation } from "@/types";
+import { User, SignInRecord } from "@/types";
+
+// Define the shape of the confirmation data with the nested student object
+interface HelpConfirmationWithStudent {
+  id: string;
+  date: string;
+  description: string;
+  status: string;
+  student_id: string;
+  student: {
+    first_name: string;
+    last_name: string;
+  } | null; // Student can be null if the record is missing or RLS prevents access
+}
 
 const Helper = () => {
   const [selectedStudent, setSelectedStudent] = useState<string>("");
@@ -35,114 +48,91 @@ const Helper = () => {
   const [isSigned, setIsSigned] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
   const [signInHistory, setSignInHistory] = useState<SignInRecord[]>([]);
-  const [confirmations, setConfirmations] = useState<HelpConfirmation[]>([]);
+  const [confirmations, setConfirmations] = useState<HelpConfirmationWithStudent[]>([]);
   const [assignedStudents, setAssignedStudents] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
-  useEffect(() => {
-    let isSubscribed = true;
-    const POLL_INTERVAL = 60000; // Increased to 60 seconds
+  const loadData = useCallback(async () => {
+    if (!user?.id) return;
 
-    const loadData = async () => {
-      if (!user?.id || !isSubscribed) return;
-      
-      try {
-        setIsLoading(true);
-        
-        // Use a single query to fetch all required data
-        const [assignmentsResponse, signInResponse, confirmationsResponse] = await Promise.all([
-          // Fetch assignments
-          supabase
+    setIsLoading(true);
+    console.log(`[Helper] Loading data for helper: ${user.id}`);
+
+    try {
+      // Fetch assigned students' details
+      const { data: assignedStudentsData, error: assignmentsError } = await supabase
             .from('helper_student_assignments')
             .select(`
-              id,
               student:student_id (
                 id,
                 first_name,
                 last_name,
                 email,
-                role,
-                created_at,
-                updated_at
+            role
               )
             `)
             .eq('helper_id', user.id)
-            .eq('status', 'active'),
-            
-          // Check today's sign in
-          supabase
-            .from('helper_sign_ins')
-            .select('*')
-            .eq('helper_id', user.id)
-            .eq('date', new Date().toISOString().split('T')[0])
-            .single(),
-            
-          // Fetch recent confirmations
-          supabase
-            .from('student_help_confirmations')
-            .select('*')
-            .eq('helper_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(10)
-        ]);
-
-        if (assignmentsResponse.error) throw assignmentsResponse.error;
+        .eq('status', 'active');
+      
+      console.log("[Helper] Assigned students query result:", { data: assignedStudentsData, error: assignmentsError });
+      if (assignmentsError) throw assignmentsError;
         
-        // Process assignments with proper typing
-        const myStudents = (assignmentsResponse.data || [])
-          .map(a => ({
-            id: a.student.id,
-            first_name: a.student.first_name,
-            last_name: a.student.last_name,
-            email: a.student.email,
-            role: a.student.role,
-            created_at: a.student.created_at,
-            updated_at: a.student.updated_at
-          } as User))
-          .filter((student): student is User => !!student);
-          
-        if (isSubscribed) {
+      // The 'student' property can be null if the related student record is not found or RLS blocks it.
+      const myStudents: User[] = (assignedStudentsData || [])
+        .map((a: any) => a.student)
+        .filter((student: any): student is User => student !== null);
+
           setAssignedStudents(myStudents);
+      console.log("[Helper] Parsed assigned students:", myStudents);
           
-          // Auto-select single student
-          if (myStudents.length === 1 && !selectedStudent && myStudents[0]) {
+      // Auto-select the student if only one is assigned
+      if (myStudents.length === 1 && !selectedStudent) {
             setSelectedStudent(myStudents[0].id);
-          }
-          
-          // Update sign in status
-          setIsSigned(!!signInResponse.data);
-          
-          // Update confirmations
-          setConfirmations(confirmationsResponse.data || []);
-        }
+        console.log(`[Helper] Auto-selecting student: ${myStudents[0].id}`);
+      }
+
+      // Fetch recent help confirmations with student details
+      const { data: confirmationsData, error: confirmationsError } = await supabase
+        .from('student_help_confirmations')
+        .select(`
+          id,
+          date,
+          description,
+          status,
+          student_id,
+          student:student_id (
+            first_name,
+            last_name
+          )
+        `)
+        .eq('helper_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      console.log("[Helper] Confirmations query result:", { data: confirmationsData, error: confirmationsError });
+      if (confirmationsError) throw confirmationsError;
+      
+      setConfirmations((confirmationsData as any[]) || []);
+
       } catch (error) {
-        console.error('Error loading data:', error);
-        if (isSubscribed) {
+      console.error('Error loading helper data:', error);
           toast({
             title: "Error",
-            description: "Failed to load data. Please refresh the page.",
+        description: "Failed to load dashboard data. Please refresh.",
             variant: "destructive",
           });
-        }
       } finally {
-        if (isSubscribed) {
           setIsLoading(false);
         }
-      }
-    };
+  }, [user?.id, selectedStudent]);
 
-    loadData();
-    
-    // Setup polling with increased interval
-    const pollInterval = setInterval(loadData, POLL_INTERVAL);
-    
-    // Cleanup function
-    return () => {
-      isSubscribed = false;
-      clearInterval(pollInterval);
-    };
-  }, [user?.id, selectedStudent]); // Only re-run when user ID or selected student changes
+  useEffect(() => {
+    const POLL_INTERVAL = 30000; // 30 seconds
+    loadData(); // Initial load
+    const interval = setInterval(loadData, POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [loadData]);
 
   const generateOTP = async () => {
     if (!user?.id || !selectedStudent) return;
@@ -254,57 +244,54 @@ const Helper = () => {
     }
 
     try {
-      // Create help confirmation first
-      console.log('Creating help confirmation...');
-      const { error: confirmationError } = await supabase
-        .from('student_help_confirmations')
-        .insert({
-          helper_id: user.id,
-          student_id: selectedStudent,
-          description: description.trim(),
-          date: new Date().toISOString().split('T')[0],
-          status: 'pending'
-        });
-
-      if (confirmationError) {
-        console.error('Help confirmation error:', confirmationError);
-        throw new Error(`Failed to create help confirmation: ${confirmationError.message}`);
-      }
-
+      console.log('=== HELPER OTP GENERATION DEBUG ===');
+      console.log('Helper ID:', user.id);
+      console.log('Selected Student:', selectedStudent);
+      console.log('Description:', description.trim());
+      
       // Generate a simple 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      console.log('Generated OTP:', otp);
       
-      // Create a session with the OTP
-      console.log('Creating session with OTP...');
-      const { error: sessionError } = await supabase
+      // Create a session with the OTP and description
+      const { data: sessionData, error: sessionError } = await supabase
         .from('sessions')
         .insert({
           helper_id: user.id,
           student_id: selectedStudent,
           otp: otp,
+          description: description.trim(),
           otp_expiry: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 minutes from now
           status: 'pending_confirmation'
-        });
+        })
+        .select()
+        .single();
 
       if (sessionError) {
         console.error('Session creation error:', sessionError);
         throw new Error(`Failed to create session: ${sessionError.message}`);
       }
 
-      // Set the OTP in state for display
+      console.log('Session created successfully:', sessionData);
+      console.log('=== END HELPER OTP GENERATION DEBUG ===');
+
+      // Set the OTP in state for display on the helper's UI
       setOtp(otp);
       
-      // Get the selected student's name for the toast
       const selectedStudentData = assignedStudents.find(s => s.id === selectedStudent);
       if (selectedStudentData) {
         toast({
-          title: "Help Confirmation Created",
-          description: `OTP has been generated for ${selectedStudentData.first_name} ${selectedStudentData.last_name}`,
+          title: "OTP Generated",
+          description: `OTP has been generated for ${selectedStudentData.first_name} ${selectedStudentData.last_name}. The student will receive it automatically.`,
         });
       }
 
       setDescription("");
       setHasCopied(false);
+      
+      // Reload data to update the confirmations table
+      loadData();
+      
     } catch (error) {
       console.error('Error submitting help confirmation:', error);
       toast({
@@ -317,7 +304,17 @@ const Helper = () => {
 
   const getStudentName = (studentId: string) => {
     const student = assignedStudents.find(s => s.id === studentId);
-    return student ? `${student.first_name} ${student.last_name}` : 'Unknown Student';
+    if (student) {
+      return `${student.first_name} ${student.last_name}`;
+    }
+    
+    // Fallback for confirmations if student is not in the assigned list (e.g., old assignment)
+    const confirmationStudent = confirmations.find(c => c.student_id === studentId)?.student;
+    if (confirmationStudent) {
+      return `${confirmationStudent.first_name} ${confirmationStudent.last_name}`;
+    }
+
+    return 'Unknown Student';
   };
 
   const formatDate = (dateString: string) => {
@@ -442,7 +439,7 @@ const Helper = () => {
           
           <div className="w-full mt-6 max-w-4xl mx-auto">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-              <ScrollArea className="max-h-[400px]">
+              <ScrollArea className="h-[calc(100vh-250px)]">
                 <Table>
                   <TableCaption>A list of recent help provisions</TableCaption>
                   <TableHeader>
@@ -455,27 +452,20 @@ const Helper = () => {
                   </TableHeader>
                   <TableBody>
                     {confirmations.length > 0 ? (
-                      confirmations
-                        .filter(conf => conf.helper === user?.id)
-                        .slice(-10)
-                        .reverse()
-                        .map((conf, idx) => (
-                        <TableRow key={idx}>
+                      confirmations.map((conf) => (
+                        <TableRow key={conf.id}>
                           <TableCell>{formatDate(conf.date)}</TableCell>
-                          <TableCell>{getStudentName(conf.student)}</TableCell>
+                          <TableCell>
+                            {conf.student ? `${conf.student.first_name} ${conf.student.last_name}` : getStudentName(conf.student_id)}
+                          </TableCell>
                           <TableCell className="max-w-xs truncate">{conf.description}</TableCell>
                           <TableCell>
-                            {(() => {
-                              const studentConfirmations = JSON.parse(localStorage.getItem('studentHelpConfirmations') || '[]');
-                              const isConfirmed = studentConfirmations.some(
-                                (sc: any) => sc.date === conf.date && sc.helperId === conf.helper && sc.student === conf.student
-                              );
-                              return isConfirmed ? (
-                                <Badge className="bg-green-500">Verified</Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-amber-500 border-amber-500">Pending</Badge>
-                              );
-                            })()}
+                            <Badge 
+                              className={conf.status === 'confirmed' ? 'bg-green-500' : 'text-amber-500 border-amber-500'} 
+                              variant={conf.status === 'confirmed' ? 'default' : 'outline'}
+                            >
+                              {conf.status === 'confirmed' ? 'Verified' : 'Pending'}
+                            </Badge>
                           </TableCell>
                         </TableRow>
                       ))

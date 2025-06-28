@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/theme-toggle";
 import AdminMessages from "@/components/AdminMessages"; // Ensure this file exists or update the path
-import { useAuth } from "@/utils/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogOut, MessageSquare } from "lucide-react";
 

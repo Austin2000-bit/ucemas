@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useAuth } from "@/utils/auth";
-import { SystemLogs } from "@/utils/systemLogs";
+import { useAuth } from "@/hooks/useAuth";
+import { SystemLogs as SystemLogsUtil } from "@/utils/systemLogs";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,7 +31,8 @@ import {
   List,
   BarChart,
   MonitorDot,
-  Users
+  Users,
+  Database
 } from "lucide-react";
 import AdminGadgetLending from "@/components/Admin/AdminGadgetLending";
 import AdminUsers from "@/components/Admin/AdminUsers";
@@ -39,8 +40,11 @@ import AdminRideRequests from "@/components/Admin/AdminRideRequests";
 import Navbar from "@/components/Navbar";
 import HelperStudentAssignment from "@/components/Admin/HelperStudentAssignment";
 import HelperStatusTracking from "@/components/Admin/HelperStatusTracking";
+import SystemLogs from "@/components/Admin/SystemLogs";
+import DebugDatabase from "@/components/DebugDatabase";
 import { supabase } from "@/lib/supabase";
 import { Complaint } from "@/types";
+import AdminDashboard from "@/components/Admin/AdminDashboard";
 
 interface User {
   id: string;
@@ -99,7 +103,8 @@ const Admin: React.FC = () => {
     { icon: Laptop, label: "Gadget Lending", url: "gadgets", id: "gadgets", title: "Gadget Lending" },
     { icon: UserCog, label: "User Management", url: "user-management", id: "user-management", title: "User Management" },
     { icon: List, label: "Helper Status", url: "helper-status", id: "helper-status", title: "Helper Status Tracking" },
-    { icon: MonitorDot, label: "System Logs", url: "system-logs", id: "system-logs", title: "System Logs" }
+    { icon: MonitorDot, label: "System Logs", url: "system-logs", id: "system-logs", title: "System Logs" },
+    { icon: Database, label: "Debug Database", url: "debug-database", id: "debug-database", title: "Debug Database" }
   ];
   
   // Load complaints from database
@@ -155,13 +160,13 @@ const Admin: React.FC = () => {
 
   // Fetch system logs
   useEffect(() => {
-    const logs = SystemLogs.getSystemLogs();
+    const logs = SystemLogsUtil.getSystemLogs();
     setSystemLogs(logs);
   }, []);
 
   // Fetch dashboard data
   useEffect(() => {
-    const rawData = SystemLogs.getDashboardSummary();
+    const rawData = SystemLogsUtil.getDashboardSummary();
     // Transform the data to match our interface
     const transformedData: DashboardData = {
       totalComplaints: rawData.totalComplaints,
@@ -275,71 +280,44 @@ const Admin: React.FC = () => {
     return `COMP-${sequentialNumber}`;
   };
 
+  // Switch statement to render the currently active admin section
   const renderContent = () => {
     switch (activeSection) {
+      case "dashboard":
+        return <AdminDashboard />;
       case "complaints":
         return (
-          <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Complaints</CardTitle>
-                <CardDescription>View and manage student complaints</CardDescription>
+              <CardTitle>Manage Complaints</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-24 font-poppins">ID</TableHead>
-                      <TableHead className="font-poppins">Name</TableHead>
-                      <TableHead className="font-poppins">Category</TableHead>
-                      <TableHead className="w-32 font-poppins">Created</TableHead>
-                      <TableHead className="w-24 font-poppins">Status</TableHead>
-                      <TableHead className="w-24 text-right font-poppins">Action</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {complaints.map((complaint, index) => (
+                  {complaints.map(complaint => (
                         <TableRow key={complaint.id}>
-                        <TableCell className="font-medium font-poppins">{formatComplaintId(complaint.id!, index)}</TableCell>
-                        <TableCell className="font-poppins">{complaintUsers[complaint.user_id]?.first_name} {complaintUsers[complaint.user_id]?.last_name}</TableCell>
-                        <TableCell className="font-poppins">{complaint.title}</TableCell>
-                        <TableCell className="font-poppins">{complaint.created_at ? new Date(complaint.created_at).toLocaleDateString() : 'N/A'}</TableCell>
-                        <TableCell className="font-poppins">
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            complaint.status === "pending" ? "bg-yellow-100 text-yellow-800" :
-                            complaint.status === "in_progress" ? "bg-blue-100 text-blue-800" :
-                            complaint.status === "resolved" ? "bg-green-100 text-green-800" :
-                            "bg-gray-100 text-gray-800"
-                          }`}>
-                            {complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1).replace('_', ' ')}
-                          </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                            onClick={() => {
-                              setSelectedComplaint(complaint);
-                              setIsDialogOpen(true);
-                            }}
-                            >
-                              Review
-                            </Button>
+                      <TableCell>{getUserFullName(complaint.user_id)}</TableCell>
+                      <TableCell>{complaint.title}</TableCell>
+                      <TableCell><Badge variant={complaint.status === 'resolved' ? 'default' : 'destructive'}>{complaint.status}</Badge></TableCell>
+                      <TableCell>{new Date(complaint.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <Button onClick={() => handleOpenComplaint(complaint)} variant="outline">View/Update</Button>
                           </TableCell>
                         </TableRow>
                     ))}
-                    {complaints.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                          No complaints found.
-                        </TableCell>
-                      </TableRow>
-                    )}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
-          </div>
         );
       case "ride-requests":
         return <AdminRideRequests />;
@@ -349,93 +327,12 @@ const Admin: React.FC = () => {
         return <AdminUsers />;
       case "helper-status":
         return <HelperStatusTracking />;
-      case "dashboard":
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData?.totalUsers || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {dashboardData?.students || 0} students, {dashboardData?.helpers || 0} helpers
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Complaints</CardTitle>
-                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData?.totalComplaints || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {dashboardData?.pendingComplaints || 0} pending, {dashboardData?.resolvedComplaints || 0} resolved
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Ride Requests</CardTitle>
-                  <Car className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData?.totalRides || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {dashboardData?.pendingRides || 0} pending, {dashboardData?.completedRides || 0} completed
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Help Confirmations</CardTitle>
-                  <Laptop className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData?.helpConfirmations || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {dashboardData?.verifiedHelpConfirmations || 0} verified
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest system activities and updates</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                    {dashboardData?.recentActivity.map((activity, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="h-8 w-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                          {activity.type === "complaint" && <AlertTriangle className="h-4 w-4" />}
-                          {activity.type === "ride" && <Car className="h-4 w-4" />}
-                          {activity.type === "help" && <Laptop className="h-4 w-4" />}
-                          {activity.type === "user" && <Users className="h-4 w-4" />}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{activity.action}</p>
-                          <p className="text-xs text-muted-foreground">{activity.user}</p>
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(activity.timestamp).toLocaleString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        );
+      case "system-logs":
+        return <SystemLogs />;
+      case "debug-database":
+        return <DebugDatabase />;
       default:
-        return null;
+        return <AdminDashboard />;
     }
   };
 
@@ -506,6 +403,8 @@ const Admin: React.FC = () => {
                activeSection === "users" ? "Users" :
                activeSection === "user-management" ? "User Management" :
                activeSection === "helper-status" ? "Helper Status Tracking" : 
+               activeSection === "system-logs" ? "System Logs" :
+               activeSection === "debug-database" ? "Debug Database" :
                "Reports"}
             </h1>
           </div>

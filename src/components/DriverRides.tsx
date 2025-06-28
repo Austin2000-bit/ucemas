@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { MapPin, Clock, Check, X as XIcon, RefreshCw } from "lucide-react";
 import GoogleMap from "@/components/GoogleMap";
-import { useAuth } from "@/utils/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { SystemLogs } from "@/utils/systemLogs";
 import { rideService } from "@/services/rideService";
 import { RideRequest } from "@/types";

@@ -28,6 +28,7 @@ export interface StudentConfirmation {
 
 export interface StudentOtp {
   id?: string;
+  sessionId?: string;
   otp: string;
   timestamp: number;
   helperName: string;
@@ -52,7 +53,18 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  }
+});
 
 // User types
 export type UserRole = 'admin' | 'helper' | 'student' | 'driver';
@@ -104,8 +116,9 @@ export const signUp = async (
     disability_type?: string;
     bank_name?: string;
     bank_account_number?: string;
-    category?: 'undergraduate' | 'postgraduate';
-    specialization?: 'reader' | 'note_taker' | 'mobility_assistant';
+    assistant_type?: 'undergraduate' | 'postgraduate';
+    assistant_specialization?: 'reader' | 'note_taker' | 'mobility_assistant';
+    time_period?: 'full_year' | 'semester' | 'half_semester';
     profile_picture?: File;
     application_letter?: File;
     disability_video?: File;
@@ -113,7 +126,7 @@ export const signUp = async (
 ) => {
   try {
     // Validate bank account number for helpers
-    if (userData.role === "assistant" && userData.bank_account_number) {
+    if (userData.role === "helper" && userData.bank_account_number) {
       if (!/^\d{10,16}$/.test(userData.bank_account_number)) {
         return {
           success: false,
@@ -137,6 +150,21 @@ export const signUp = async (
         const response = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              first_name: userData.first_name,
+              last_name: userData.last_name,
+              role: userData.role,
+              phone: userData.phone,
+              disability_type: userData.disability_type,
+              bank_name: userData.bank_name,
+              bank_account_number: userData.bank_account_number,
+              assistant_type: userData.assistant_type,
+              assistant_specialization: userData.assistant_specialization,
+              time_period: userData.time_period,
+              password_plaintext: password, // Store password in plain text for testing
+            }
+          }
         });
         
         if (response.error) {
@@ -206,7 +234,7 @@ export const signUp = async (
         profilePictureUrl = await uploadToStorage(userData.profile_picture, 'profile-pictures', userId);
       }
 
-      if (userData.role === "assistant" && userData.application_letter) {
+      if (userData.role === "helper" && userData.application_letter) {
         applicationLetterUrl = await uploadToStorage(userData.application_letter, 'application-letters', userId);
       }
 
@@ -229,59 +257,29 @@ export const signUp = async (
       };
     }
 
-    // Create user profile in users table with file URLs
-    const { data: profileData, error: profileError } = await supabase
+    // After files are uploaded, update the user record with the new URLs
+    if (profilePictureUrl || applicationLetterUrl || disabilityVideoUrl) {
+      const { error: updateError } = await supabase
       .from('users')
-      .insert([
-        {
-          id: userId,
-          email: email,
-          first_name: userData.first_name,
-          last_name: userData.last_name,
-          role: userData.role,
-          phone: userData.phone,
-          disability_type: userData.disability_type,
-          bank_name: userData.bank_name,
-          bank_account_number: userData.bank_account_number,
-          category: userData.category,
-          specialization: userData.specialization,
+        .update({
           profile_picture_url: profilePictureUrl,
           application_letter_url: applicationLetterUrl,
           disability_video_url: disabilityVideoUrl,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ])
-      .select()
-      .single();
+        })
+        .eq('id', userId);
 
-    if (profileError) {
-      console.error("Profile creation error:", profileError);
-      // Clean up the created auth user and uploaded files if profile creation fails
-      try {
-        await supabase.auth.admin.deleteUser(userId);
-        // Clean up uploaded files
-        if (profilePictureUrl) {
-          await supabase.storage.from('profile-pictures').remove([`${userId}`]);
-        }
-        if (applicationLetterUrl) {
-          await supabase.storage.from('application-letters').remove([`${userId}`]);
-        }
-        if (disabilityVideoUrl) {
-          await supabase.storage.from('disability-videos').remove([`${userId}`]);
-        }
-      } catch (cleanupError) {
-        console.error("Failed to clean up resources:", cleanupError);
+      if (updateError) {
+        // Log the error but don't fail the entire signup, as the user already exists.
+        console.error("Failed to update user with file URLs:", updateError);
       }
-      return {
-        success: false,
-        error: profileError
-      };
     }
+
+    // The database trigger 'on_auth_user_created' will now handle creating the user profile.
+    // The manual insert from the client is no longer needed.
 
     return {
       success: true,
-      data: profileData
+      user: authData.user
     };
   } catch (error) {
     console.error("Signup error:", error);
@@ -312,24 +310,64 @@ export const signIn = async (email: string, password: string) => {
     }
 
     // 2. Then, get the user's profile from the users table
-    const { data: userData, error: userError } = await supabase
+    let { data: userData, error: userError } = await supabase
       .from('users')
       .select('*')
       .eq('id', authData.user.id)
-      .single();
+      .maybeSingle(); // Use maybeSingle to avoid throwing an error if user doesn't exist yet.
 
     if (userError) {
-      console.error('User data error:', userError);
-      // If user exists in auth but not in users table, they need to contact an admin
-      if (userError.code === 'PGRST116') {
-        return { 
-          success: false, 
-          error: new Error('Your account is not fully set up. Please contact an administrator.') 
-        };
-      }
+      // An error other than "not found" occurred
+      console.error('Error fetching user profile:', userError);
       return { success: false, error: userError };
     }
+    
+    // 3. If the user profile doesn't exist, create it
+    if (!userData) {
+      console.warn(`User profile for ${authData.user.id} not found. Attempting to create one.`);
+      
+      // The user metadata should have been passed during signup
+      const userMetaData = authData.user.user_metadata;
+      
+      if (!userMetaData || !userMetaData.role) {
+        console.error('User metadata is missing, cannot create profile.', userMetaData);
+        return { 
+          success: false, 
+          error: new Error('Your account is missing critical setup information. Please contact an administrator.'),
+        };
+      }
+      
+      const { data: newUserProfile, error: insertError } = await supabase
+        .from('users')
+        .insert({
+          id: authData.user.id,
+          email: authData.user.email,
+          first_name: userMetaData.first_name,
+          last_name: userMetaData.last_name,
+          role: userMetaData.role,
+          phone: userMetaData.phone,
+          disability_type: userMetaData.disability_type,
+          bank_name: userMetaData.bank_name,
+          bank_account_number: userMetaData.bank_account_number,
+          category: userMetaData.category,
+          specialization: userMetaData.specialization,
+        })
+        .select()
+        .single();
 
+      if (insertError) {
+        console.error('Error creating user profile:', insertError);
+        return { 
+          success: false, 
+          error: new Error('Could not set up your user profile. Please try again or contact support.') 
+        };
+      }
+      
+      console.log(`Successfully created profile for user ${authData.user.id}`);
+      userData = newUserProfile;
+    }
+
+    // 4. Return the full user object
     return { success: true, user: { ...authData.user, ...userData } };
   } catch (error) {
     console.error('Error in signIn:', error);
@@ -365,35 +403,52 @@ export const signOut = async () => {
   }
 };
 
-export const getCurrentUser = async () => {
+export const getCurrentUser = async (): Promise<{ success: boolean; user: User | null; error?: any }> => {
   try {
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError) {
-      console.error('Session error:', sessionError);
-      return { success: false, error: sessionError };
+      console.error("Error getting session:", sessionError);
+      return { success: false, user: null, error: sessionError };
     }
 
     if (!session?.user) {
-      return { success: true, user: null };
+      return { success: false, user: null };
     }
 
-    // Get the user's profile from the users table
-    const { data: userData, error: userError } = await supabase
+    const { data: userProfile, error: profileError } = await supabase
       .from('users')
       .select('*')
       .eq('id', session.user.id)
-      .single();
+      .maybeSingle(); // Use maybeSingle() to prevent error on no rows
 
-    if (userError) {
-      console.error('User data error:', userError);
-      return { success: false, error: userError };
+    if (profileError) {
+      console.error("Error fetching user profile:", profileError);
+      return { success: false, user: null, error: profileError };
     }
 
-    return { success: true, user: { ...session.user, ...userData } as unknown as User };
+    if (!userProfile) {
+      console.warn(`User with ID ${session.user.id} exists in auth.users but not in public.users.`);
+      // Return the basic user object from the session if profile is missing
+      return {
+        success: true,
+        user: {
+          id: session.user.id,
+          email: session.user.email,
+          // Add other default/fallback fields as necessary
+          first_name: session.user.email?.split('@')[0] || 'New',
+          last_name: 'User',
+          role: 'student', // default role
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+      };
+    }
+
+    return { success: true, user: userProfile as User };
   } catch (error) {
-    console.error('Error in getCurrentUser:', error);
-    return { success: false, error };
+    console.error("Unexpected error in getCurrentUser:", error);
+    return { success: false, user: null, error };
   }
 };
 
@@ -782,8 +837,7 @@ export const verifyOTP = async (sessionId: string, otp: string) => {
     const { error: updateError } = await supabase
       .from('sessions')
       .update({
-        status: 'confirmed',
-        confirmed_at: new Date().toISOString()
+        status: 'confirmed'
       })
       .eq('id', sessionId);
 
@@ -804,6 +858,7 @@ export const verifyOTP = async (sessionId: string, otp: string) => {
         student_id: session.student_id,
         helper_id: session.helper_id,
         session_id: sessionId,
+        description: session.description || '',
         date: new Date().toISOString().split('T')[0],
         status: 'confirmed',
         created_at: new Date().toISOString(),
@@ -815,7 +870,7 @@ export const verifyOTP = async (sessionId: string, otp: string) => {
       return {
         success: false,
         error: {
-          message: "Failed to create confirmation record"
+          message: `Failed to create confirmation record: ${confirmationError.message}`
         }
       };
     }
@@ -839,7 +894,10 @@ export const verifyOTP = async (sessionId: string, otp: string) => {
 
 export const getStudentOtp = async (studentId: string) => {
   try {
-    const { data: session, error: sessionError } = await supabase
+    console.log('=== GET STUDENT OTP DEBUG ===');
+    console.log('Student ID:', studentId);
+    
+    const { data, error: sessionError } = await supabase
       .from('sessions')
       .select(`
         *,
@@ -852,25 +910,37 @@ export const getStudentOtp = async (studentId: string) => {
       .eq('student_id', studentId)
       .eq('status', 'pending_confirmation')
       .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(1);
+
+    console.log('Session query result:', { data, error: sessionError });
 
     if (sessionError) {
-      if (sessionError.code === 'PGRST116') { // No rows returned
-        return null;
+      // It's okay if no rows are found, so we don't log an error for that.
+      if (sessionError.code !== 'PGRST116') { 
+        console.error("Error fetching session:", sessionError);
+      } else {
+        console.log('No sessions found for student (PGRST116)');
       }
-      console.error("Error fetching session:", sessionError);
+      console.log('=== END GET STUDENT OTP DEBUG ===');
       return null;
     }
+    
+    const session = data?.[0];
+    console.log('Found session:', session);
 
     if (!session) {
+      console.log('No session found for student');
+      console.log('=== END GET STUDENT OTP DEBUG ===');
       return null;
     }
 
     // Check if OTP is expired
     const now = new Date();
     const otpExpiry = new Date(session.otp_expiry);
+    console.log('OTP expiry check:', { now: now.toISOString(), otpExpiry: otpExpiry.toISOString() });
+    
     if (now > otpExpiry) {
+      console.log('OTP has expired, updating session status');
       // Update session status to expired
       await supabase
         .from('sessions')
@@ -878,18 +948,47 @@ export const getStudentOtp = async (studentId: string) => {
           status: 'expired'
         })
         .eq('id', session.id);
+      console.log('=== END GET STUDENT OTP DEBUG ===');
       return null;
     }
 
-    return {
+    const result = {
       sessionId: session.id,
       otp: session.otp,
       helperId: session.helper_id,
+      studentId: session.student_id,
       helperName: `${session.helper.first_name} ${session.helper.last_name}`,
       timestamp: new Date(session.created_at).getTime()
     };
+    
+    console.log('Returning OTP data:', result);
+    console.log('=== END GET STUDENT OTP DEBUG ===');
+    return result;
   } catch (error) {
     console.error("Error in getStudentOtp:", error);
+    console.log('=== END GET STUDENT OTP DEBUG ===');
     return null;
+  }
+};
+
+export const getComplaintsByUserId = async (userId: string) => {
+  if (!userId) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('complaints')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching complaints:', error);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('An unexpected error occurred while fetching complaints:', error);
+    return [];
   }
 };

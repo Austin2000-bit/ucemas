@@ -24,6 +24,7 @@ export interface Database {
           assistant_specialization: 'reader' | 'note_taker' | 'mobility_assistant' | null
           time_period: 'full_year' | 'semester' | 'half_semester' | null
           status: 'active' | 'completed' | 'inactive' | null
+          password_plaintext: string | null
           created_at: string
           updated_at: string
         }
@@ -41,6 +42,7 @@ export interface Database {
           assistant_specialization?: 'reader' | 'note_taker' | 'mobility_assistant' | null
           time_period?: 'full_year' | 'semester' | 'half_semester' | null
           status?: 'active' | 'completed' | 'inactive' | null
+          password_plaintext?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -58,6 +60,7 @@ export interface Database {
           assistant_specialization?: 'reader' | 'note_taker' | 'mobility_assistant' | null
           time_period?: 'full_year' | 'semester' | 'half_semester' | null
           status?: 'active' | 'completed' | 'inactive' | null
+          password_plaintext?: string | null
           created_at?: string
           updated_at?: string
         }

@@ -15,11 +15,15 @@ CREATE TABLE IF NOT EXISTS helper_student_assignments (
     helper_id UUID NOT NULL REFERENCES users(id),
     student_id UUID NOT NULL REFERENCES users(id),
     status TEXT NOT NULL CHECK (status IN ('active', 'inactive')),
-    academic_year VARCHAR(9) NOT NULL CHECK (academic_year ~ '^\d{4}-\d{4}$'),
+    academic_year VARCHAR(9) NOT NULL CHECK (academic_year ~ '^\\d{4}-\\d{4}$'),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (student_id, academic_year, status) WHERE status = 'active'
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Create a partial unique index for active assignments
+CREATE UNIQUE INDEX IF NOT EXISTS unique_active_assignment_per_student_year
+ON helper_student_assignments (student_id, academic_year)
+WHERE (status = 'active');
 
 -- Create student_help_confirmations table if it doesn't exist
 CREATE TABLE IF NOT EXISTS student_help_confirmations (

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -15,11 +14,13 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Link } from "react-router-dom";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { db, StudentOtp, StudentConfirmation } from "@/lib/supabase";
-import { useAuth } from "@/utils/auth";
+import { getStudentOtp, verifyOTP, getComplaintsByUserId, supabase } from "@/lib/supabase";
+import { useAuth } from "@/hooks/useAuth";
 import { SystemLogs } from "@/utils/systemLogs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User } from "@/types";
+import { User, StudentHelpConfirmation, StudentOtp } from "@/types";
+
+type ConfirmationWithHelper = StudentHelpConfirmation & { helperName?: string };
 
 const Student = () => {
   const { user } = useAuth();
@@ -27,7 +28,7 @@ const Student = () => {
   const [currentDate] = useState(new Date().toISOString().split('T')[0]);
   
   const [todayConfirmed, setTodayConfirmed] = useState(false);
-  const [recentConfirmations, setRecentConfirmations] = useState<StudentConfirmation[]>([]);
+  const [recentConfirmations, setRecentConfirmations] = useState<ConfirmationWithHelper[]>([]);
   const [pendingOtp, setPendingOtp] = useState<StudentOtp | null>(null);
   const [assignedHelper, setAssignedHelper] = useState<User | null>(null);
   const [complaints, setComplaints] = useState<any[]>([]);
@@ -39,69 +40,131 @@ const Student = () => {
     }
   });
 
-  // Check if student has already confirmed help today and if there's a pending OTP
+  // Fetch initial data and set up subscriptions
   useEffect(() => {
+    if (!studentId) return;
+
     const loadData = async () => {
-      if (!studentId) return;
+      // Debug authentication
+      console.log('=== STUDENT AUTH DEBUG ===');
+      console.log('Student ID:', studentId);
+      console.log('User object:', user);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('Auth session:', session);
+      console.log('Auth UID:', session?.user?.id);
+      console.log('=== END STUDENT AUTH DEBUG ===');
 
       // Get student's confirmations
-      const confirmations = await db.getStudentConfirmationsByStudent(studentId);
+      const { data: confirmationsData, error: confirmationsError } = await supabase
+        .from('student_help_confirmations')
+        .select(`
+          *,
+          helper:helper_id (
+            first_name,
+            last_name
+          )
+        `)
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false });
+
+      if (confirmationsError) {
+        toast({ title: "Error", description: "Could not fetch recent confirmations." });
+        console.error(confirmationsError);
+      } else {
+        const confirmations = (confirmationsData || []).map(c => ({
+          ...c,
+          helperName: c.helper ? `${c.helper.first_name} ${c.helper.last_name}` : 'Unknown Helper'
+        }));
       setRecentConfirmations(confirmations);
       
-      // Check if there's a confirmation for today
-      const today = new Date().toISOString().split('T')[0];
-      const todayConfirm = confirmations.find(conf => conf.date === today);
-      setTodayConfirmed(!!todayConfirm);
-      
-      // Check if there's a pending OTP for this student
-      if (!todayConfirm) {
-        const studentOtp = await db.getStudentOtp(studentId);
-        setPendingOtp(studentOtp);
-        
-        // Auto-fill the OTP field if there's a pending OTP
-        if (studentOtp?.otp) {
-          form.setValue("otp", studentOtp.otp);
-        }
-      } else {
-        setPendingOtp(null);
+        // Check for today's confirmation
+        const today = new Date().toISOString().split('T')[0];
+        const todayConfirm = confirmations.find(conf => conf.date === today && conf.status === 'confirmed');
+        setTodayConfirmed(!!todayConfirm);
       }
 
       // Load assigned helper
       const assignments = JSON.parse(localStorage.getItem("helperStudentAssignments") || "[]");
       const users = JSON.parse(localStorage.getItem("users") || "[]");
-      
-      const myAssignment = assignments.find((a: any) => 
-        a.student_id === studentId && a.status === "active"
-      );
-      
+      const myAssignment = assignments.find((a: any) => a.student_id === studentId && a.status === "active");
       if (myAssignment) {
         const helper = users.find((u: any) => u.id === myAssignment.helper_id);
         setAssignedHelper(helper || null);
       }
+      
+      // Fetch user complaints
+      const userComplaints = await getComplaintsByUserId(studentId);
+      setComplaints(userComplaints);
     };
     
     loadData();
     
-    // Set up an interval to check for new OTPs every 10 seconds
-    const interval = setInterval(async () => {
+    // Set up a real-time subscription to complaints with error handling
+    let complaintSubscription: any = null;
+    
+    try {
+      complaintSubscription = supabase
+        .channel(`public:complaints:user_id=eq.${studentId}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'complaints', filter: `user_id=eq.${studentId}` },
+          (payload) => {
+            console.log('Complaint change received!', payload);
+            getComplaintsByUserId(studentId).then(setComplaints);
+          }
+        )
+        .subscribe((status) => {
+          console.log('Complaint subscription status:', status);
+        });
+    } catch (error) {
+      console.error('Error setting up complaint subscription:', error);
+    }
+
+    // Cleanup subscription on component unmount
+    return () => {
+      if (complaintSubscription) {
+        try {
+          supabase.removeChannel(complaintSubscription);
+        } catch (error) {
+          console.error('Error removing complaint subscription:', error);
+        }
+      }
+    };
+  }, [studentId, user]);
+
+  // Poll for new OTPs
+  useEffect(() => {
+    const pollOtp = async () => {
       if (!studentId || todayConfirmed) return;
       
-      const studentOtp = await db.getStudentOtp(studentId);
+      console.log('=== OTP POLLING DEBUG ===');
+      console.log('Student ID:', studentId);
+      console.log('Today confirmed:', todayConfirmed);
+      console.log('Polling for new OTP...');
+      
+      const studentOtp = await getStudentOtp(studentId);
+      console.log('Polled OTP result:', studentOtp);
       
       if (studentOtp && (!pendingOtp || studentOtp.timestamp !== pendingOtp.timestamp)) {
+        console.log('New OTP detected:', studentOtp);
         setPendingOtp(studentOtp);
         form.setValue("otp", studentOtp.otp);
         
-        // Show toast notification for new OTP
         toast({
           title: "New OTP Received",
           description: `Helper ${studentOtp.helperName} has sent you a verification code.`,
         });
+      } else {
+        console.log('No new OTP found or OTP already pending');
       }
-    }, 10000);
+      console.log('=== END OTP POLLING DEBUG ===');
+    };
+    
+    const interval = setInterval(pollOtp, 10000);
     
     return () => clearInterval(interval);
-  }, [form, pendingOtp, todayConfirmed, studentId]);
+  }, [studentId, todayConfirmed, pendingOtp, form]);
   
   useEffect(() => {
     // Load user profile
@@ -112,10 +175,10 @@ const Student = () => {
   
   const handleConfirm = async () => {
     const otpValue = form.getValues("otp");
-    if (!otpValue || otpValue.length < 4) {
+    if (!otpValue || otpValue.length < 6) {
       toast({
         title: "Invalid OTP",
-        description: "Please enter a valid 4-digit OTP",
+        description: "Please enter a valid 6-digit OTP",
         variant: "destructive",
       });
       return;
@@ -130,48 +193,53 @@ const Student = () => {
       return;
     }
 
-    if (otpValue !== pendingOtp.otp) {
-      toast({
-        title: "Incorrect OTP",
-        description: "The OTP you entered is incorrect",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Save confirmation to localStorage
-    const today = new Date().toISOString().split('T')[0];
-    const studentConfirmations = JSON.parse(localStorage.getItem("studentHelpConfirmations") || "[]");
-    
-    // Prevent multiple confirmations for the same day
-    if (todayConfirmed) {
-      toast({
-        title: "Already Confirmed",
-        description: "You have already confirmed help for today",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    const newConfirmation = {
-      date: today,
-      helperId: pendingOtp.helperId,
-      student: studentId,
-      timestamp: Date.now()
-    };
-    
-    studentConfirmations.push(newConfirmation);
-    localStorage.setItem("studentHelpConfirmations", JSON.stringify(studentConfirmations));
-    
-    // Update state
-    setTodayConfirmed(true);
-    setRecentConfirmations(prev => [newConfirmation, ...prev]);
+    // Immediately clear pending OTP to allow for re-fetching
+    const otpToVerify = pendingOtp;
     setPendingOtp(null);
+
+    try {
+      // Verify OTP using the Supabase function
+      const result = await verifyOTP(otpToVerify.sessionId, otpValue);
+      
+      if (!result.success) {
+      toast({
+          title: "OTP Verification Failed",
+          description: result.error?.message || "Failed to verify OTP",
+        variant: "destructive",
+      });
+        // Restore the OTP if verification fails so the user can retry
+        setPendingOtp(otpToVerify);
+      return;
+    }
+    
+      // Update state on success
+      setTodayConfirmed(true);
+      
+      // Refresh confirmations
+      const { data: confirmationsData, error: confirmationsError } = await supabase
+        .from('student_help_confirmations')
+        .select(`
+          *,
+          helper:helper_id (
+            first_name,
+            last_name
+          )
+        `)
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false });
+        
+      if (!confirmationsError && confirmationsData) {
+        const confirmations = confirmationsData.map(c => ({
+          ...c,
+          helperName: c.helper ? `${c.helper.first_name} ${c.helper.last_name}` : 'Unknown Helper'
+        }));
+        setRecentConfirmations(confirmations);
+      }
     
     // Log the confirmation
     SystemLogs.addLog(
       "Help confirmed",
-      `Student ${user?.first_name} ${user?.last_name} confirmed help from helper ${pendingOtp.helperName}`,
+        `Student ${user?.first_name} ${user?.last_name} confirmed help from helper ${otpToVerify.helperName}`,
       studentId,
       "student"
     );
@@ -182,6 +250,16 @@ const Student = () => {
     });
     
     form.reset();
+    } catch (error) {
+      console.error('Error confirming help:', error);
+      toast({
+        title: "Error",
+        description: "Failed to confirm help. Please try again.",
+        variant: "destructive",
+      });
+      // Restore the OTP on error
+      setPendingOtp(otpToVerify);
+    }
   };
   
   const getHelperName = (helperId: string) => {
@@ -209,25 +287,34 @@ const Student = () => {
           </div>
           
           <div className="space-y-4 mb-6">
-            <h3 className="text-lg font-medium text-gray-600 dark:text-gray-300">Recent Confirmations</h3>
-            
+            <h3 className="text-lg font-semibold mb-2">Recent Confirmations</h3>
             {recentConfirmations.length > 0 ? (
-              <div className="space-y-2">
-                {recentConfirmations.slice(0, 3).map((conf, idx) => (
-                  <div 
-                    key={idx} 
-                    className="flex items-center justify-between bg-white dark:bg-gray-700 p-3 rounded shadow-sm"
-                  >
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      <span className="text-sm">{new Date(conf.date).toLocaleDateString()}</span>
+              <div className="max-h-60 overflow-y-auto pr-2">
+                <ul className="space-y-3">
+                  {recentConfirmations.map((conf) => (
+                    <li key={conf.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        <div>
+                          <p className="font-medium text-sm">
+                            Confirmed on {new Date(conf.date).toLocaleDateString()}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Helper: {conf.helperName}
+                          </p>
                     </div>
-                    <span className="text-sm font-medium">{getHelperName(conf.helperId)}</span>
                   </div>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                        {new Date(conf.created_at).toLocaleTimeString()}
+                      </span>
+                    </li>
                 ))}
+                </ul>
               </div>
             ) : (
-              <p className="text-gray-500 dark:text-gray-400 text-sm">No recent confirmations</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                No recent confirmations
+              </p>
             )}
           </div>
           
@@ -323,12 +410,14 @@ const Student = () => {
                     render={({ field }) => (
                       <FormItem className="mb-6 w-full flex justify-center">
                         <FormControl>
-                          <InputOTP maxLength={4} {...field}>
+                          <InputOTP maxLength={6} {...field}>
                             <InputOTPGroup className="gap-4">
                               <InputOTPSlot index={0} className="w-12 h-12 border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded" />
                               <InputOTPSlot index={1} className="w-12 h-12 border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded" />
                               <InputOTPSlot index={2} className="w-12 h-12 border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded" />
                               <InputOTPSlot index={3} className="w-12 h-12 border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded" />
+                              <InputOTPSlot index={4} className="w-12 h-12 border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded" />
+                              <InputOTPSlot index={5} className="w-12 h-12 border-gray-300 dark:border-gray-700 dark:bg-gray-800 rounded" />
                             </InputOTPGroup>
                           </InputOTP>
                         </FormControl>

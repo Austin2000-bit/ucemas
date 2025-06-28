@@ -14,6 +14,7 @@ ALTER TABLE users
 
 -- Add storage policies for each bucket
 -- Profile Pictures
+DROP POLICY IF EXISTS "Users can upload their own profile picture" ON storage.objects;
 CREATE POLICY "Users can upload their own profile picture"
 ON storage.objects FOR INSERT
 TO authenticated
@@ -22,10 +23,14 @@ WITH CHECK (
   (auth.uid())::text = (storage.foldername(name))[1]
 );
 
-CREATE POLICY "Profile pictures are publicly accessible"
+DROP POLICY IF EXISTS "Users can view their own profile picture" ON storage.objects;
+CREATE POLICY "Users can view their own profile picture"
 ON storage.objects FOR SELECT
-TO public
-USING (bucket_id = 'profile-pictures');
+TO authenticated
+USING (
+  bucket_id = 'profile-pictures' AND
+  (auth.uid())::text = (storage.foldername(name))[1]
+);
 
 CREATE POLICY "Users can update their own profile picture"
 ON storage.objects FOR UPDATE
@@ -44,32 +49,22 @@ USING (
 );
 
 -- Application Letters
-CREATE POLICY "Assistants can upload their application letter"
+DROP POLICY IF EXISTS "Users can upload their own application letter" ON storage.objects;
+CREATE POLICY "Users can upload their own application letter"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
   bucket_id = 'application-letters' AND
-  (auth.uid())::text = (storage.foldername(name))[1] AND
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE users.id = auth.uid()
-    AND users.role = 'assistant'
-  )
+  (auth.uid())::text = (storage.foldername(name))[1]
 );
 
-CREATE POLICY "Application letters are accessible to admins and owners"
+DROP POLICY IF EXISTS "Users can view their own application letter" ON storage.objects;
+CREATE POLICY "Users can view their own application letter"
 ON storage.objects FOR SELECT
 TO authenticated
 USING (
   bucket_id = 'application-letters' AND
-  (
-    (auth.uid())::text = (storage.foldername(name))[1] OR
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id = auth.uid()
-      AND users.role = 'admin'
-    )
-  )
+  (auth.uid())::text = (storage.foldername(name))[1]
 );
 
 CREATE POLICY "Users can delete their own application letter"
@@ -81,17 +76,22 @@ USING (
 );
 
 -- Disability Videos
-CREATE POLICY "Students can upload their disability video"
+DROP POLICY IF EXISTS "Users can upload their own disability video" ON storage.objects;
+CREATE POLICY "Users can upload their own disability video"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
   bucket_id = 'disability-videos' AND
-  (auth.uid())::text = (storage.foldername(name))[1] AND
-  EXISTS (
-    SELECT 1 FROM users
-    WHERE users.id = auth.uid()
-    AND users.role = 'student'
-  )
+  (auth.uid())::text = (storage.foldername(name))[1]
+);
+
+DROP POLICY IF EXISTS "Users can view their own disability video" ON storage.objects;
+CREATE POLICY "Users can view their own disability video"
+ON storage.objects FOR SELECT
+TO authenticated
+USING (
+  bucket_id = 'disability-videos' AND
+  (auth.uid())::text = (storage.foldername(name))[1]
 );
 
 CREATE POLICY "Disability videos are accessible to admins, helpers, and owners"

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { signUp, UserRole } from "@/lib/supabase";
+import { UserRole } from "@/lib/supabase";
+import { UserRegistrationService, RegistrationData } from "@/services/userRegistrationService";
 import { Info } from "lucide-react";
 
 const disabilityServices = {
@@ -40,15 +41,16 @@ const Register = () => {
   const [formData, setFormData] = useState({
     firstname: "",
     lastname: "",
-      email: "",
+    email: "",
     password: "",
     confirmPassword: "",
     role: "",
-      phone: "",
+    phone: "",
     disabilityType: "",
     disabilityVideo: null as File | null,
-    category: "" as 'undergraduate' | 'postgraduate',
-    specialization: "" as 'reader' | 'note_taker' | 'mobility_assistant',
+    assistant_type: "" as 'undergraduate' | 'postgraduate',
+    assistant_specialization: "" as 'reader' | 'note_taker' | 'mobility_assistant',
+    time_period: "" as 'full_year' | 'semester' | 'half_semester',
     bankName: "" as 'CRDB' | 'NBC',
     bankAccountNumber: "",
     profilePicture: null as File | null,
@@ -123,7 +125,7 @@ const Register = () => {
     if (formData.password !== formData.confirmPassword) {
       alert("Passwords do not match");
       return;
-        }
+    }
 
     // Validate password strength
     if (formData.password.length < 6) {
@@ -131,11 +133,11 @@ const Register = () => {
       return;
     }
 
-    // Validate assistant-specific fields
-    if (formData.role === "assistant" && 
-        (!formData.category || !formData.specialization || 
-         !formData.bankName || !formData.bankAccountNumber || !formData.applicationLetter)) {
-      alert("Please fill in all assistant-specific fields and upload an application letter");
+    // Validate helper-specific fields
+    if (formData.role === "helper" && 
+        (!formData.assistant_type || !formData.assistant_specialization || 
+         !formData.time_period || !formData.bankName || !formData.bankAccountNumber || !formData.applicationLetter)) {
+      alert("Please fill in all helper-specific fields and upload an application letter");
       return;
     }
 
@@ -143,32 +145,52 @@ const Register = () => {
     if (formData.role === "student" && !formData.disabilityType) {
       alert("Please select a disability type");
       return;
-      }
+    }
 
     try {
-      const { success, error } = await signUp(
-        formData.email,
-        formData.password,
-        {
-          first_name: formData.firstname,
-          last_name: formData.lastname,
-          role: formData.role as UserRole,
-          phone: formData.phone,
-          disability_type: formData.role === "student" ? formData.disabilityType : undefined,
-          bank_name: formData.role === "assistant" ? formData.bankName : undefined,
-          bank_account_number: formData.role === "assistant" ? formData.bankAccountNumber : undefined,
-          category: formData.role === "assistant" ? formData.category : undefined,
-          specialization: formData.role === "assistant" ? formData.specialization : undefined,
-          profile_picture: formData.profilePicture,
-          application_letter: formData.role === "assistant" ? formData.applicationLetter : undefined,
-          disability_video: formData.role === "student" ? formData.disabilityVideo : undefined
-        }
-      );
+      console.log('Starting registration with data:', {
+        email: formData.email,
+        role: formData.role,
+        first_name: formData.firstname,
+        last_name: formData.lastname,
+        phone: formData.phone,
+        disability_type: formData.role === "student" ? formData.disabilityType : undefined,
+        bank_name: formData.role === "helper" ? formData.bankName : undefined,
+        bank_account_number: formData.role === "helper" ? formData.bankAccountNumber : undefined,
+        assistant_type: formData.role === "helper" ? formData.assistant_type : undefined,
+        assistant_specialization: formData.role === "helper" ? formData.assistant_specialization : undefined,
+        time_period: formData.role === "helper" ? formData.time_period : undefined,
+        profile_picture: formData.profilePicture,
+        application_letter: formData.role === "helper" ? formData.applicationLetter : undefined,
+        disability_video: formData.role === "student" ? formData.disabilityVideo : undefined
+      });
 
-      if (success) {
+      // Use the comprehensive registration service
+      const registrationData: RegistrationData = {
+        email: formData.email,
+        password: formData.password,
+        first_name: formData.firstname,
+        last_name: formData.lastname,
+        role: formData.role as UserRole,
+        phone: formData.phone,
+        disability_type: formData.role === "student" ? formData.disabilityType : undefined,
+        bank_name: formData.role === "helper" ? formData.bankName : undefined,
+        bank_account_number: formData.role === "helper" ? formData.bankAccountNumber : undefined,
+        assistant_type: formData.role === "helper" ? formData.assistant_type : undefined,
+        assistant_specialization: formData.role === "helper" ? formData.assistant_specialization : undefined,
+        time_period: formData.role === "helper" ? formData.time_period : undefined,
+        profile_picture: formData.profilePicture,
+        application_letter: formData.role === "helper" ? formData.applicationLetter : undefined,
+        disability_video: formData.role === "student" ? formData.disabilityVideo : undefined
+      };
+
+      const result = await UserRegistrationService.registerUser(registrationData);
+
+      if (result.success) {
+        alert("Registration successful! Please check your email to confirm your account.");
         navigate("/login");
       } else {
-        alert(error?.message || "Registration failed");
+        alert(result.error?.message || "Registration failed");
       }
     } catch (error) {
       console.error("Registration error:", error);
@@ -223,18 +245,18 @@ const Register = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Profile Picture <span className="text-red-500">*</span>
               </label>
-                          <Input
+              <Input
                 type="file"
                 name="profilePicture"
                 accept="image/*"
                 onChange={handleFileChange}
                 className="w-full"
                 required
-                          />
-                        </div>
+              />
+            </div>
 
             <div>
-                          <Input
+              <Input
                 type="text"
                 name="firstname"
                 placeholder="First Name *"
@@ -242,8 +264,8 @@ const Register = () => {
                 onChange={handleChange}
                 className="w-full"
                 required
-                          />
-                        </div>
+              />
+            </div>
             
             <div>
               <Input
@@ -254,8 +276,8 @@ const Register = () => {
                 onChange={handleChange}
                 className="w-full"
                 required
-                />
-              </div>
+              />
+            </div>
 
             <div>
               <Input
@@ -270,7 +292,7 @@ const Register = () => {
             </div>
 
             <div>
-                        <Input
+              <Input
                 type="password"
                 name="password"
                 placeholder="Password *"
@@ -280,7 +302,7 @@ const Register = () => {
                 required
               />
               <p className="text-xs text-gray-500 mt-1">Password must be at least 6 characters long</p>
-                      </div>
+            </div>
 
             <div>
               <Input
@@ -298,14 +320,14 @@ const Register = () => {
               <Select onValueChange={(value) => handleSelectChange("role", value)} required>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select Role *" />
-                        </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="assistant">Assistant</SelectItem>
-                        <SelectItem value="driver">Driver</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="student">Student</SelectItem>
+                  <SelectItem value="helper">Helper</SelectItem>
+                  <SelectItem value="driver">Driver</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
@@ -326,15 +348,15 @@ const Register = () => {
                   <Select onValueChange={(value) => handleSelectChange("disabilityType", value)} required>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Disability Type *" />
-                            </SelectTrigger>
-                          <SelectContent>
+                    </SelectTrigger>
+                    <SelectContent>
                       <SelectItem value="mobility">Mobility</SelectItem>
                       <SelectItem value="visual">Visual</SelectItem>
                       <SelectItem value="hearing">Hearing</SelectItem>
                       <SelectItem value="cognitive">Cognitive</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {formData.disabilityType && (
@@ -355,20 +377,20 @@ const Register = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Upload Video (Optional) - If your disability is hard to explain
                   </label>
-                            <Input
-                              type="file"
+                  <Input
+                    type="file"
                     name="disabilityVideo"
-                              accept="video/*"
+                    accept="video/*"
                     onChange={handleFileChange}
                     className="w-full"
                   />
                   <p className="text-xs text-gray-500 mt-1">Maximum file size: 100MB</p>
                 </div>
-                </>
-              )}
+              </>
+            )}
 
-            {formData.role === "assistant" && (
-                <>
+            {formData.role === "helper" && (
+              <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Application Letter <span className="text-red-500">*</span>
@@ -385,67 +407,80 @@ const Register = () => {
                 </div>
 
                 <div>
-                  <Select onValueChange={(value) => handleSelectChange("category", value)} required>
+                  <Select onValueChange={(value) => handleSelectChange("assistant_type", value)} required>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Assistant Category *" />
-                            </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="undergraduate">Undergraduate</SelectItem>
-                            <SelectItem value="postgraduate">Postgraduate</SelectItem>
-                          </SelectContent>
-                        </Select>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="undergraduate">Undergraduate</SelectItem>
+                      <SelectItem value="postgraduate">Postgraduate</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
-                  <Select onValueChange={(value) => handleSelectChange("specialization", value)} required>
+                  <Select onValueChange={(value) => handleSelectChange("assistant_specialization", value)} required>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Assistant Type *" />
-                            </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="reader">Reader</SelectItem>
-                            <SelectItem value="note_taker">Note Taker</SelectItem>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="reader">Reader</SelectItem>
+                      <SelectItem value="note_taker">Note Taker</SelectItem>
                       <SelectItem value="mobility_assistant">Mobility Assistant</SelectItem>
-                          </SelectContent>
-                        </Select>
-                              </div>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Select onValueChange={(value) => handleSelectChange("time_period", value)} required>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Time Period *" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="full_year">Full Year</SelectItem>
+                      <SelectItem value="semester">Semester</SelectItem>
+                      <SelectItem value="half_semester">Half Semester</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 <div>
                   <Select onValueChange={(value) => handleSelectChange("bankName", value)} required>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select Bank *" />
-                            </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="CRDB">CRDB Bank</SelectItem>
-                            <SelectItem value="NBC">NBC Bank</SelectItem>
-                          </SelectContent>
-                        </Select>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CRDB">CRDB Bank</SelectItem>
+                      <SelectItem value="NBC">NBC Bank</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
-                            <Input
-                              type="text"
+                  <Input
+                    type="text"
                     name="bankAccountNumber"
                     placeholder="Bank Account Number *"
                     value={formData.bankAccountNumber}
                     onChange={handleChange}
                     className="w-full"
                     required
-                            />
-                          </div>
-                </>
-              )}
+                  />
+                </div>
+              </>
+            )}
               
-              <Button 
-                type="submit" 
+            <Button 
+              type="submit" 
               className="w-full bg-blue-500 hover:bg-blue-600"
-              >
+            >
               Register
-              </Button>
+            </Button>
               
             <p className="text-center text-sm mt-4">
               Already have an account? <Link to="/login" className="text-blue-500 hover:underline">Sign in</Link>
-              </p>
-            </form>
+            </p>
+          </form>
         </div>
       </div>
     </div>

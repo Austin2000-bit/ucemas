@@ -1,9 +1,10 @@
-import { ReactNode, createContext, useContext, useState, useEffect } from "react";
+import { ReactNode, createContext, useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import { SystemLogs } from "@/utils/systemLogs";
-import { User, UserRole } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
+import { User, UserRole } from "@/types";
 import { signIn, signOut, getCurrentUser } from "@/lib/supabase";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AuthContextType {
   user: User | null;
@@ -13,7 +14,7 @@ interface AuthContextType {
   hasRole: (roles: string[]) => boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -49,13 +50,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (success && loggedInUser) {
         setUser(loggedInUser);
         
-        // Log the login
-        SystemLogs.addLog(
-          "User Login",
-          `User ${loggedInUser.first_name} ${loggedInUser.last_name} logged in`,
-          loggedInUser.id,
-          loggedInUser.role
-        );
+        // Log the login to the database
+        await supabase.from('system_logs').insert({
+          user_id: loggedInUser.id,
+          type: 'User Login',
+          message: `User ${loggedInUser.first_name} ${loggedInUser.last_name} logged in.`,
+          user_role: loggedInUser.role,
+        });
         
         toast({
           title: "Login Successful",
@@ -91,12 +92,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       // First clear the local user state
         if (user) {
-          SystemLogs.addLog(
-            "User Logout",
-            `User ${user.first_name} ${user.last_name} logged out`,
-            user.id,
-            user.role
-          );
+        await supabase.from('system_logs').insert({
+          user_id: user.id,
+          type: 'User Logout',
+          message: `User ${user.first_name} ${user.last_name} logged out.`,
+          user_role: user.role,
+        });
         }
 
       // Then attempt to sign out from Supabase
@@ -148,14 +149,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
 };
 
 // Protected route component

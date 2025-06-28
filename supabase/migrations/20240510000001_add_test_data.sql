@@ -74,7 +74,12 @@ SELECT
     'active',
     '2023-2024',
     CURRENT_TIMESTAMP - INTERVAL '30 days',
-    CURRENT_TIMESTAMP;
+    CURRENT_TIMESTAMP
+WHERE NOT EXISTS (
+    SELECT 1 FROM helper_student_assignments
+    WHERE student_id = (SELECT id FROM users WHERE email = 'student1@test.com')
+    AND academic_year = '2023-2024'
+);
 
 -- Insert test help confirmations
 INSERT INTO student_help_confirmations (student_id, helper_id, date, status, created_at, updated_at)
@@ -84,7 +89,12 @@ SELECT
     CURRENT_DATE - INTERVAL '1 day',
     'confirmed',
     CURRENT_TIMESTAMP - INTERVAL '2 days',
-    CURRENT_TIMESTAMP - INTERVAL '1 day';
+    CURRENT_TIMESTAMP - INTERVAL '1 day'
+WHERE NOT EXISTS (
+    SELECT 1 FROM student_help_confirmations
+    WHERE student_id = (SELECT id FROM users WHERE email = 'student1@test.com')
+    AND date = CURRENT_DATE - INTERVAL '1 day'
+);
 
 INSERT INTO student_help_confirmations (student_id, helper_id, date, status, created_at, updated_at)
 SELECT 
@@ -93,4 +103,9 @@ SELECT
     CURRENT_DATE,
     'pending',
     CURRENT_TIMESTAMP - INTERVAL '1 hour',
-    CURRENT_TIMESTAMP - INTERVAL '1 hour'; 
+    CURRENT_TIMESTAMP - INTERVAL '1 hour'
+WHERE NOT EXISTS (
+    SELECT 1 FROM student_help_confirmations
+    WHERE student_id = (SELECT id FROM users WHERE email = 'student1@test.com')
+    AND date = CURRENT_DATE
+); 

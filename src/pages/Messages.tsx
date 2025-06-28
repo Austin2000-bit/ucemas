@@ -1,4 +1,4 @@
-import { useAuth } from "@/utils/auth";
+import { useAuth } from "@/hooks/useAuth";
 import MessageSystem from "@/components/MessageSystem";
 import Navbar from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

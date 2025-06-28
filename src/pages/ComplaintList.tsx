@@ -37,7 +37,7 @@ import {
 import Navbar from "@/components/Navbar";
 import { supabase } from "@/lib/supabase";
 import { Complaint } from "@/types";
-import { useAuth } from "@/utils/auth";
+import { useAuth } from "@/hooks/useAuth";
 
 const ComplaintList = () => {
   const [searchQuery, setSearchQuery] = useState("");

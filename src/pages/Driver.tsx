@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/utils/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -43,124 +43,86 @@ const Driver = () => {
   const validateStatus = (status: string): "pending" | "accepted" | "completed" | "declined" => {
     if (status === "accepted") return "accepted";
     if (status === "completed") return "completed";
-    if (status === "declined") return "declined";
+    if (status === "declined" || status === "rejected") return "declined";
     return "pending"; // Default fallback
   };
 
-  // Helper function to process ride requests from localStorage
-  const processRideRequests = (storedRequests: any[]): LocalRideRequest[] => {
-    return storedRequests.map(request => ({
-      id: request.id,
-      studentName: request.studentName || "Unknown",
-      studentEmail: request.studentEmail || "unknown@email.com",
-      pickupLocation: request.pickupLocation || "",
-      destination: request.destination || "",
-      date: request.date || new Date().toLocaleDateString(),
-      time: request.time || new Date().toLocaleTimeString(),
-      status: validateStatus(request.status || "pending"),
-      disabilityType: request.disabilityType || "Not specified",
-      additionalNotes: request.additionalNotes
-    }));
-  };
-
-  // Load ride requests and also save them to Supabase
+  // Load ride requests from Supabase only
   const loadRideRequests = async () => {
-    // First try to load from Supabase
     try {
       const { data: dbRequests, error } = await supabase
         .from('ride_requests')
-        .select('*');
-      
-      if (!error && dbRequests && dbRequests.length > 0) {
-        console.log("Loaded ride requests from Supabase:", dbRequests);
-        
-        // Convert DB requests to LocalRideRequest format
-        const formattedRequests: LocalRideRequest[] = dbRequests.map(dbReq => ({
-          id: dbReq.id,
-          studentName: dbReq.student_id, // We'll need to improve this with actual student names
-          studentEmail: dbReq.student_id + "@example.com", // Placeholder
-          pickupLocation: dbReq.pickup_location,
-          destination: dbReq.destination,
-          date: new Date(dbReq.created_at || Date.now()).toLocaleDateString(),
-          time: new Date(dbReq.created_at || Date.now()).toLocaleTimeString(),
-          status: validateStatus(dbReq.status),
-          disabilityType: "Not specified", // This info isn't available in our current schema
-          additionalNotes: "From database"
-        }));
-        
-        setRideRequests(formattedRequests);
-        return;
-      }
+        .select('*')
+        .eq('driver_id', user?.id); // Only fetch rides for this driver
+
+      if (error) throw error;
+
+      // Convert DB requests to LocalRideRequest format
+      const formattedRequests: LocalRideRequest[] = (dbRequests || []).map(dbReq => ({
+        id: dbReq.id,
+        studentName: dbReq.student_id, // You may want to join with users table for real names
+        studentEmail: dbReq.student_id + "@example.com", // Placeholder
+        pickupLocation: dbReq.pickup_location,
+        destination: dbReq.destination,
+        date: new Date(dbReq.created_at || Date.now()).toLocaleDateString(),
+        time: new Date(dbReq.created_at || Date.now()).toLocaleTimeString(),
+        status: validateStatus(dbReq.status),
+        disabilityType: "Not specified", // Update if you have this info
+        additionalNotes: "From database"
+      }));
+
+      setRideRequests(formattedRequests);
     } catch (dbError) {
       console.error("Error loading ride requests from database:", dbError);
-    }
-    
-    // Fall back to localStorage if no data in database
-    const storedRequests = JSON.parse(localStorage.getItem("rideRequests") || "[]");
-    const typedRequests = processRideRequests(storedRequests);
-    setRideRequests(typedRequests);
-    
-    // Also ensure these are saved to Supabase
-    if (typedRequests.length > 0) {
-      try {
-        for (const request of typedRequests) {
-          // Check if this request already exists in the database
-          const { data: existingData } = await supabase
-            .from('ride_requests')
-            .select('id')
-            .eq('id', request.id)
-            .maybeSingle();
-            
-          if (!existingData) {
-            // Convert to the structure expected by the database
-            const dbRequest = {
-              id: request.id,
-              student_id: request.studentEmail.split('@')[0], // Using email prefix as a simple student_id
-              driver_id: null,
-              pickup_location: request.pickupLocation,
-              destination: request.destination,
-              status: request.status === "declined" ? "rejected" : request.status, // Map declined to rejected for DB
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            };
-            
-            await supabase.from('ride_requests').insert([dbRequest]);
-          }
-        }
-      } catch (error) {
-        console.error("Error syncing ride requests to database:", error);
-      }
+      setRideRequests([]);
     }
   };
 
   useEffect(() => {
-    // Load ride requests
-    loadRideRequests();
-  }, []);
+    if (user?.id) {
+      loadRideRequests();
+    }
+  }, [user?.id]);
+
+  // Optionally, add real-time subscription for instant updates
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    let channel: any = null;
+    
+    try {
+      channel = supabase
+        .channel('public:ride_requests')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'ride_requests' },
+          payload => {
+            loadRideRequests();
+          }
+        )
+        .subscribe((status) => {
+          console.log('Ride requests subscription status:', status);
+        });
+    } catch (error) {
+      console.error('Error setting up ride requests subscription:', error);
+    }
+    
+    return () => {
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch (error) {
+          console.error('Error removing ride requests subscription:', error);
+        }
+      }
+    };
+  }, [user?.id]);
 
   const handleRideAction = async (requestId: string, action: "accept" | "decline" | "complete") => {
-    const updatedRequests = rideRequests.map(request => {
-      if (request.id === requestId) {
-        const newStatus: "pending" | "accepted" | "completed" | "declined" = 
-          action === "accept" ? "accepted" : 
-          action === "decline" ? "declined" : "completed";
-        
-        return {
-          ...request,
-          status: newStatus
-        };
-      }
-      return request;
-    });
-
-    localStorage.setItem("rideRequests", JSON.stringify(updatedRequests));
-    setRideRequests(updatedRequests);
-
-    // Also update in Supabase
+    // Update in Supabase
     try {
       const statusForDb = action === "decline" ? "rejected" : action === "accept" ? "accepted" : "completed";
-      
-      await supabase
+      const { error } = await supabase
         .from('ride_requests')
         .update({ 
           status: statusForDb,
@@ -168,14 +130,24 @@ const Driver = () => {
           updated_at: new Date().toISOString()
         })
         .eq('id', requestId);
+
+      if (error) throw error;
+
+      // Refetch from DB to update UI
+      await loadRideRequests();
+
+      toast({
+        title: "Ride Request Updated",
+        description: `Ride request has been ${action}ed.`,
+      });
     } catch (error) {
       console.error("Error updating ride request in database:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update ride request.",
+        variant: "destructive"
+      });
     }
-
-    toast({
-      title: "Ride Request Updated",
-      description: `Ride request has been ${action}ed.`,
-    });
   };
 
   return (

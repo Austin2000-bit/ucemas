@@ -88,27 +88,28 @@ const AdminUsers = () => {
   // Load users and assignments from Supabase
   useEffect(() => {
     const loadData = async () => {
+      setLoading(true);
       try {
-        // Load users
         const { data: usersData, error: usersError } = await supabase
           .from('users')
           .select('*');
 
         if (usersError) throw usersError;
 
-        // Load assignments
         const { data: assignmentsData, error: assignmentsError } = await supabase
           .from('helper_student_assignments')
-          .select(`
-            *,
-            student:users!student_id(*),
-            helper:users!helper_id(*)
-          `);
+          .select('*');
 
         if (assignmentsError) throw assignmentsError;
 
+        const populatedAssignments = (assignmentsData || []).map(assignment => {
+          const student = usersData?.find(u => u.id === assignment.student_id);
+          const helper = usersData?.find(u => u.id === assignment.helper_id);
+          return { ...assignment, student, helper };
+        });
+
         setUsers(usersData || []);
-        setAssignments(assignmentsData || []);
+        setAssignments(populatedAssignments);
       } catch (error) {
         console.error('Error loading data:', error);
         toast({
@@ -210,17 +211,33 @@ const AdminUsers = () => {
   });
 
   const handleAddUser = async () => {
+    // Basic validation
+    if (!newUser.email || !newUser.first_name || !newUser.last_name || !newUser.role) {
+      toast({ title: "Error", description: "Please fill in all required fields.", variant: "destructive" });
+      return;
+    }
+
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .insert([newUser])
-        .select();
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: {
+          ...newUser,
+          // Ensure we don't send empty strings for optional fields
+          phone: newUser.phone || undefined,
+          disability_type: newUser.disability_type || undefined,
+          assistant_type: newUser.assistant_type || undefined,
+          assistant_specialization: newUser.assistant_specialization || undefined,
+          assistant_level: newUser.assistant_level || undefined,
+          bank_account: newUser.bank_account || undefined,
+          bank_account_number: newUser.bank_account_number || undefined,
+        }
+      });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
-      setUsers([...users, data[0]]);
+      // Add the new user to the local state to update the UI
+      setUsers([...users, data.user.user]);
       setIsAddUserDialogOpen(false);
-      setNewUser({
+      setNewUser({ // Reset form
         first_name: "",
         last_name: "",
         email: "",
@@ -234,22 +251,18 @@ const AdminUsers = () => {
         bank_account_number: "",
       });
 
-      SystemLogs.addLog(
-        "User Creation",
-        `New user ${newUser.first_name} ${newUser.last_name} (${newUser.email}) was created`,
-        "admin",
-        "admin"
-      );
+      SystemLogs.addLog("User Creation", `New user ${newUser.email} created by admin.`, "admin", "admin");
 
       toast({
         title: "User Created",
-        description: `User ${newUser.first_name} ${newUser.last_name} has been successfully created.`,
+        description: `User ${newUser.email} has been successfully created.`,
       });
+
     } catch (error) {
       console.error('Error creating user:', error);
       toast({
         title: "Error",
-        description: "Failed to create user. Please try again.",
+        description: `Failed to create user: ${error.message}`,
         variant: "destructive",
       });
     }
