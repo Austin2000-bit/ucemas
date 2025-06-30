@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/input-otp";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
-import { Calendar, CheckCircle2, Clock } from "lucide-react";
+import { Calendar, CheckCircle2, Clock, Eye } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Link } from "react-router-dom";
@@ -19,6 +19,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { SystemLogs } from "@/utils/systemLogs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, StudentHelpConfirmation, StudentOtp } from "@/types";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type ConfirmationWithHelper = StudentHelpConfirmation & { helperName?: string };
 
@@ -33,6 +41,8 @@ const Student = () => {
   const [assignedHelper, setAssignedHelper] = useState<User | null>(null);
   const [complaints, setComplaints] = useState<any[]>([]);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
+  const [isComplaintDialogOpen, setIsComplaintDialogOpen] = useState(false);
   
   const form = useForm({
     defaultValues: {
@@ -85,12 +95,23 @@ const Student = () => {
       }
 
       // Load assigned helper
-      const assignments = JSON.parse(localStorage.getItem("helperStudentAssignments") || "[]");
-      const users = JSON.parse(localStorage.getItem("users") || "[]");
-      const myAssignment = assignments.find((a: any) => a.student_id === studentId && a.status === "active");
-      if (myAssignment) {
-        const helper = users.find((u: any) => u.id === myAssignment.helper_id);
-        setAssignedHelper(helper || null);
+      const { data, error } = await supabase
+        .from('helper_student_assignments')
+        .select('*, helper:helper_id(first_name, last_name)')
+        .eq('student_id', studentId)
+        .eq('status', 'active')
+        .single();
+
+      if (data) {
+        setAssignedHelper({
+          id: data.helper_id,
+          first_name: data.helper.first_name,
+          last_name: data.helper.last_name,
+          email: data.helper.email,
+          photo: data.helper.photo,
+        });
+      } else {
+        setAssignedHelper(null);
       }
       
       // Fetch user complaints
@@ -246,7 +267,7 @@ const Student = () => {
     
     toast({
       title: "Help confirmed",
-      description: "Thank you for confirming the help provision.",
+      description: "Thank you for confirming the Assistance provision.",
     });
     
     form.reset();
@@ -254,7 +275,7 @@ const Student = () => {
       console.error('Error confirming help:', error);
       toast({
         title: "Error",
-        description: "Failed to confirm help. Please try again.",
+        description: "Failed to confirm Assistance. Please try again.",
         variant: "destructive",
       });
       // Restore the OTP on error
@@ -279,7 +300,7 @@ const Student = () => {
       <div className="flex flex-col md:flex-row flex-grow">
         {/* Left Panel - Help Confirmation */}
         <div className="md:w-1/3 bg-gray-300 dark:bg-gray-800 p-6 flex flex-col">
-          <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-6">HELP CONFIRMATION</h2>
+          <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-6">ASSISTANCE CONFIRMATION</h2>
           
           <div className="flex items-center gap-2 mb-4">
             <div className="w-4 h-4 rounded-full bg-blue-500"></div>
@@ -329,7 +350,7 @@ const Student = () => {
           {/* Assigned Helper Card */}
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle>Your Assigned Helper</CardTitle>
+              <CardTitle>Your Assigned Assistant</CardTitle>
             </CardHeader>
             <CardContent>
               {assignedHelper ? (
@@ -351,7 +372,7 @@ const Student = () => {
                   </div>
                 </div>
               ) : (
-                <p className="text-muted-foreground">No helper assigned yet</p>
+                <p className="text-muted-foreground">No assigned Assistant yet</p>
               )}
             </CardContent>
           </Card>
@@ -360,7 +381,7 @@ const Student = () => {
         {/* Right Panel - User Profile and OTP */}
         <div className="flex-1 p-6 dark:text-white">
           <div className="flex justify-between mb-8">
-            <h2 className="text-lg text-gray-500 dark:text-gray-400">confirm help provision</h2>
+            <h2 className="text-lg text-gray-500 dark:text-gray-400">confirm Assistance provision</h2>
           </div>
           
           <div className="flex flex-col items-center">
@@ -378,8 +399,8 @@ const Student = () => {
               <span className="font-medium">{new Date(currentDate).toLocaleDateString()}</span>
               <span className="text-gray-500 dark:text-gray-400">
                 {todayConfirmed 
-                  ? "You've confirmed help for today" 
-                  : "confirm if your helper has assisted you today"}
+                  ? "You've confirmed Assistance for today" 
+                  : "confirm if your Assistant has assisted you today"}
               </span>
             </div>
             
@@ -388,7 +409,7 @@ const Student = () => {
                 <Clock className="h-4 w-4 text-blue-500" />
                 <AlertTitle className="text-blue-700 dark:text-blue-400">New OTP Received</AlertTitle>
                 <AlertDescription className="text-blue-600 dark:text-blue-300">
-                  Helper {pendingOtp.helperName} has sent you a verification code at {formatTime(pendingOtp.timestamp)}. 
+                  Assistant {pendingOtp.helperName} has sent you a verification code at {formatTime(pendingOtp.timestamp)}. 
                   The code has been automatically filled in for you.
                 </AlertDescription>
               </Alert>
@@ -398,7 +419,7 @@ const Student = () => {
               <div className="flex flex-col items-center justify-center mb-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg w-full max-w-xs">
                 <CheckCircle2 className="h-12 w-12 text-green-500 mb-2" />
                 <p className="text-center text-green-700 dark:text-green-400">
-                  Help confirmed for today
+                  Assistance confirmed for today
                 </p>
               </div>
             ) : (
@@ -429,8 +450,8 @@ const Student = () => {
                 <div className="text-center mb-6">
                   <span className="text-blue-500 dark:text-blue-400">
                     {pendingOtp 
-                      ? "OTP automatically filled from helper" 
-                      : "Enter OTP provided by helper"}
+                      ? "OTP automatically filled from Assistant" 
+                      : "Enter OTP provided by Assistant"}
                   </span>
                 </div>
                 
@@ -438,7 +459,7 @@ const Student = () => {
                   className="w-full max-w-xs bg-blue-500 hover:bg-blue-600"
                   onClick={handleConfirm}
                 >
-                  Confirm Help
+                  Confirm Assistance
                 </Button>
               </>
             )}
@@ -473,11 +494,123 @@ const Student = () => {
                     <p className="text-sm text-muted-foreground">Resolved</p>
                   </div>
                 </div>
+                
+                {/* Complaints List */}
+                {complaints.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="font-medium">Recent Complaints</h4>
+                    {complaints.slice(0, 3).map((complaint) => (
+                      <div key={complaint.id} className="border rounded-lg p-3 space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-sm">{complaint.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(complaint.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Badge 
+                            variant={
+                              complaint.status === "resolved" ? "default" : 
+                              complaint.status === "in_progress" ? "secondary" : 
+                              "outline"
+                            }
+                            className="text-xs"
+                          >
+                            {complaint.status.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {complaint.description}
+                        </p>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => {
+                            setSelectedComplaint(complaint);
+                            setIsComplaintDialogOpen(true);
+                          }}
+                          className="h-6 px-2 text-xs"
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          View Details
+                        </Button>
+                      </div>
+                    ))}
+                    {complaints.length > 3 && (
+                      <div className="text-center">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to="/complaint">View All Complaints</Link>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Complaint Detail Dialog */}
+      {selectedComplaint && (
+        <Dialog open={isComplaintDialogOpen} onOpenChange={setIsComplaintDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Complaint Details</DialogTitle>
+              <DialogDescription>
+                Submitted on {selectedComplaint.created_at ? new Date(selectedComplaint.created_at).toLocaleDateString() : 'N/A'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <p className="text-sm font-medium mb-1">Category</p>
+                <p className="text-sm">{selectedComplaint.title}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1">Description</p>
+                <p className="text-sm whitespace-pre-wrap">{selectedComplaint.description}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1">Status</p>
+                <p className="text-sm">
+                  <Badge 
+                    variant={
+                      selectedComplaint.status === "resolved" ? "default" : 
+                      selectedComplaint.status === "in_progress" ? "secondary" : 
+                      "outline"
+                    }
+                  >
+                    {selectedComplaint.status.replace('_', ' ')}
+                  </Badge>
+                </p>
+              </div>
+              {selectedComplaint.feedback && (
+                <div>
+                  <p className="text-sm font-medium mb-1">Admin Feedback</p>
+                  <p className="text-sm whitespace-pre-wrap bg-muted p-3 rounded-md">
+                    {selectedComplaint.feedback}
+                  </p>
+                </div>
+              )}
+              {selectedComplaint.follow_up && (
+                <div>
+                  <p className="text-sm font-medium mb-1">Follow-up Information</p>
+                  <p className="text-sm whitespace-pre-wrap bg-muted p-3 rounded-md">
+                    {selectedComplaint.follow_up}
+                  </p>
+                </div>
+              )}
+              {!selectedComplaint.feedback && !selectedComplaint.follow_up && (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground">
+                    No admin response yet. Your complaint is being reviewed.
+                  </p>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

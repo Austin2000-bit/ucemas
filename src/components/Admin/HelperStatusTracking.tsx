@@ -235,7 +235,7 @@ const HelperStatusTracking = () => {
           <CardTitle className="flex justify-between">
             <div className="flex items-center">
               <UserCheck className="h-5 w-5 mr-2" />
-              Helper Status Management
+              Assistants Status Management
             </div>
             <Button 
               variant="outline" 
@@ -251,10 +251,10 @@ const HelperStatusTracking = () => {
         <CardContent>
           <div className="grid md:grid-cols-3 gap-4 mb-6">
             <div>
-              <label className="text-sm font-medium mb-1 block">Helper</label>
+              <label className="text-sm font-medium mb-1 block">Assistant</label>
               <Select value={selectedHelper || ''} onValueChange={setSelectedHelper}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select helper" />
+                  <SelectValue placeholder="Select assistant" />
                 </SelectTrigger>
                 <SelectContent>
                   {helpers.map((helper) => (
@@ -296,7 +296,7 @@ const HelperStatusTracking = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex justify-between">
-            <span>Status History</span>
+            <span>Assistant Status History</span>
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4" />
               <Select value={filter} onValueChange={(value: 'all' | 'available' | 'busy' | 'offline') => setFilter(value)}>
@@ -321,7 +321,7 @@ const HelperStatusTracking = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Helper</TableHead>
+                    <TableHead>Assistant</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Changed Date</TableHead>
                     <TableHead>Changed By</TableHead>

@@ -327,7 +327,7 @@ const Helper = () => {
 
       <div className="flex flex-col md:flex-row flex-grow">
         <div className="md:w-1/3 bg-gray-300 dark:bg-gray-800 p-6 flex flex-col">
-          <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-6">HELP CONFIRMATION</h2>
+          <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-6">ASSISTANCE CONFIRMATION</h2>
           
           <div className="flex items-center gap-2 mb-4">
             <div className="w-4 h-4 rounded-full bg-blue-500"></div>
@@ -353,7 +353,7 @@ const Helper = () => {
                   disabled={assignedStudents.length === 1}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select assigned student" />
+                    <SelectValue placeholder="Assigned student" />
                   </SelectTrigger>
                   <SelectContent>
                     {assignedStudents.map((student) => (
@@ -372,7 +372,7 @@ const Helper = () => {
               
               <div className="space-y-2">
                 <Textarea
-                  placeholder="Briefly describe help provided..."
+                  placeholder="Briefly describe Assistance provided..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
@@ -417,7 +417,7 @@ const Helper = () => {
                     </Button>
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    Share this OTP with the student to verify help provision
+                    Share this OTP with the student to verify Assistance provision
                   </p>
                   <Button 
                     size="sm" 
@@ -435,13 +435,13 @@ const Helper = () => {
         </div>
 
         <div className="flex-1 p-6 flex flex-col dark:text-white overflow-y-auto">
-          <h1 className="text-xl font-medium mb-4 text-center">Recent Help Confirmations</h1>
+          <h1 className="text-xl font-medium mb-4 text-center">Recent Assistance Confirmations</h1>
           
           <div className="w-full mt-6 max-w-4xl mx-auto">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
               <ScrollArea className="h-[calc(100vh-250px)]">
                 <Table>
-                  <TableCaption>A list of recent help provisions</TableCaption>
+                  <TableCaption>A list of recent Assistance provisions</TableCaption>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>

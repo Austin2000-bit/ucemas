@@ -215,7 +215,7 @@ const Register = () => {
             </div>
             <div>
               <Link to="/register" className="px-4 py-2 whitespace-nowrap">Register</Link>
-              <Link to="/helper" className="px-4 py-2 whitespace-nowrap">Helper</Link>
+              <Link to="/helper" className="px-4 py-2 whitespace-nowrap">Assistant</Link>
               <Link to="/book-ride" className="px-4 py-2 whitespace-nowrap">Book ride</Link>
               <Link to="/admin" className="px-4 py-2 whitespace-nowrap">Admin</Link>
               <Link to="/complaint" className="px-4 py-2 whitespace-nowrap font-medium">Complaint</Link>
@@ -323,7 +323,7 @@ const Register = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="helper">Helper</SelectItem>
+                  <SelectItem value="helper">Assistant</SelectItem>
                   <SelectItem value="driver">Driver</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>

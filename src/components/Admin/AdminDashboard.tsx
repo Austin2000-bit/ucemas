@@ -20,7 +20,7 @@ const AdminDashboard = () => {
   const [helpersPerformance, setHelpersPerformance] = useState<any[]>([]);
   const [driversPerformance, setDriversPerformance] = useState<any[]>([]);
   const [complaintStatusCounts, setComplaintStatusCounts] = useState({ pending: 0, in_progress: 0, resolved: 0 });
-  const [helpConfirmationStatusCounts, setHelpConfirmationStatusCounts] = useState({ pending: 0, confirmed: 0, rejected: 0 });
+  const [helpConfirmationCounts, setHelpConfirmationCounts] = useState({ pending: 0, confirmed: 0 });
 
   useEffect(() => {
     // Complaints by Category
@@ -131,18 +131,17 @@ const AdminDashboard = () => {
       }
     };
     // Fetch help confirmation status counts for the card
-    const fetchHelpConfirmationStatusCounts = async () => {
+    const fetchHelpConfirmationCounts = async () => {
       const { data, error } = await supabase
         .from('student_help_confirmations')
         .select('status');
       if (!error && data) {
-        const counts = { pending: 0, confirmed: 0, rejected: 0 };
+        const counts = { pending: 0, confirmed: 0 };
         data.forEach((c: any) => {
           if (c.status === 'pending') counts.pending++;
           else if (c.status === 'confirmed') counts.confirmed++;
-          else if (c.status === 'rejected') counts.rejected++;
         });
-        setHelpConfirmationStatusCounts(counts);
+        setHelpConfirmationCounts(counts);
       }
     };
     fetchComplaintsByCategory();
@@ -150,7 +149,7 @@ const AdminDashboard = () => {
     fetchHelpersPerformance();
     fetchDriversPerformance();
     fetchComplaintStatusCounts();
-    fetchHelpConfirmationStatusCounts();
+    fetchHelpConfirmationCounts();
   }, []);
 
   const formatUserBreakdown = (breakdown: Record<string, number>) => {
@@ -230,13 +229,13 @@ const AdminDashboard = () => {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Help Confirmations</CardTitle>
+            <CardTitle className="text-sm font-medium">Assistance Confirmation</CardTitle>
             <CheckSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalHelpConfirmations}</div>
+            <div className="text-2xl font-bold">{helpConfirmationCounts.pending + helpConfirmationCounts.confirmed}</div>
             <p className="text-xs text-muted-foreground">
-              {helpConfirmationStatusCounts.pending} pending, {helpConfirmationStatusCounts.confirmed} completed
+              {helpConfirmationCounts.pending} pending, {helpConfirmationCounts.confirmed} completed
             </p>
           </CardContent>
         </Card>
@@ -293,7 +292,7 @@ const AdminDashboard = () => {
         {/* Helpers Performance Bar Chart */}
         <Card>
           <CardHeader>
-            <CardTitle>Helpers Performance</CardTitle>
+            <CardTitle>Assistants Performance</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>

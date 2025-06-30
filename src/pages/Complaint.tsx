@@ -121,7 +121,24 @@ const Complaint = () => {
       });
 
       form.reset();
-      navigate("/student");
+      
+      // Redirect based on user role
+      switch (user.role) {
+        case "admin":
+          navigate("/admin");
+          break;
+        case "helper":
+          navigate("/helper");
+          break;
+        case "student":
+          navigate("/student");
+          break;
+        case "driver":
+          navigate("/driver");
+          break;
+        default:
+          navigate("/login");
+      }
     } catch (error) {
       console.error("Error submitting complaint:", error);
       toast({

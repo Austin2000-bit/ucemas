@@ -102,7 +102,7 @@ const Admin: React.FC = () => {
     { icon: Car, label: "Ride Requests", url: "ride-requests", id: "ride-requests", title: "Ride Requests" },
     { icon: Laptop, label: "Gadget Lending", url: "gadgets", id: "gadgets", title: "Gadget Lending" },
     { icon: UserCog, label: "User Management", url: "user-management", id: "user-management", title: "User Management" },
-    { icon: List, label: "Helper Status", url: "helper-status", id: "helper-status", title: "Helper Status Tracking" },
+    { icon: List, label: "Assistant Status Tracking", url: "helper-status", id: "helper-status", title: "Assistant Status Tracking" },
     { icon: MonitorDot, label: "System Logs", url: "system-logs", id: "system-logs", title: "System Logs" },
     { icon: Database, label: "Debug Database", url: "debug-database", id: "debug-database", title: "Debug Database" }
   ];
@@ -326,7 +326,7 @@ const Admin: React.FC = () => {
       case "user-management":
         return <AdminUsers />;
       case "helper-status":
-        return <HelperStatusTracking />;
+        return <HelperStatusTracking assistantMode={true} />;
       case "system-logs":
         return <SystemLogs />;
       case "debug-database":
@@ -401,7 +401,7 @@ const Admin: React.FC = () => {
                activeSection === "gadgets" ? "Gadget Lending" :
                activeSection === "users" ? "Users" :
                activeSection === "user-management" ? "User Management" :
-               activeSection === "helper-status" ? "Helper Status Tracking" : 
+               activeSection === "helper-status" ? "Assistant Status Tracking" : 
                activeSection === "system-logs" ? "System Logs" :
                activeSection === "debug-database" ? "Debug Database" :
                "Reports"}

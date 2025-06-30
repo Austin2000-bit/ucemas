@@ -35,7 +35,6 @@ const Navbar = ({ title = "USNMS" }: NavbarProps) => {
                   <>
                     <Link to="/register" className="px-4 py-2 whitespace-nowrap font-poppins hover:bg-blue-600 dark:hover:bg-blue-800 rounded-md transition-colors">Register</Link>
                     <Link to="/admin" className="px-4 py-2 whitespace-nowrap font-poppins hover:bg-blue-600 dark:hover:bg-blue-800 rounded-md transition-colors">Admin</Link>
-                    <Link to="/confirmation-logs" className="px-4 py-2 whitespace-nowrap font-poppins hover:bg-blue-600 dark:hover:bg-blue-800 rounded-md transition-colors">Logs</Link>
                   </>
                 )}
                 

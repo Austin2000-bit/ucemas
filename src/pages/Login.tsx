@@ -74,7 +74,7 @@ const Login = () => {
           <div className="p-6">
             <div className="text-center mb-6">
               <h1 className="text-2xl font-bold text-foreground">Welcome to UDSNMS</h1>
-              <p className="text-muted-foreground mt-2">University Disabled Students Need Management System</p>
+              <p className="text-muted-foreground mt-2">University Of Dar es Salaam Special Needs Management System</p>
             </div>
 
             <Form {...form}>
