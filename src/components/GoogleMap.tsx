@@ -10,6 +10,16 @@ declare global {
   }
 }
 
+// Location mapping for common university locations
+const LOCATION_MAPPINGS: Record<string, { lat: number; lng: number; address: string }> = {
+  "University Main Gate": { lat: -6.3690, lng: 34.8888, address: "University of Dar es Salaam, Dar es Salaam, Tanzania" },
+  "Engineering Building": { lat: -6.3695, lng: 34.8890, address: "Engineering Building, University of Dar es Salaam, Dar es Salaam, Tanzania" },
+  "Library": { lat: -6.3685, lng: 34.8885, address: "University Library, University of Dar es Salaam, Dar es Salaam, Tanzania" },
+  "Student Center": { lat: -6.3688, lng: 34.8892, address: "Student Center, University of Dar es Salaam, Dar es Salaam, Tanzania" },
+  "Cafeteria": { lat: -6.3692, lng: 34.8886, address: "Cafeteria, University of Dar es Salaam, Dar es Salaam, Tanzania" },
+  "Parking Lot": { lat: -6.3698, lng: 34.8884, address: "Parking Lot, University of Dar es Salaam, Dar es Salaam, Tanzania" }
+};
+
 interface GoogleMapProps {
   pickupLocation: string;
   destination: string;
@@ -289,20 +299,122 @@ const GoogleMap: React.FC<GoogleMapProps> = ({
       return;
     }
 
-      const request = {
-        origin: pickupLocation,
-        destination: destination,
-      travelMode: google.maps.TravelMode.DRIVING
-      };
+    const calculateRoute = async () => {
+      try {
+        // Helper function to geocode addresses
+        const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
+          if (!geocoder) return null;
+          
+          return new Promise((resolve) => {
+            geocoder.geocode({ address }, (results, status) => {
+              if (status === google.maps.GeocoderStatus.OK && results && results[0]) {
+                const location = results[0].geometry.location;
+                resolve({ lat: location.lat(), lng: location.lng() });
+              } else {
+                console.warn(`Geocoding failed for address: ${address}`, status);
+                resolve(null);
+              }
+            });
+          });
+        };
 
-      directionsService.route(request, (result: any, status: any) => {
-      if (status === google.maps.DirectionsStatus.OK && result) {
-          directionsRenderer.setDirections(result);
-        const route = result.routes[0].legs[0];
-        onRouteCalculated(route.duration.text, route.distance.text);
+        // First, check if we have predefined coordinates for these locations
+        const getLocationCoords = (locationName: string): { lat: number; lng: number } | null => {
+          const mapping = LOCATION_MAPPINGS[locationName];
+          if (mapping) {
+            return { lat: mapping.lat, lng: mapping.lng };
+          }
+          return null;
+        };
+
+        // Try to get coordinates from our mapping first
+        let pickupCoords = getLocationCoords(pickupLocation);
+        let destCoords = getLocationCoords(destination);
+
+        // If not found in mapping, try geocoding
+        if (!pickupCoords && geocoder) {
+          pickupCoords = await geocodeAddress(pickupLocation);
+        }
+        if (!destCoords && geocoder) {
+          destCoords = await geocodeAddress(destination);
+        }
+
+        // If we still don't have coordinates, use a fallback approach
+        if (!pickupCoords || !destCoords) {
+          console.warn('Could not get coordinates for locations, using fallback');
+          
+          // Use the university as a fallback center point
+          const fallbackCenter = { lat: -6.3690, lng: 34.8888 };
+          
+          // Create a simple route visualization without actual directions
+          if (map) {
+            // Clear any existing directions
+            directionsRenderer.setDirections({ routes: [] });
+            
+            // Add markers for pickup and destination
+            new google.maps.Marker({
+              position: fallbackCenter,
+              map: map,
+              title: pickupLocation,
+              label: "P"
+            });
+            
+            new google.maps.Marker({
+              position: { lat: fallbackCenter.lat + 0.001, lng: fallbackCenter.lng + 0.001 },
+              map: map,
+              title: destination,
+              label: "D"
+            });
+            
+            // Set a default estimated time and distance
+            onRouteCalculated("5-10 min", "~1 km");
+          }
+          return;
+        }
+
+        // Use coordinates for accurate routing
+        const request = {
+          origin: pickupCoords,
+          destination: destCoords,
+          travelMode: google.maps.TravelMode.DRIVING
+        };
+
+        directionsService.route(request, (result: any, status: any) => {
+          if (status === google.maps.DirectionsStatus.OK && result) {
+            directionsRenderer.setDirections(result);
+            const route = result.routes[0].legs[0];
+            onRouteCalculated(route.duration.text, route.distance.text);
+          } else {
+            console.error('Directions request failed:', status);
+            // Fallback to simple markers without route
+            if (map) {
+              directionsRenderer.setDirections({ routes: [] });
+              
+              new google.maps.Marker({
+                position: pickupCoords,
+                map: map,
+                title: pickupLocation,
+                label: "P"
+              });
+              
+              new google.maps.Marker({
+                position: destCoords,
+                map: map,
+                title: destination,
+                label: "D"
+              });
+              
+              onRouteCalculated("Route unavailable", "Distance unknown");
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error calculating route:', error);
       }
-    });
-  }, [pickupLocation, destination, directionsService, directionsRenderer, onRouteCalculated]);
+    };
+
+    calculateRoute();
+  }, [pickupLocation, destination, directionsService, directionsRenderer, onRouteCalculated, geocoder]);
 
   return (
     <div className="w-full h-[400px] rounded-lg overflow-hidden relative">

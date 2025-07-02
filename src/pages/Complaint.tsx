@@ -131,7 +131,7 @@ const Complaint = () => {
           navigate("/helper");
           break;
         case "student":
-          navigate("/student");
+      navigate("/student");
           break;
         case "driver":
           navigate("/driver");

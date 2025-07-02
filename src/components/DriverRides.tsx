@@ -7,6 +7,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { SystemLogs } from "@/utils/systemLogs";
 import { rideService } from "@/services/rideService";
 import { RideRequest } from "@/types";
+import { supabase } from "@/lib/supabase";
+import { useSendDriverLocation } from "@/hooks/useSendDriverLocation";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 interface RideStats {
   totalRides: number;
@@ -27,13 +30,19 @@ const DriverRides = () => {
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { user } = useAuth();
+  const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
 
   const loadPendingRides = async () => {
     try {
       if (!user?.id) return;
-      const pending = await rideService.getPendingRides();
-      console.log("Loaded pending rides:", pending);
-      setPendingRides(pending);
+      // Fetch both pending rides (unassigned) and accepted rides assigned to this driver
+      const { data: rides, error } = await supabase
+        .from('ride_requests')
+        .select('*')
+        .or(`status.eq.pending,status.eq.accepted`)
+        .or(`driver_id.is.null,driver_id.eq.${user.id}`);
+      if (error) throw error;
+      setPendingRides(rides || []);
     } catch (error) {
       console.error("Error loading pending rides:", error);
       toast({
@@ -73,6 +82,19 @@ const DriverRides = () => {
       return () => clearInterval(interval);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocationPermission('denied');
+      return;
+    }
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+        setLocationPermission(result.state);
+        result.onchange = () => setLocationPermission(result.state);
+      });
+    }
+  }, []);
 
   const handleAcceptRide = async (ride: RideRequest) => {
     if (!user?.id) {
@@ -156,6 +178,13 @@ const DriverRides = () => {
     }
   };
 
+  const activeRide = pendingRides.find(
+    (ride) => ride.status === "accepted" && ride.driver_id === user?.id
+  );
+  console.log("Active ride for driver:", activeRide);
+  useSendDriverLocation(user?.id, activeRide?.id || null);
+
+  console.log("locationPermission:", locationPermission);
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
@@ -169,6 +198,25 @@ const DriverRides = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+      {true && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative mb-4 text-center">
+          <b>Location access is required for live tracking.</b><br />
+          Please enable location services in your browser and allow access when prompted.<br />
+          <button
+            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded"
+            onClick={() => {
+              if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                  () => window.location.reload(),
+                  () => alert("Location access denied. Please allow location access for live tracking.")
+                );
+              }
+            }}
+          >
+            Enable Location
+          </button>
+        </div>
+      )}
       <div className="container mx-auto p-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-4">
           <div className="bg-blue-500 text-white p-4 flex justify-between items-center">
@@ -282,6 +330,20 @@ const DriverRides = () => {
             )}
           </div>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Common tasks</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Button variant="outline" className="w-full" onClick={loadPendingRides}>
+                Refresh Requests
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

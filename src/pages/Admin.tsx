@@ -103,8 +103,7 @@ const Admin: React.FC = () => {
     { icon: Laptop, label: "Gadget Lending", url: "gadgets", id: "gadgets", title: "Gadget Lending" },
     { icon: UserCog, label: "User Management", url: "user-management", id: "user-management", title: "User Management" },
     { icon: List, label: "Assistant Status Tracking", url: "helper-status", id: "helper-status", title: "Assistant Status Tracking" },
-    { icon: MonitorDot, label: "System Logs", url: "system-logs", id: "system-logs", title: "System Logs" },
-    { icon: Database, label: "Debug Database", url: "debug-database", id: "debug-database", title: "Debug Database" }
+    { icon: MonitorDot, label: "System Logs", url: "system-logs", id: "system-logs", title: "System Logs" }
   ];
   
   // Load complaints from database
@@ -329,8 +328,6 @@ const Admin: React.FC = () => {
         return <HelperStatusTracking assistantMode={true} />;
       case "system-logs":
         return <SystemLogs />;
-      case "debug-database":
-        return <DebugDatabase />;
       default:
         return <AdminDashboard />;
     }
@@ -366,7 +363,7 @@ const Admin: React.FC = () => {
                   ${activeSection === "dashboard" 
                     ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" 
                     : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/30"}`
-              }
+                }
               >
                 <UserCog className="h-5 w-5" />
                 <span className="truncate">Dashboard</span>
@@ -379,7 +376,7 @@ const Admin: React.FC = () => {
                     ${activeSection === item.id 
                       ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" 
                       : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/30"}`
-                }
+                  }
                 >
                   {item.icon && <item.icon className="h-5 w-5" />}
                   <span className="truncate">{item.label}</span>
@@ -403,7 +400,6 @@ const Admin: React.FC = () => {
                activeSection === "user-management" ? "User Management" :
                activeSection === "helper-status" ? "Assistant Status Tracking" : 
                activeSection === "system-logs" ? "System Logs" :
-               activeSection === "debug-database" ? "Debug Database" :
                "Reports"}
             </h1>
           </div>

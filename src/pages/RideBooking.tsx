@@ -11,6 +11,13 @@ import { RideRequest } from "@/types";
 import Navbar from "@/components/Navbar";
 import { v4 as uuidv4 } from "uuid";
 import { MapPin, Navigation } from "lucide-react";
+import DriverInfoCard from "@/components/DriverInfoCard";
+import { websocketService, RideUpdate } from "@/services/websocketService";
+import { rideService } from "@/services/rideService";
+import RatingComponent from "@/components/RatingComponent";
+import { useLiveDriverLocation } from "@/hooks/useLiveDriverLocation";
+import { LiveDriverMap } from "@/components/LiveDriverMap";
+import { GoogleMap as GoogleMapsMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 
 const ALLOWED_ROLES = ['student', 'admin', 'assistant'];
 const GEO_FENCE_RADIUS = 5000; // 5km in meters
@@ -29,6 +36,14 @@ const RideBooking = () => {
   const [isWithinGeofence, setIsWithinGeofence] = useState<boolean>(true);
   const [rideRequest, setRideRequest] = useState<RideRequest | null>(null);
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+  const [acceptedRide, setAcceptedRide] = useState<{ rideId: string; driverId: string } | null>(null);
+  const [rideStatus, setRideStatus] = useState<string | null>(null);
+  const [currentRide, setCurrentRide] = useState<RideRequest | null>(null);
+  const [nearbyDrivers, setNearbyDrivers] = useState<any[]>([]);
+  const [showNearbyMap, setShowNearbyMap] = useState(false);
+
+  console.log("Accepted ride:", acceptedRide);
+  const driverLocation = useLiveDriverLocation(acceptedRide?.driverId, acceptedRide?.rideId);
 
   useEffect(() => {
     // Check if geolocation is supported by the browser
@@ -49,6 +64,63 @@ const RideBooking = () => {
         });
     }
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    // Subscribe to ride updates for this student
+    const handleRideUpdate = (update: RideUpdate) => {
+      console.log("Student received ride update:", update);
+      if (update.type === 'ride_accepted' && update.data.student_id === user.id) {
+        setAcceptedRide({ rideId: update.rideId, driverId: update.data.driver_id });
+        toast({
+          title: "Your ride has been accepted!",
+          description: `Driver ${update.data.driverInfo?.name || ''} is on the way.`
+        });
+      }
+    };
+    websocketService.subscribeToRideUpdates(user.id, 'student', handleRideUpdate);
+    return () => {
+      websocketService.unsubscribeFromRideUpdates(user.id, handleRideUpdate);
+    };
+  }, [user?.id]);
+
+  // On mount, check if the user has a ride in progress and show driver info if accepted
+  useEffect(() => {
+    const fetchAcceptedRide = async () => {
+      if (!user?.id) return;
+      const rides = await rideService.getStudentRideRequests(user.id);
+      const accepted = rides.find(r => r.status === 'accepted' && r.driver_id);
+      if (accepted) {
+        setAcceptedRide({ rideId: accepted.id!, driverId: accepted.driver_id! });
+      }
+    };
+    fetchAcceptedRide();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!acceptedRide?.driverId) return;
+    const channel = supabase
+      .channel('public:users')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'users', filter: `id=eq.${acceptedRide.driverId}` }, (payload) => {
+        // This is a placeholder for the LiveDriverMap component
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [acceptedRide?.driverId]);
+
+  // Poll for ride status after acceptance
+  useEffect(() => {
+    if (!acceptedRide?.rideId) return;
+    let interval: any;
+    const fetchStatus = async () => {
+      const ride = await rideService.getRideRequestWithDriver(acceptedRide.rideId);
+      setRideStatus(ride?.status || null);
+      setCurrentRide(ride);
+    };
+    fetchStatus();
+    interval = setInterval(fetchStatus, 3000);
+    return () => clearInterval(interval);
+  }, [acceptedRide?.rideId]);
 
   const requestLocationPermission = () => {
     if (!navigator.geolocation) {
@@ -111,6 +183,18 @@ const RideBooking = () => {
 
   const handleFindDriver = async () => {
     try {
+      setShowNearbyMap(false);
+      setSuccess('Finding nearby drivers...');
+      const lat = userLocation?.lat;
+      const lng = userLocation?.lng;
+      if (lat && lng) {
+        const drivers = await rideService.getNearbyRides(lat, lng, 5);
+        console.log("Nearby drivers:", drivers);
+        setNearbyDrivers(drivers);
+        setShowNearbyMap(true);
+        setSuccess(null);
+        return;
+      }
       if (!isWithinGeofence) {
         throw new Error('Pickup location is outside the allowed area (5km radius)');
       }
@@ -185,7 +269,8 @@ const RideBooking = () => {
 
       setRideRequest(rideRequest);
       setError(null);
-      setSuccess('Ride request created successfully! Finding nearby drivers...');
+      setShowNearbyMap(false);
+      setSuccess('Finding nearby drivers...');
       
       // Clear form
       setPickupLocation('');
@@ -193,8 +278,8 @@ const RideBooking = () => {
       setEstimatedTime('');
       setDistance('');
     } catch (error) {
-      console.error('Error requesting ride:', error);
-      setError(error instanceof Error ? error.message : 'Failed to request ride');
+      console.error("Error in handleFindDriver:", error);
+      setError(error instanceof Error ? error.message : 'Failed to find drivers');
       setSuccess(null);
     }
   };
@@ -304,17 +389,20 @@ const RideBooking = () => {
               </div>
             </div>
 
-            <GoogleMap
-              pickupLocation={pickupLocation}
-              destination={destination}
-              onRouteCalculated={(time, dist) => {
-                setEstimatedTime(time);
-                setDistance(dist);
-              }}
-              onLocationSelected={handleLocationSelected}
-              showGeofence={true}
-              geofenceRadius={GEO_FENCE_RADIUS}
-            />
+            {driverLocation && (
+              <GoogleMap
+                pickupLocation={pickupLocation}
+                destination={destination}
+                driverLocation={driverLocation}
+                onRouteCalculated={(time, dist) => {
+                  setEstimatedTime(time);
+                  setDistance(dist);
+                }}
+                onLocationSelected={handleLocationSelected}
+                showGeofence={true}
+                geofenceRadius={GEO_FENCE_RADIUS}
+              />
+            )}
 
             {(estimatedTime || distance) && (
               <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
@@ -331,6 +419,17 @@ const RideBooking = () => {
               </div>
             )}
 
+            {acceptedRide && (
+              <>
+                <DriverInfoCard rideId={acceptedRide.rideId} driverId={acceptedRide.driverId} />
+                {(() => { console.log("rideStatus:", rideStatus, "currentRide:", currentRide, "user:", user); return null; })()}
+                {rideStatus === "completed" && currentRide?.student_id === user?.id && (
+                  <RatingComponent driverId={acceptedRide.driverId} rideId={acceptedRide.rideId} />
+                )}
+                <LiveDriverMap driverLocation={driverLocation} />
+              </>
+            )}
+
             <div className="p-4">
               <Button
                 className="w-full"
@@ -340,11 +439,30 @@ const RideBooking = () => {
                 {isLoading ? "Finding driver..." : "Find Driver"}
               </Button>
             </div>
+
+            {showNearbyMap && userLocation && (
+              <NearbyDriversMap center={{ lat: userLocation.lat, lng: userLocation.lng }} drivers={nearbyDrivers} />
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 };
+
+function NearbyDriversMap({ center, drivers }) {
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+  });
+  if (!isLoaded || !center) return null;
+  return (
+    <GoogleMapsMap center={center} zoom={15} mapContainerStyle={{ width: "100%", height: "350px" }}>
+      <Marker position={center} label="You" />
+      {drivers.map((d) => (
+        <Marker key={d.id} position={d.location} label={d.driver_name} />
+      ))}
+    </GoogleMapsMap>
+  );
+}
 
 export default RideBooking;

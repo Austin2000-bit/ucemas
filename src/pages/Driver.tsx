@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import { supabase } from "@/lib/supabase";
+import { websocketService, RideUpdate } from "@/services/websocketService";
 
 // Define a new type for the local storage ride requests
 interface LocalRideRequest {
@@ -38,6 +39,7 @@ interface LocalRideRequest {
 const Driver = () => {
   const { user } = useAuth();
   const [rideRequests, setRideRequests] = useState<LocalRideRequest[]>([]);
+  const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
 
   // Helper function to safely convert status string to the allowed literal types
   const validateStatus = (status: string): "pending" | "accepted" | "completed" | "declined" => {
@@ -130,67 +132,92 @@ const Driver = () => {
     }
   }, [user?.id]);
 
-  // Optionally, add real-time subscription for instant updates
+  // WebSocket subscription for real-time ride updates
   useEffect(() => {
     if (!user?.id) return;
     
-    let channel: any = null;
-    
-    try {
-      channel = supabase
-        .channel('public:ride_requests')
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'ride_requests' },
-          payload => {
-            loadRideRequests();
-          }
-        )
-        .subscribe((status) => {
-          console.log('Ride requests subscription status:', status);
+    const handleRideUpdate = (update: RideUpdate) => {
+      console.log('Driver received ride update:', update);
+      
+      // Reload ride requests when there are changes
+      loadRideRequests();
+      
+      // Show toast notifications for new ride requests
+      if (update.type === 'ride_created') {
+        toast({
+          title: "New Ride Request",
+          description: "A new ride request is available for pickup.",
         });
-    } catch (error) {
-      console.error('Error setting up ride requests subscription:', error);
-    }
+      }
+    };
+    
+    // Subscribe to ride updates for this driver
+    websocketService.subscribeToRideUpdates(user.id, 'driver', handleRideUpdate);
     
     return () => {
-      if (channel) {
-        try {
-          supabase.removeChannel(channel);
-        } catch (error) {
-          console.error('Error removing ride requests subscription:', error);
-        }
-      }
+      websocketService.unsubscribeFromRideUpdates(user.id, handleRideUpdate);
     };
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocationPermission('denied');
+      return;
+    }
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+        setLocationPermission(result.state);
+        result.onchange = () => setLocationPermission(result.state);
+      });
+    }
+  }, []);
+
   const handleRideAction = async (requestId: string, action: "accept" | "decline" | "complete") => {
-    // Update in Supabase
     try {
-      const statusForDb = action === "decline" ? "rejected" : action === "accept" ? "accepted" : "completed";
-      const { error } = await supabase
+      // Fetch the current ride data for debugging
+      const { data: ride, error: fetchError } = await supabase
         .from('ride_requests')
-        .update({ 
-          status: statusForDb,
-          driver_id: user?.id || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', requestId);
+        .select('*')
+        .eq('id', requestId)
+        .single();
 
-      if (error) throw error;
+      if (fetchError || !ride) {
+        alert("Could not fetch ride data for id: " + requestId);
+        const allRides = await supabase.from('ride_requests').select('*');
+        console.log("All rides in DB:", allRides);
+        throw new Error("Could not fetch ride data.");
+      }
+      // Log for debugging
+      alert("Ride before action: " + JSON.stringify(ride));
+      console.log("Ride before action:", ride);
 
-      // Refetch from DB to update UI
+      const statusForDb = action === "decline" ? "rejected" : action === "accept" ? "accepted" : "completed";
+      const updateData: any = {
+        status: statusForDb,
+        updated_at: new Date().toISOString()
+      };
+      if (action === "accept") {
+        updateData.driver_id = user?.id;
+      }
+      // Only require status to be pending
+      let query = supabase.from('ride_requests').update(updateData).eq('id', requestId);
+      if (action === "accept") {
+        query = query.eq('status', 'pending');
+      }
+      const { error, data } = await query.select();
+      if (error || !data || data.length === 0) {
+        alert("Update failed. Ride may not be pending or may not exist. See console for details.");
+        throw new Error("Ride could not be accepted. It may have already been taken or is not pending.");
+      }
       await loadRideRequests();
-
       toast({
         title: "Ride Request Updated",
-        description: `Ride request has been ${action}ed.`,
+        description: `Ride request has been ${action}ed successfully.`,
       });
     } catch (error) {
-      console.error("Error updating ride request in database:", error);
       toast({
         title: "Error",
-        description: "Failed to update ride request.",
+        description: error instanceof Error ? error.message : "Failed to update ride request.",
         variant: "destructive"
       });
     }
@@ -254,6 +281,25 @@ const Driver = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+      {locationPermission !== 'granted' && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative mb-4 text-center">
+          <b>Location access is required for live tracking.</b><br />
+          Please enable location services in your browser and allow access when prompted.<br />
+          <button
+            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded"
+            onClick={() => {
+              if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                  () => window.location.reload(),
+                  () => alert("Location access denied. Please allow location access for live tracking.")
+                );
+              }
+            }}
+          >
+            Enable Location
+          </button>
+        </div>
+      )}
       <Navbar title="Driver Dashboard" />
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -307,9 +353,7 @@ const Driver = () => {
                 <Button variant="outline" className="w-full" onClick={loadRideRequests}>
                   Refresh Requests
                 </Button>
-                <Button variant="outline" className="w-full" onClick={createTestRideRequest}>
-                  Create Test Request
-                </Button>
+              
               </div>
             </CardContent>
           </Card>
@@ -356,16 +400,28 @@ const Driver = () => {
                           </TableCell>
                           <TableCell>{request.disabilityType}</TableCell>
                           <TableCell>
-                            <Badge
-                              variant={
-                                request.status === "accepted" ? "default" :
-                                request.status === "pending" ? "secondary" :
-                                request.status === "completed" ? "outline" :
-                                "destructive"
-                              }
-                            >
-                              {request.status}
-                            </Badge>
+                            <div className="space-y-1">
+                              <Badge
+                                variant={
+                                  request.status === "accepted" ? "default" :
+                                  request.status === "pending" ? "secondary" :
+                                  request.status === "completed" ? "outline" :
+                                  "destructive"
+                                }
+                              >
+                                {request.status}
+                              </Badge>
+                              {request.status === "pending" && (
+                                <div className="text-xs text-blue-600 font-medium">
+                                  Available for pickup
+                                </div>
+                              )}
+                              {request.status === "accepted" && (
+                                <div className="text-xs text-green-600 font-medium">
+                                  Assigned to you
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-right space-x-2">
                             {request.status === "pending" && (
@@ -388,10 +444,15 @@ const Driver = () => {
                             {request.status === "accepted" && (
                               <Button
                                 size="sm"
-                                variant="outline"
-                                onClick={() => handleRideAction(request.id, "complete")}
+                                variant="default"
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                                onClick={() => {
+                                  if (confirm("Are you sure you want to mark this ride as completed?")) {
+                                    handleRideAction(request.id, "complete");
+                                  }
+                                }}
                               >
-                                Complete
+                                Complete Ride
                               </Button>
                             )}
                           </TableCell>

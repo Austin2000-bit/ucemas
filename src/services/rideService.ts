@@ -446,6 +446,82 @@ export const acceptRide = async (rideId: string, driverId: string): Promise<bool
   }
 };
 
+// Function to get driver information for a ride
+export const getDriverInfo = async (driverId: string): Promise<{
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  vehicle_type?: string;
+  current_location?: { lat: number; lng: number };
+  rating?: number;
+} | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email, phone, vehicle_type, current_location')
+      .eq('id', driverId)
+      .single();
+
+    if (error || !data) {
+      console.error('Error fetching driver info:', error);
+      return null;
+    }
+
+    return {
+      id: data.id,
+      name: `${data.first_name} ${data.last_name}`,
+      phone: data.phone || 'Not available',
+      email: data.email,
+      vehicle_type: data.vehicle_type,
+      current_location: data.current_location,
+      rating: 4.5 // Placeholder - would come from ratings table
+    };
+  } catch (error) {
+    console.error('Error getting driver info:', error);
+    return null;
+  }
+};
+
+// Function to get ride request with driver details
+export const getRideRequestWithDriver = async (rideId: string): Promise<RideRequestWithDetails | null> => {
+  try {
+    const { data: ride, error: rideError } = await supabase
+      .from('ride_requests')
+      .select('*')
+      .eq('id', rideId)
+      .single();
+
+    if (rideError || !ride) {
+      console.error('Error fetching ride request:', rideError);
+      return null;
+    }
+
+    // Get student information
+    const { data: student, error: studentError } = await supabase
+      .from('users')
+      .select('first_name, last_name, email, phone')
+      .eq('id', ride.student_id)
+      .single();
+
+    // Get driver information if ride is accepted
+    let driverInfo = null;
+    if (ride.driver_id) {
+      driverInfo = await getDriverInfo(ride.driver_id);
+    }
+
+    return {
+      ...ride,
+      student_name: student ? `${student.first_name} ${student.last_name}` : 'Unknown Student',
+      driver_name: driverInfo ? driverInfo.name : 'No Driver Assigned',
+      estimatedTime: Math.floor(Math.random() * 20) + 5
+    };
+  } catch (error) {
+    console.error('Error getting ride request with driver:', error);
+    return null;
+  }
+};
+
 // Function to reject a ride
 export const rejectRide = async (rideId: string, driverId: string): Promise<boolean> => {
   try {
@@ -480,5 +556,7 @@ export const rideService = {
   getPendingRides,
   getRideStats,
   acceptRide,
-  rejectRide
+  rejectRide,
+  getDriverInfo,
+  getRideRequestWithDriver
 };
