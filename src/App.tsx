@@ -45,7 +45,7 @@ const App = () => {
               <div className="min-h-screen flex flex-col">
                 <AppRoutes />
                 <div className="hidden md:block">
-                  <Footer />
+                <Footer />
                 </div>
               </div>
             </BrowserRouter>

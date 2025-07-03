@@ -114,7 +114,7 @@ const HelperStatusTracking = () => {
       });
       return;
     }
-
+    
     try {
       // Update or insert helper status
       const { data: existingStatus } = await supabase

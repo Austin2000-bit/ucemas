@@ -34,9 +34,7 @@ const Navbar = ({ title = "USNMS" }: NavbarProps) => {
         ...(hasRole(["student", "admin"]) ? [
           { to: "/student", label: "Student" },
         ] : []),
-        ...(hasRole(["driver"]) ? [
-          { to: "/book-ride", label: "Ride requests" },
-        ] : [
+        ...(hasRole(["driver"]) ? [] : [
           { to: "/book-ride", label: "Book ride" },
         ]),
         { to: "/complaint", label: "Complaint" },
@@ -45,7 +43,7 @@ const Navbar = ({ title = "USNMS" }: NavbarProps) => {
         { to: "/register", label: "Register" },
         { to: "/login", label: "Login" },
       ];
-
+  
   return (
     <>
       {/* Menu navigation */}

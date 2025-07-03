@@ -151,9 +151,9 @@ export class UserRegistrationService {
       let profileError = null;
       for (let i = 0; i < 3; i++) {
         ({ data: userProfile, error: profileError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', userId)
+        .from('users')
+        .select('*')
+        .eq('id', userId)
           .single());
         if (userProfile) break;
         await new Promise(resolve => setTimeout(resolve, 1500));

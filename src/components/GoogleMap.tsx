@@ -187,9 +187,9 @@ const GoogleMap: React.FC<GoogleMapProps> = ({
 
         if (!isMounted) return;
 
-        setMap(initialMap);
-        setDirectionsService(directionsServiceInstance);
-        setDirectionsRenderer(directionsRendererInstance);
+          setMap(initialMap);
+          setDirectionsService(directionsServiceInstance);
+          setDirectionsRenderer(directionsRendererInstance);
         setGeocoder(geocoderInstance);
         setIsMapInitialized(true);
 
@@ -288,17 +288,17 @@ const GoogleMap: React.FC<GoogleMapProps> = ({
         }
 
         // Use coordinates for accurate routing
-        const request = {
+      const request = {
           origin: pickupCoords,
           destination: destCoords,
-          travelMode: google.maps.TravelMode.DRIVING
-        };
+      travelMode: google.maps.TravelMode.DRIVING
+      };
 
-        directionsService.route(request, (result: any, status: any) => {
-          if (status === google.maps.DirectionsStatus.OK && result) {
-            directionsRenderer.setDirections(result);
-            const route = result.routes[0].legs[0];
-            onRouteCalculated(route.duration.text, route.distance.text);
+      directionsService.route(request, (result: any, status: any) => {
+      if (status === google.maps.DirectionsStatus.OK && result) {
+          directionsRenderer.setDirections(result);
+        const route = result.routes[0].legs[0];
+        onRouteCalculated(route.duration.text, route.distance.text);
           } else {
             console.error('Directions request failed:', status);
             // Fallback to simple markers without route

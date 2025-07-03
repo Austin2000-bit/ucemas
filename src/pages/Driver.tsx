@@ -105,14 +105,14 @@ const Driver = () => {
       const formattedRequests: LocalRideRequest[] = allRequests.map(dbReq => {
         const student = students.find(s => s.id === dbReq.student_id);
         return {
-          id: dbReq.id,
+        id: dbReq.id,
           studentName: student ? `${student.first_name} ${student.last_name}` : 'Unknown Student',
           studentEmail: student?.email || 'No email',
-          pickupLocation: dbReq.pickup_location,
-          destination: dbReq.destination,
-          date: new Date(dbReq.created_at || Date.now()).toLocaleDateString(),
-          time: new Date(dbReq.created_at || Date.now()).toLocaleTimeString(),
-          status: validateStatus(dbReq.status),
+        pickupLocation: dbReq.pickup_location,
+        destination: dbReq.destination,
+        date: new Date(dbReq.created_at || Date.now()).toLocaleDateString(),
+        time: new Date(dbReq.created_at || Date.now()).toLocaleTimeString(),
+        status: validateStatus(dbReq.status),
           disabilityType: student?.disability_type || "Not specified",
           additionalNotes: dbReq.driver_id ? "Assigned to you" : "Available for pickup"
         };
@@ -140,7 +140,7 @@ const Driver = () => {
       console.log('Driver received ride update:', update);
       
       // Reload ride requests when there are changes
-      loadRideRequests();
+            loadRideRequests();
       
       // Show toast notifications for new ride requests
       if (update.type === 'ride_created') {
@@ -193,8 +193,8 @@ const Driver = () => {
 
       const statusForDb = action === "decline" ? "rejected" : action === "accept" ? "accepted" : "completed";
       const updateData: any = {
-        status: statusForDb,
-        updated_at: new Date().toISOString()
+          status: statusForDb,
+          updated_at: new Date().toISOString()
       };
       if (action === "accept") {
         updateData.driver_id = user?.id;
@@ -401,16 +401,16 @@ const Driver = () => {
                           <TableCell>{request.disabilityType}</TableCell>
                           <TableCell>
                             <div className="space-y-1">
-                              <Badge
-                                variant={
-                                  request.status === "accepted" ? "default" :
-                                  request.status === "pending" ? "secondary" :
-                                  request.status === "completed" ? "outline" :
-                                  "destructive"
-                                }
-                              >
-                                {request.status}
-                              </Badge>
+                            <Badge
+                              variant={
+                                request.status === "accepted" ? "default" :
+                                request.status === "pending" ? "secondary" :
+                                request.status === "completed" ? "outline" :
+                                "destructive"
+                              }
+                            >
+                              {request.status}
+                            </Badge>
                               {request.status === "pending" && (
                                 <div className="text-xs text-blue-600 font-medium">
                                   Available for pickup

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { RideRequest } from "@/types";
 import Navbar from "@/components/Navbar";
 import { v4 as uuidv4 } from "uuid";
-import { MapPin, Navigation } from "lucide-react";
+import { MapPin, Navigation, Clock, Check, X as XIcon, RefreshCw } from "lucide-react";
 import DriverInfoCard from "@/components/DriverInfoCard";
 import { websocketService, RideUpdate } from "@/services/websocketService";
 import { rideService } from "@/services/rideService";
@@ -35,6 +35,10 @@ const RideBooking = () => {
   const [acceptedRide, setAcceptedRide] = useState<{ rideId: string; driverId: string } | null>(null);
   const [rideStatus, setRideStatus] = useState<string | null>(null);
   const [currentRide, setCurrentRide] = useState<RideRequest | null>(null);
+  const [pendingRides, setPendingRides] = useState<RideRequest[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const locationUpdateInterval = useRef<NodeJS.Timeout | null>(null);
+  const [activeRideId, setActiveRideId] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if geolocation is supported by the browser
@@ -184,7 +188,7 @@ const RideBooking = () => {
       if (profileError) {
         console.error('Error fetching user profile:', profileError);
         throw new Error('Unable to verify user role. Please try again.');
-      }
+    }
 
       if (!userProfile) {
         // If no profile exists, create one with student role
@@ -208,8 +212,8 @@ const RideBooking = () => {
 
       if (!pickupLocation || !destination) {
         setError('Please enter both pickup and destination locations');
-        return;
-      }
+      return;
+    }
 
       // Create a unique ID for the ride request
       const rideId = uuidv4();
@@ -262,9 +266,151 @@ const RideBooking = () => {
     }
   };
 
-  if (user?.role === "driver") {
-    return <DriverRides />;
-  }
+  const loadPendingRides = async () => {
+    try {
+      if (!user?.id) return;
+      // Fetch both pending rides (unassigned) and accepted rides assigned to this driver
+      const { data: rides, error } = await supabase
+        .from('ride_requests')
+        .select('*')
+        .or(`status.eq.pending,status.eq.accepted`)
+        .or(`driver_id.is.null,driver_id.eq.${user.id}`);
+      if (error) throw error;
+      setPendingRides(rides || []);
+    } catch (error) {
+      console.error("Error loading pending rides:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load pending rides. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    loadPendingRides();
+    setTimeout(() => setIsRefreshing(false), 1000);
+  };
+
+  useEffect(() => {
+    if (user?.role === "driver" && user?.id) {
+      loadPendingRides();
+      const interval = setInterval(() => {
+        loadPendingRides();
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [user?.id, user?.role]);
+
+  const handleAcceptRide = async (ride: RideRequest) => {
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to accept rides.",
+        variant: "destructive",
+      });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const driverLocation = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      };
+      const driverInfo = {
+        phone: user.phone,
+        email: user.email,
+      };
+      try {
+        const success = await rideService.acceptRide(ride.id!, user.id, driverLocation, driverInfo);
+        if (success) {
+          setPendingRides(prev => prev.filter(r => r.id !== ride.id));
+          setActiveRideId(ride.id!);
+          SystemLogs.addLog(
+            "Ride accepted",
+            `Driver ${user.first_name} ${user.last_name} accepted ride from ${ride.pickup_location} to ${ride.destination}`,
+            user.id,
+            user.role
+          );
+          toast({
+            title: "Ride accepted!",
+            description: "You have accepted this ride request.",
+          });
+          // Start periodic location updates
+          if (locationUpdateInterval.current) clearInterval(locationUpdateInterval.current);
+          locationUpdateInterval.current = setInterval(async () => {
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+              const newLocation = {
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+              };
+              await supabase
+                .from('ride_requests')
+                .update({ driver_location: newLocation, updated_at: new Date().toISOString() })
+                .eq('id', ride.id);
+            });
+          }, 30000); // 30 seconds
+        } else {
+          throw new Error("Failed to accept ride");
+        }
+      } catch (error) {
+        console.error("Error accepting ride:", error);
+        toast({
+          title: "Error",
+          description: "Failed to accept ride. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }, (error) => {
+      toast({
+        title: "Location Error",
+        description: "Could not get your location. Please enable location services and try again.",
+        variant: "destructive",
+      });
+    });
+  };
+
+  const handleRejectRide = async (ride: RideRequest) => {
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to reject rides.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      const success = await rideService.rejectRide(ride.id!, user.id);
+      if (success) {
+        setPendingRides(prev => prev.filter(r => r.id !== ride.id));
+        SystemLogs.addLog(
+          "Ride rejected",
+          `Driver ${user.first_name} ${user.last_name} rejected ride from ${ride.pickup_location} to ${ride.destination}`,
+          user.id,
+          user.role
+        );
+        toast({
+          title: "Ride rejected",
+          description: "You have rejected this ride request.",
+        });
+        // Clear location update interval if this was the active ride
+        if (activeRideId === ride.id && locationUpdateInterval.current) {
+          clearInterval(locationUpdateInterval.current);
+          locationUpdateInterval.current = null;
+          setActiveRideId(null);
+        }
+      } else {
+        throw new Error("Failed to reject ride");
+      }
+    } catch (error) {
+      console.error("Error rejecting ride:", error);
+      toast({
+        title: "Error",
+        description: "Failed to reject ride. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -358,12 +504,12 @@ const RideBooking = () => {
               <label className="text-sm font-medium">Destination</label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                <Input
-                  placeholder="Enter destination"
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
+              <Input
+                placeholder="Enter destination"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
                   className="pl-10"
-                />
+              />
               </div>
             </div>
 
@@ -415,6 +561,94 @@ const RideBooking = () => {
           </div>
         </div>
       </div>
+      {user?.role === "driver" && (
+        <div className="container mx-auto p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+            <div className="bg-blue-500 text-white p-4 flex justify-between items-center">
+              <div className="text-xl font-bold">AVAILABLE RIDES</div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-blue-600"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+            <div className="p-4">
+              {pendingRides.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No pending ride requests
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {pendingRides.map((ride) => (
+                    <div key={ride.id} className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <MapPin size={18} className="text-blue-500" />
+                            <span className="text-sm font-medium">{ride.pickup_location}</span>
+                          </div>
+                        </div>
+                        <div className="border-l-2 border-dashed border-gray-300 dark:border-gray-600 h-6 ml-[9px]"></div>
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <MapPin size={18} className="text-red-500" />
+                            <span className="text-sm font-medium">{ride.destination}</span>
+                          </div>
+                        </div>
+                        <GoogleMap
+                          pickupLocation={ride.pickup_location}
+                          destination={ride.destination}
+                          onRouteCalculated={() => {}}
+                        />
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <Clock size={18} />
+                            <span className="text-sm font-medium">Estimated time</span>
+                          </div>
+                          <span className="text-sm font-bold">{ride.estimatedTime || "Calculating..."}</span>
+                        </div>
+                        {ride.status === 'pending' ? (
+                          <div className="flex gap-4">
+                            <Button 
+                              className="flex-1" 
+                              variant="outline"
+                              onClick={() => handleRejectRide(ride)}
+                            >
+                              <XIcon className="mr-2 h-4 w-4" />
+                              Reject
+                            </Button>
+                            <Button 
+                              className="flex-1"
+                              onClick={() => handleAcceptRide(ride)}
+                            >
+                              <Check className="mr-2 h-4 w-4" />
+                              Accept
+                            </Button>
+                          </div>
+                        ) : ride.status === 'accepted' && ride.driver_id === user?.id ? (
+                          <div className="flex gap-4">
+                            <Button 
+                              className="flex-1"
+                              // onClick={() => handleCompleteRide(ride)} // Optionally add complete ride logic
+                            >
+                              <Check className="mr-2 h-4 w-4" />
+                              Complete Ride
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
