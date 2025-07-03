@@ -43,6 +43,7 @@ const Student = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
   const [isComplaintDialogOpen, setIsComplaintDialogOpen] = useState(false);
+  const [isAllComplaintsModalOpen, setIsAllComplaintsModalOpen] = useState(false);
   
   const form = useForm({
     defaultValues: {
@@ -188,10 +189,18 @@ const Student = () => {
   }, [studentId, todayConfirmed, pendingOtp, form]);
   
   useEffect(() => {
-    // Load user profile
-    const users = JSON.parse(localStorage.getItem("users") || "[]");
-    const currentUser = users.find((u: any) => u.id === user?.id);
-    setUserProfile(currentUser);
+    // Fetch user profile from Supabase
+    const fetchProfile = async () => {
+      if (!user?.id) return;
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      if (data) setUserProfile(data);
+      else setUserProfile(null);
+    };
+    fetchProfile();
   }, [user?.id]);
   
   const handleConfirm = async () => {
@@ -318,7 +327,7 @@ const Student = () => {
                         <CheckCircle2 className="h-5 w-5 text-green-500" />
                         <div>
                           <p className="font-medium text-sm">
-                            Confirmed on {new Date(conf.date).toLocaleDateString()}
+                            Confirmed on {conf.date}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             Helper: {conf.helperName}
@@ -396,7 +405,7 @@ const Student = () => {
             <p className="text-gray-500 dark:text-gray-400 mb-4">Any dishonesty will not be forgiven</p>
             
             <div className="flex items-center gap-2 mb-6">
-              <span className="font-medium">{new Date(currentDate).toLocaleDateString()}</span>
+              <span className="font-medium">{currentDate}</span>
               <span className="text-gray-500 dark:text-gray-400">
                 {todayConfirmed 
                   ? "You've confirmed Assistance for today" 
@@ -472,7 +481,7 @@ const Student = () => {
           {/* Complaints Summary Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Your Complaints</CardTitle>
+              <CardTitle>Your Recent Complaints</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -538,8 +547,8 @@ const Student = () => {
                     ))}
                     {complaints.length > 3 && (
                       <div className="text-center">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link to="/complaint">View All Complaints</Link>
+                        <Button variant="outline" size="sm" onClick={() => setIsAllComplaintsModalOpen(true)}>
+                          View All Complaints
                         </Button>
                       </div>
                     )}
@@ -607,6 +616,64 @@ const Student = () => {
                   </p>
                 </div>
               )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* All Complaints Modal */}
+      {isAllComplaintsModalOpen && (
+        <Dialog open={isAllComplaintsModalOpen} onOpenChange={setIsAllComplaintsModalOpen}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>All Your Complaints</DialogTitle>
+              <DialogDescription>
+                A complete list of all complaints you have submitted.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+              {complaints.map((complaint) => (
+                <div key={complaint.id} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium text-sm">{complaint.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(complaint.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Badge 
+                      variant={
+                        complaint.status === "resolved" ? "default" : 
+                        complaint.status === "in_progress" ? "secondary" : 
+                        "outline"
+                      }
+                      className="text-xs"
+                    >
+                      {complaint.status.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {complaint.description}
+                  </p>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                      setSelectedComplaint(complaint);
+                      setIsComplaintDialogOpen(true);
+                    }}
+                    className="h-6 px-2 text-xs"
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    View Details
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <div className="text-center mt-4">
+              <Button variant="outline" size="sm" onClick={() => setIsAllComplaintsModalOpen(false)}>
+                Close
+              </Button>
             </div>
           </DialogContent>
         </Dialog>

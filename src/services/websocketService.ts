@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { RideRequest, User } from '@/types';
 
 export interface RideUpdate {
-  type: 'ride_created' | 'ride_accepted' | 'ride_rejected' | 'ride_completed' | 'driver_location_update';
+  type: 'ride_created' | 'ride_accepted' | 'ride_rejected' | 'ride_completed';
   rideId: string;
   data: any;
   timestamp: string;
@@ -177,41 +177,6 @@ class WebSocketService {
           console.error('Error in notification callback:', error);
         }
       });
-    }
-  }
-
-  // Update driver location in real-time
-  async updateDriverLocation(driverId: string, location: { lat: number; lng: number }) {
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({ 
-          current_location: location,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', driverId);
-
-      if (error) {
-        console.error('Error updating driver location:', error);
-        return false;
-      }
-
-      // Notify relevant users about location update
-      const notification: RideUpdate = {
-        type: 'driver_location_update',
-        rideId: '', // Not applicable for location updates
-        data: { driverId, location },
-        timestamp: new Date().toISOString()
-      };
-
-      // This would typically notify students with active rides from this driver
-      // For now, we'll just log it
-      console.log('Driver location updated:', notification);
-
-      return true;
-    } catch (error) {
-      console.error('Error in updateDriverLocation:', error);
-      return false;
     }
   }
 

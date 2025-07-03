@@ -8,7 +8,6 @@ import { SystemLogs } from "@/utils/systemLogs";
 import { rideService } from "@/services/rideService";
 import { RideRequest } from "@/types";
 import { supabase } from "@/lib/supabase";
-import { useSendDriverLocation } from "@/hooks/useSendDriverLocation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 interface RideStats {
@@ -30,7 +29,6 @@ const DriverRides = () => {
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { user } = useAuth();
-  const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
 
   const loadPendingRides = async () => {
     try {
@@ -82,19 +80,6 @@ const DriverRides = () => {
       return () => clearInterval(interval);
     }
   }, [user?.id]);
-
-  useEffect(() => {
-    if (!navigator.geolocation) {
-      setLocationPermission('denied');
-      return;
-    }
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-        setLocationPermission(result.state);
-        result.onchange = () => setLocationPermission(result.state);
-      });
-    }
-  }, []);
 
   const handleAcceptRide = async (ride: RideRequest) => {
     if (!user?.id) {
@@ -178,13 +163,52 @@ const DriverRides = () => {
     }
   };
 
-  const activeRide = pendingRides.find(
-    (ride) => ride.status === "accepted" && ride.driver_id === user?.id
-  );
-  console.log("Active ride for driver:", activeRide);
-  useSendDriverLocation(user?.id, activeRide?.id || null);
+  const handleCompleteRide = async (ride: RideRequest) => {
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to complete rides.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  console.log("locationPermission:", locationPermission);
+    try {
+      const { error } = await supabase
+        .from('ride_requests')
+        .update({
+          status: 'completed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', ride.id)
+        .eq('driver_id', user.id);
+
+      if (error) throw error;
+
+      setPendingRides(prev => prev.filter(r => r.id !== ride.id));
+      calculateStats();
+
+      SystemLogs.addLog(
+        "Ride completed",
+        `Driver ${user.first_name} ${user.last_name} completed ride from ${ride.pickup_location} to ${ride.destination}`,
+        user.id,
+        user.role
+      );
+
+      toast({
+        title: "Ride completed!",
+        description: "The ride has been marked as completed.",
+      });
+    } catch (error) {
+      console.error("Error completing ride:", error);
+      toast({
+        title: "Error",
+        description: "Failed to complete ride. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
@@ -198,25 +222,6 @@ const DriverRides = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-      {true && (
-        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative mb-4 text-center">
-          <b>Location access is required for live tracking.</b><br />
-          Please enable location services in your browser and allow access when prompted.<br />
-          <button
-            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded"
-            onClick={() => {
-              if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                  () => window.location.reload(),
-                  () => alert("Location access denied. Please allow location access for live tracking.")
-                );
-              }
-            }}
-          >
-            Enable Location
-          </button>
-        </div>
-      )}
       <div className="container mx-auto p-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden mb-4">
           <div className="bg-blue-500 text-white p-4 flex justify-between items-center">
@@ -306,23 +311,35 @@ const DriverRides = () => {
                         <span className="text-sm font-bold">{ride.estimatedTime || "Calculating..."}</span>
                       </div>
                       
-                      <div className="flex gap-4">
-                        <Button 
-                          className="flex-1" 
-                          variant="outline"
-                          onClick={() => handleRejectRide(ride)}
-                        >
-                          <XIcon className="mr-2 h-4 w-4" />
-                          Reject
-                        </Button>
-                        <Button 
-                          className="flex-1"
-                          onClick={() => handleAcceptRide(ride)}
-                        >
-                          <Check className="mr-2 h-4 w-4" />
-                          Accept
-                        </Button>
-                      </div>
+                      {ride.status === 'pending' ? (
+                        <div className="flex gap-4">
+                          <Button 
+                            className="flex-1" 
+                            variant="outline"
+                            onClick={() => handleRejectRide(ride)}
+                          >
+                            <XIcon className="mr-2 h-4 w-4" />
+                            Reject
+                          </Button>
+                          <Button 
+                            className="flex-1"
+                            onClick={() => handleAcceptRide(ride)}
+                          >
+                            <Check className="mr-2 h-4 w-4" />
+                            Accept
+                          </Button>
+                        </div>
+                      ) : ride.status === 'accepted' && ride.driver_id === user?.id ? (
+                        <div className="flex gap-4">
+                          <Button 
+                            className="flex-1"
+                            onClick={() => handleCompleteRide(ride)}
+                          >
+                            <Check className="mr-2 h-4 w-4" />
+                            Complete Ride
+                          </Button>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ))}

@@ -23,11 +23,14 @@ import { format } from "date-fns";
 interface HelperStatus {
   id: string;
   helper_id: string;
-  status: 'available' | 'busy' | 'offline';
+  status: 'active' | 'inactive';
   notes?: string;
   created_at: string;
   updated_at: string;
 }
+
+const allowedStatuses = ['active', 'inactive'] as const;
+type AllowedStatus = typeof allowedStatuses[number];
 
 const HelperStatusTracking = () => {
   const [helpers, setHelpers] = useState<User[]>([]);
@@ -35,9 +38,9 @@ const HelperStatusTracking = () => {
   const [statusLogs, setStatusLogs] = useState<HelperStatusLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedHelper, setSelectedHelper] = useState<string | null>(null);
-  const [newStatus, setNewStatus] = useState<'available' | 'busy' | 'offline'>('available');
+  const [newStatus, setNewStatus] = useState<AllowedStatus>('active');
   const [notes, setNotes] = useState("");
-  const [filter, setFilter] = useState<'all' | 'available' | 'busy' | 'offline'>('all');
+  const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -102,7 +105,16 @@ const HelperStatusTracking = () => {
       });
       return;
     }
-    
+
+    if (!allowedStatuses.includes(newStatus)) {
+      toast({
+        title: "Invalid Status",
+        description: `Status '${newStatus}' is not allowed. Please select 'active' or 'inactive'.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       // Update or insert helper status
       const { data: existingStatus } = await supabase
@@ -138,7 +150,13 @@ const HelperStatusTracking = () => {
         if (insertError) throw insertError;
       }
       
-      // Create status log
+      // Delete previous logs for this assistant
+      await supabase
+        .from('helper_status_logs')
+        .delete()
+        .eq('helper_id', selectedHelper);
+
+      // Insert the new log
       const { error: logError } = await supabase
         .from('helper_status_logs')
         .insert({
@@ -187,12 +205,10 @@ const HelperStatusTracking = () => {
   
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'available':
-        return <Badge variant="default" className="bg-green-500"><CheckCircle className="h-3 w-3 mr-1" /> Available</Badge>;
-      case 'busy':
-        return <Badge variant="secondary"><ClockIcon className="h-3 w-3 mr-1" /> Busy</Badge>;
-      case 'offline':
-        return <Badge variant="destructive"><PauseCircle className="h-3 w-3 mr-1" /> Offline</Badge>;
+      case 'active':
+        return <Badge variant="default" className="bg-green-500"><CheckCircle className="h-3 w-3 mr-1" /> Active</Badge>;
+      case 'inactive':
+        return <Badge variant="destructive"><PauseCircle className="h-3 w-3 mr-1" /> Inactive</Badge>;
       default:
         return <Badge variant="outline"><XCircle className="h-3 w-3 mr-1" /> Unknown</Badge>;
     }
@@ -267,14 +283,13 @@ const HelperStatusTracking = () => {
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">New Status</label>
-              <Select value={newStatus} onValueChange={(value: 'available' | 'busy' | 'offline') => setNewStatus(value)}>
+              <Select value={newStatus} onValueChange={(value: 'active' | 'inactive') => setNewStatus(value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="busy">Busy</SelectItem>
-                  <SelectItem value="offline">Offline</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -299,15 +314,14 @@ const HelperStatusTracking = () => {
             <span>Assistant Status History</span>
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4" />
-              <Select value={filter} onValueChange={(value: 'all' | 'available' | 'busy' | 'offline') => setFilter(value)}>
+              <Select value={filter} onValueChange={(value: 'all' | 'active' | 'inactive') => setFilter(value)}>
                 <SelectTrigger className="w-32 h-8">
                   <SelectValue placeholder="Filter" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="busy">Busy</SelectItem>
-                  <SelectItem value="offline">Offline</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
             </div>

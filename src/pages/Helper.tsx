@@ -4,7 +4,7 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Clipboard, CheckCircle } from "lucide-react";
+import { RefreshCw, Clipboard, CheckCircle, Eye } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -23,10 +23,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { User, SignInRecord } from "@/types";
+import { getComplaintsByUserId } from "@/lib/supabase";
 
 // Define the shape of the confirmation data with the nested student object
 interface HelpConfirmationWithStudent {
@@ -52,6 +55,10 @@ const Helper = () => {
   const [assignedStudents, setAssignedStudents] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
+  const [isComplaintDialogOpen, setIsComplaintDialogOpen] = useState(false);
+  const [isAllComplaintsModalOpen, setIsAllComplaintsModalOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!user?.id) return;
@@ -133,6 +140,12 @@ const Helper = () => {
     const interval = setInterval(loadData, POLL_INTERVAL);
     return () => clearInterval(interval);
   }, [loadData]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    // Fetch complaints for the assistant
+    getComplaintsByUserId(user.id).then(setComplaints);
+  }, [user?.id]);
 
   const generateOTP = async () => {
     if (!user?.id || !selectedStudent) return;
@@ -481,8 +494,208 @@ const Helper = () => {
               </ScrollArea>
             </div>
           </div>
+
+          {/* Complaints Summary Card */}
+          <div className="container mx-auto p-6 mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Your Recent Complaints</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-muted p-4 rounded-lg text-center">
+                        <p className="text-2xl font-bold">{complaints.length}</p>
+                        <p className="text-sm text-muted-foreground">Total</p>
+                      </div>
+                      <div className="bg-muted p-4 rounded-lg text-center">
+                        <p className="text-2xl font-bold">
+                          {complaints.filter(c => c.status === "pending").length}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Pending</p>
+                      </div>
+                      <div className="bg-muted p-4 rounded-lg text-center">
+                        <p className="text-2xl font-bold">
+                          {complaints.filter(c => c.status === "resolved").length}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Resolved</p>
+                      </div>
+                    </div>
+                    {/* Complaints List */}
+                    {complaints.length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="font-medium">Recent Complaints</h4>
+                        {complaints.slice(0, 3).map((complaint) => (
+                          <div key={complaint.id} className="border rounded-lg p-3 space-y-2">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium text-sm">{complaint.title}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(complaint.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <Badge 
+                                variant={
+                                  complaint.status === "resolved" ? "default" : 
+                                  complaint.status === "in_progress" ? "secondary" : 
+                                  "outline"
+                                }
+                                className="text-xs"
+                              >
+                                {complaint.status.replace('_', ' ')}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {complaint.description}
+                            </p>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => {
+                                setSelectedComplaint(complaint);
+                                setIsComplaintDialogOpen(true);
+                              }}
+                              className="h-6 px-2 text-xs"
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              View Details
+                            </Button>
+                          </div>
+                        ))}
+                        {complaints.length > 3 && (
+                          <div className="text-center">
+                            <Button variant="outline" size="sm" onClick={() => setIsAllComplaintsModalOpen(true)}>
+                              View All Complaints
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* All Complaints Modal */}
+      <Dialog open={isAllComplaintsModalOpen} onOpenChange={setIsAllComplaintsModalOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>All Your Complaints</DialogTitle>
+            <DialogDescription>
+              A complete list of all complaints you have submitted.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+            {complaints.map((complaint) => (
+              <div key={complaint.id} className="border rounded-lg p-3 space-y-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-medium text-sm">{complaint.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(complaint.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Badge 
+                    variant={
+                      complaint.status === "resolved" ? "default" : 
+                      complaint.status === "in_progress" ? "secondary" : 
+                      "outline"
+                    }
+                    className="text-xs"
+                  >
+                    {complaint.status.replace('_', ' ')}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {complaint.description}
+                </p>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    setSelectedComplaint(complaint);
+                    setIsComplaintDialogOpen(true);
+                  }}
+                  className="h-6 px-2 text-xs"
+                >
+                  <Eye className="h-3 w-3 mr-1" />
+                  View Details
+                </Button>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-4">
+            <Button variant="outline" size="sm" onClick={() => setIsAllComplaintsModalOpen(false)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Complaint Detail Dialog */}
+      {selectedComplaint && (
+        <Dialog open={isComplaintDialogOpen} onOpenChange={setIsComplaintDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Complaint Details</DialogTitle>
+              <DialogDescription>
+                Submitted on {selectedComplaint.created_at ? new Date(selectedComplaint.created_at).toLocaleDateString() : 'N/A'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <p className="text-sm font-medium mb-1">Category</p>
+                <p className="text-sm">{selectedComplaint.title}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1">Description</p>
+                <p className="text-sm whitespace-pre-wrap">{selectedComplaint.description}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-1">Status</p>
+                <p className="text-sm">
+                  <Badge 
+                    variant={
+                      selectedComplaint.status === "resolved" ? "default" : 
+                      selectedComplaint.status === "in_progress" ? "secondary" : 
+                      "outline"
+                    }
+                  >
+                    {selectedComplaint.status.replace('_', ' ')}
+                  </Badge>
+                </p>
+              </div>
+              {selectedComplaint.feedback && (
+                <div>
+                  <p className="text-sm font-medium mb-1">Admin Feedback</p>
+                  <p className="text-sm whitespace-pre-wrap bg-muted p-3 rounded-md">
+                    {selectedComplaint.feedback}
+                  </p>
+                </div>
+              )}
+              {selectedComplaint.follow_up && (
+                <div>
+                  <p className="text-sm font-medium mb-1">Follow-up Information</p>
+                  <p className="text-sm whitespace-pre-wrap bg-muted p-3 rounded-md">
+                    {selectedComplaint.follow_up}
+                  </p>
+                </div>
+              )}
+              {!selectedComplaint.feedback && !selectedComplaint.follow_up && (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground">
+                    No admin response yet. Your complaint is being reviewed.
+                  </p>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

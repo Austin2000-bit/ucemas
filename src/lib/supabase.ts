@@ -309,6 +309,11 @@ export const signIn = async (email: string, password: string) => {
       return { success: false, error: new Error('No user data returned from auth') };
     }
 
+    // Check if email is confirmed
+    if (!authData.user.email_confirmed_at && !authData.user.confirmed_at) {
+      return { success: false, error: new Error('Please confirm your email before logging in.') };
+    }
+
     // 2. Then, get the user's profile from the users table
     let { data: userData, error: userError } = await supabase
       .from('users')
@@ -851,7 +856,11 @@ export const verifyOTP = async (sessionId: string, otp: string) => {
       };
     }
 
-    // Create confirmation record
+    // Use local date for confirmation
+    const today = new Date();
+    const localDateString = today.getFullYear() + '-' +
+      String(today.getMonth() + 1).padStart(2, '0') + '-' +
+      String(today.getDate()).padStart(2, '0');
     const { error: confirmationError } = await supabase
       .from('student_help_confirmations')
       .insert({
@@ -859,7 +868,7 @@ export const verifyOTP = async (sessionId: string, otp: string) => {
         helper_id: session.helper_id,
         session_id: sessionId,
         description: session.description || '',
-        date: new Date().toISOString().split('T')[0],
+        date: localDateString,
         status: 'confirmed',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

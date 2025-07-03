@@ -170,11 +170,11 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
             name="helper_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Helper</FormLabel>
+                <FormLabel>Assistant</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select helper" />
+                      <SelectValue placeholder="Select assistant" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>

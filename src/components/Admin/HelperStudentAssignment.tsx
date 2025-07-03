@@ -237,7 +237,7 @@ const HelperStudentAssignment = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium">Helper-Student Assignments</h2>
+        <h2 className="text-lg font-medium">Assistant-Student Assignments</h2>
         <Button 
           onClick={() => setShowCreateForm(!showCreateForm)}
         >
@@ -258,10 +258,10 @@ const HelperStudentAssignment = () => {
           <div className="text-center py-8">Loading assignments...</div>
         ) : assignments.length > 0 ? (
           <Table>
-            <TableCaption>List of helper-student assignments</TableCaption>
+            <TableCaption>List of assistant-student assignments</TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead>Helper</TableHead>
+                <TableHead>Assistant</TableHead>
                 <TableHead>Student</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Period</TableHead>

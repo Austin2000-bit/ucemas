@@ -47,6 +47,7 @@ interface User {
   application_letter?: string;
   created_at?: string;
   last_login?: string;
+  services_needed?: string | string[];
 }
 
 interface Assignment {
@@ -268,6 +269,13 @@ const AdminUsers = () => {
     }
   };
 
+  const sendPasswordReset = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + "/reset-password"
+    });
+    return error;
+  };
+
   if (loading) {
     return <div className="text-center py-4">Loading users...</div>;
   }
@@ -393,6 +401,22 @@ const AdminUsers = () => {
                             onClick={() => handleDelete(user)}
                           >
                             <Trash2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              const error = await sendPasswordReset(user.email);
+                              toast({
+                                title: error ? "Error" : "Reset Email Sent",
+                                description: error
+                                  ? error.message || "Failed to send reset email."
+                                  : "A password reset email has been sent to the user.",
+                                variant: error ? "destructive" : "default",
+                              });
+                            }}
+                          >
+                            Reset Password
                           </Button>
                         </div>
                       </TableCell>
@@ -573,6 +597,20 @@ const AdminUsers = () => {
                   <p className="text-sm font-medium">Disability Type</p>
                   <p className="text-sm">{selectedUser.disability_type || "-"}</p>
                 </div>
+                {selectedUser.role === "student" && selectedUser.services_needed && (
+                  <div className="col-span-2">
+                    <p className="text-sm font-medium">Services Needed</p>
+                    {Array.isArray(selectedUser.services_needed) ? (
+                      <ul className="list-disc list-inside text-sm">
+                        {selectedUser.services_needed.map((service: string, idx: number) => (
+                          <li key={idx}>{service}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm">{selectedUser.services_needed}</p>
+                    )}
+                  </div>
+                )}
                 <div>
                   <p className="text-sm font-medium">Created At</p>
                   <p className="text-sm">{new Date(selectedUser.created_at || "").toLocaleString()}</p>

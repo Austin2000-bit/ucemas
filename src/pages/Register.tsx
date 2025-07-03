@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { UserRole } from "@/lib/supabase";
 import { UserRegistrationService, RegistrationData } from "@/services/userRegistrationService";
 import { Info } from "lucide-react";
+import Navbar from "@/components/Navbar";
 
 const disabilityServices = {
   mobility: [
@@ -199,38 +200,13 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       {/* Top navigation */}
-      <div className="bg-blue-400 text-white">
-        <div className="container mx-auto px-4">
-        </div>
-      </div>
-      
-      {/* Menu navigation */}
-      <div className="bg-blue-500 text-white">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <div className="flex">
-              <Link to="/" className="px-4 py-2 whitespace-nowrap align-items-left">USNMS</Link>
-            </div>
-            <div>
-              <Link to="/register" className="px-4 py-2 whitespace-nowrap">Register</Link>
-              <Link to="/helper" className="px-4 py-2 whitespace-nowrap">Assistant</Link>
-              <Link to="/book-ride" className="px-4 py-2 whitespace-nowrap">Book ride</Link>
-              <Link to="/admin" className="px-4 py-2 whitespace-nowrap">Admin</Link>
-              <Link to="/complaint" className="px-4 py-2 whitespace-nowrap font-medium">Complaint</Link>
-            </div>
-            <div>
-              <ThemeToggle />
-            </div>
-          </div>
-        </div>
-      </div>
-      
+      <Navbar />
       {/* Registration form */}
       <div className="flex flex-col items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md bg-white p-8 rounded shadow-sm">
-          <h2 className="text-center text-xl font-medium mb-8">Welcome onboard</h2>
+        <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+          <h2 className="text-center text-xl font-medium mb-8 text-gray-900 dark:text-white">Welcome onboard</h2>
           
           <div className="flex justify-center mb-8">
             <img 
@@ -242,7 +218,7 @@ const Register = () => {
           
           <form onSubmit={handleRegister} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Profile Picture <span className="text-red-500">*</span>
               </label>
               <Input
@@ -250,7 +226,7 @@ const Register = () => {
                 name="profilePicture"
                 accept="image/*"
                 onChange={handleFileChange}
-                className="w-full"
+                className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700"
                 required
               />
             </div>
@@ -262,7 +238,7 @@ const Register = () => {
                 placeholder="First Name *"
                 value={formData.firstname}
                 onChange={handleChange}
-                className="w-full"
+                className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700"
                 required
               />
             </div>
@@ -274,7 +250,7 @@ const Register = () => {
                 placeholder="Last Name *"
                 value={formData.lastname}
                 onChange={handleChange}
-                className="w-full"
+                className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700"
                 required
               />
             </div>
@@ -286,7 +262,7 @@ const Register = () => {
                 placeholder="Email *"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full"
+                className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700"
                 required
               />
             </div>
@@ -298,10 +274,10 @@ const Register = () => {
                 placeholder="Password *"
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full"
+                className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">Password must be at least 6 characters long</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Password must be at least 6 characters long</p>
             </div>
 
             <div>
@@ -311,7 +287,7 @@ const Register = () => {
                 placeholder="Confirm Password *"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                className="w-full"
+                className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700"
                 required
               />
             </div>
@@ -337,7 +313,7 @@ const Register = () => {
                 placeholder="Phone Number *"
                 value={formData.phone}
                 onChange={handleChange}
-                className="w-full"
+                className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700"
                 required
               />
             </div>
@@ -360,12 +336,12 @@ const Register = () => {
                 </div>
 
                 {formData.disabilityType && (
-                  <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                  <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                     <div className="flex items-center gap-2 mb-2">
-                      <Info className="h-5 w-5 text-blue-500" />
-                      <h3 className="font-medium text-blue-700">Available Services</h3>
+                      <Info className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+                      <h3 className="font-medium text-blue-700 dark:text-blue-300">Available Services</h3>
                     </div>
-                    <ul className="list-disc list-inside space-y-2 text-sm text-blue-600">
+                    <ul className="list-disc list-inside space-y-2 text-sm text-blue-600 dark:text-blue-400">
                       {disabilityServices[formData.disabilityType as keyof typeof disabilityServices].map((service, index) => (
                         <li key={index}>{service}</li>
                       ))}
@@ -374,7 +350,7 @@ const Register = () => {
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Upload Video (Optional) - If your disability is hard to explain
                   </label>
                   <Input
@@ -382,9 +358,9 @@ const Register = () => {
                     name="disabilityVideo"
                     accept="video/*"
                     onChange={handleFileChange}
-                    className="w-full"
+                    className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Maximum file size: 100MB</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Maximum file size: 100MB</p>
                 </div>
               </>
             )}
@@ -392,7 +368,7 @@ const Register = () => {
             {formData.role === "helper" && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Application Letter <span className="text-red-500">*</span>
                   </label>
                   <Input
@@ -400,10 +376,10 @@ const Register = () => {
                     name="applicationLetter"
                     accept=".pdf"
                     onChange={handleFileChange}
-                    className="w-full"
+                    className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">Upload your application letter in PDF format (max 2MB)</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Upload your application letter in PDF format (max 2MB)</p>
                 </div>
 
                 <div>
@@ -463,7 +439,7 @@ const Register = () => {
                     placeholder="Bank Account Number *"
                     value={formData.bankAccountNumber}
                     onChange={handleChange}
-                    className="w-full"
+                    className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-700"
                     required
                   />
                 </div>
@@ -472,13 +448,13 @@ const Register = () => {
               
             <Button 
               type="submit" 
-              className="w-full bg-blue-500 hover:bg-blue-600"
+              className="w-full bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
             >
               Register
             </Button>
               
-            <p className="text-center text-sm mt-4">
-              Already have an account? <Link to="/login" className="text-blue-500 hover:underline">Sign in</Link>
+            <p className="text-center text-sm mt-4 text-gray-600 dark:text-gray-400">
+              Already have an account? <Link to="/login" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 hover:underline">Sign in</Link>
             </p>
           </form>
         </div>
