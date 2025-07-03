@@ -307,15 +307,26 @@ export const getRideStats = async (driverId: string): Promise<{
 };
 
 // Function to accept a ride
-export const acceptRide = async (rideId: string, driverId: string): Promise<boolean> => {
+export const acceptRide = async (
+  rideId: string,
+  driverId: string,
+  driverLocation: { lat: number; lng: number },
+  driverInfo?: { phone?: string; email?: string }
+): Promise<boolean> => {
   try {
+    const updateObj: any = {
+      driver_id: driverId,
+      status: 'accepted',
+      updated_at: new Date().toISOString(),
+      driver_location: driverLocation
+    };
+    if (driverInfo) {
+      if (driverInfo.phone) updateObj.driver_phone = driverInfo.phone;
+      if (driverInfo.email) updateObj.driver_email = driverInfo.email;
+    }
     const { error } = await supabase
       .from('ride_requests')
-      .update({
-        driver_id: driverId,
-        status: 'accepted',
-        updated_at: new Date().toISOString()
-      })
+      .update(updateObj)
       .eq('id', rideId)
       .eq('status', 'pending');
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { MapPin, Clock, Check, X as XIcon, RefreshCw } from "lucide-react";
@@ -29,6 +29,8 @@ const DriverRides = () => {
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { user } = useAuth();
+  const locationUpdateInterval = useRef<NodeJS.Timeout | null>(null);
+  const [activeRideId, setActiveRideId] = useState<string | null>(null);
 
   const loadPendingRides = async () => {
     try {
@@ -91,35 +93,64 @@ const DriverRides = () => {
       return;
     }
 
-    try {
-      const success = await rideService.acceptRide(ride.id!, user.id);
-
-      if (success) {
-        setPendingRides(prev => prev.filter(r => r.id !== ride.id));
-        calculateStats();
-
-        SystemLogs.addLog(
-          "Ride accepted",
-          `Driver ${user.first_name} ${user.last_name} accepted ride from ${ride.pickup_location} to ${ride.destination}`,
-          user.id,
-          user.role
-        );
-
+    // Get driver's current location
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const driverLocation = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      };
+      const driverInfo = {
+        phone: user.phone,
+        email: user.email,
+      };
+      try {
+        const success = await rideService.acceptRide(ride.id!, user.id, driverLocation, driverInfo);
+        if (success) {
+          setPendingRides(prev => prev.filter(r => r.id !== ride.id));
+          calculateStats();
+          setActiveRideId(ride.id!);
+          SystemLogs.addLog(
+            "Ride accepted",
+            `Driver ${user.first_name} ${user.last_name} accepted ride from ${ride.pickup_location} to ${ride.destination}`,
+            user.id,
+            user.role
+          );
+          toast({
+            title: "Ride accepted!",
+            description: "You have accepted this ride request.",
+          });
+          // Start periodic location updates
+          if (locationUpdateInterval.current) clearInterval(locationUpdateInterval.current);
+          locationUpdateInterval.current = setInterval(async () => {
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+              const newLocation = {
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+              };
+              await supabase
+                .from('ride_requests')
+                .update({ driver_location: newLocation, updated_at: new Date().toISOString() })
+                .eq('id', ride.id);
+            });
+          }, 30000); // 30 seconds
+        } else {
+          throw new Error("Failed to accept ride");
+        }
+      } catch (error) {
+        console.error("Error accepting ride:", error);
         toast({
-          title: "Ride accepted!",
-          description: "You have accepted this ride request.",
+          title: "Error",
+          description: "Failed to accept ride. Please try again.",
+          variant: "destructive",
         });
-      } else {
-        throw new Error("Failed to accept ride");
       }
-    } catch (error) {
-      console.error("Error accepting ride:", error);
+    }, (error) => {
       toast({
-        title: "Error",
-        description: "Failed to accept ride. Please try again.",
+        title: "Location Error",
+        description: "Could not get your location. Please enable location services and try again.",
         variant: "destructive",
       });
-    }
+    });
   };
 
   const handleRejectRide = async (ride: RideRequest) => {
@@ -150,6 +181,12 @@ const DriverRides = () => {
           title: "Ride rejected",
           description: "You have rejected this ride request.",
         });
+        // Clear location update interval if this was the active ride
+        if (activeRideId === ride.id && locationUpdateInterval.current) {
+          clearInterval(locationUpdateInterval.current);
+          locationUpdateInterval.current = null;
+          setActiveRideId(null);
+        }
       } else {
         throw new Error("Failed to reject ride");
       }
@@ -199,6 +236,12 @@ const DriverRides = () => {
         title: "Ride completed!",
         description: "The ride has been marked as completed.",
       });
+      // Clear location update interval
+      if (locationUpdateInterval.current) {
+        clearInterval(locationUpdateInterval.current);
+        locationUpdateInterval.current = null;
+        setActiveRideId(null);
+      }
     } catch (error) {
       console.error("Error completing ride:", error);
       toast({
@@ -367,3 +410,4 @@ const DriverRides = () => {
 };
 
 export default DriverRides;
+
