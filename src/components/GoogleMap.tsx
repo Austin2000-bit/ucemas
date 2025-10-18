@@ -10,7 +10,6 @@ declare global {
   }
 }
 
-<<<<<<< HEAD
 // Location mapping for common university locations
 const LOCATION_MAPPINGS: Record<string, { lat: number; lng: number; address: string }> = {
   "University Main Gate": { lat: -6.3690, lng: 34.8888, address: "University of Dar es Salaam, Dar es Salaam, Tanzania" },
@@ -21,8 +20,6 @@ const LOCATION_MAPPINGS: Record<string, { lat: number; lng: number; address: str
   "Parking Lot": { lat: -6.3698, lng: 34.8884, address: "Parking Lot, University of Dar es Salaam, Dar es Salaam, Tanzania" }
 };
 
-=======
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 interface GoogleMapProps {
   pickupLocation: string;
   destination: string;
@@ -32,19 +29,6 @@ interface GoogleMapProps {
   geofenceRadius?: number;
 }
 
-<<<<<<< HEAD
-=======
-interface NearbyRide {
-  id: string;
-  location: {
-    lat: number;
-    lng: number;
-  };
-  driverName: string;
-  vehicleType: string;
-}
-
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 const GoogleMap: React.FC<GoogleMapProps> = ({
   pickupLocation,
   destination,
@@ -59,38 +43,10 @@ const GoogleMap: React.FC<GoogleMapProps> = ({
   const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<google.maps.LatLng | null>(null);
-<<<<<<< HEAD
   const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
   const [userMarker, setUserMarker] = useState<any>(null);
   const [geofenceCircle, setGeofenceCircle] = useState<google.maps.Circle | null>(null);
   const [isMapInitialized, setIsMapInitialized] = useState(false);
-=======
-  const [nearbyRides, setNearbyRides] = useState<NearbyRide[]>([]);
-  const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
-  const [userMarker, setUserMarker] = useState<any>(null);
-  const [nearbyMarkers, setNearbyMarkers] = useState<any[]>([]);
-  const [geofenceCircle, setGeofenceCircle] = useState<google.maps.Circle | null>(null);
-  const [isMapInitialized, setIsMapInitialized] = useState(false);
-  const [locationPermission, setLocationPermission] = useState<PermissionState | null>(null);
-
-  // Check location permission status
-  useEffect(() => {
-    const checkPermission = async () => {
-      try {
-        const result = await navigator.permissions.query({ name: 'geolocation' });
-        setLocationPermission(result.state);
-        
-        result.addEventListener('change', () => {
-          setLocationPermission(result.state);
-        });
-      } catch (error) {
-        console.error('Error checking location permission:', error);
-      }
-    };
-    
-    checkPermission();
-  }, []);
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
   // Memoize the location update function
   const updateLocation = useCallback((latLng: google.maps.LatLng, initialMap: google.maps.Map) => {
@@ -191,10 +147,6 @@ const GoogleMap: React.FC<GoogleMapProps> = ({
   // Initialize map and services
   useEffect(() => {
     let isMounted = true;
-<<<<<<< HEAD
-=======
-    let watchId: number | null = null;
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
     const initMap = async () => {
       try {
@@ -242,36 +194,6 @@ const GoogleMap: React.FC<GoogleMapProps> = ({
         setIsMapInitialized(true);
 
         console.log("Google Maps initialized successfully");
-<<<<<<< HEAD
-=======
-
-        // Start watching position if permission is granted
-        if (navigator.geolocation && locationPermission === 'granted') {
-          const options = {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-          };
-
-          watchId = navigator.geolocation.watchPosition(
-            (position) => {
-              if (!isMounted) return;
-              
-              const userLatLng = new google.maps.LatLng(
-                position.coords.latitude,
-                position.coords.longitude
-              );
-              setUserLocation(userLatLng);
-              updateLocation(userLatLng, initialMap);
-            },
-            (error) => {
-              if (!isMounted) return;
-              console.error("Error watching location:", error);
-            },
-            options
-          );
-        }
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       } catch (error) {
         if (!isMounted) return;
         console.error("Error initializing map:", error);
@@ -283,39 +205,8 @@ const GoogleMap: React.FC<GoogleMapProps> = ({
 
     return () => {
       isMounted = false;
-<<<<<<< HEAD
     };
   }, [isMapInitialized, updateLocation]);
-=======
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-      }
-    };
-  }, [isMapInitialized, updateLocation, locationPermission]);
-
-  // Update nearby ride markers when rides change
-  useEffect(() => {
-    if (map && nearbyRides.length > 0) {
-      // Clear existing markers
-      nearbyMarkers.forEach(marker => marker.setMap(null));
-      
-      // Create new markers for nearby rides
-      const newMarkers = nearbyRides.map(ride => {
-        return new google.maps.Marker({
-          position: ride.location,
-          map: map,
-          icon: {
-            url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-            scaledSize: new google.maps.Size(32, 32)
-          },
-          title: `${ride.driverName} - ${ride.vehicleType}`
-        });
-      });
-      
-      setNearbyMarkers(newMarkers);
-    }
-  }, [map, nearbyRides]);
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
   // Calculate route when pickup and destination are provided
   useEffect(() => {
@@ -323,7 +214,6 @@ const GoogleMap: React.FC<GoogleMapProps> = ({
       return;
     }
 
-<<<<<<< HEAD
     const calculateRoute = async () => {
       try {
         // Helper function to geocode addresses
@@ -401,11 +291,6 @@ const GoogleMap: React.FC<GoogleMapProps> = ({
       const request = {
           origin: pickupCoords,
           destination: destCoords,
-=======
-      const request = {
-        origin: pickupLocation,
-        destination: destination,
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       travelMode: google.maps.TravelMode.DRIVING
       };
 
@@ -414,7 +299,6 @@ const GoogleMap: React.FC<GoogleMapProps> = ({
           directionsRenderer.setDirections(result);
         const route = result.routes[0].legs[0];
         onRouteCalculated(route.duration.text, route.distance.text);
-<<<<<<< HEAD
           } else {
             console.error('Directions request failed:', status);
             // Fallback to simple markers without route
@@ -446,11 +330,6 @@ const GoogleMap: React.FC<GoogleMapProps> = ({
 
     calculateRoute();
   }, [pickupLocation, destination, directionsService, directionsRenderer, onRouteCalculated, geocoder]);
-=======
-      }
-    });
-  }, [pickupLocation, destination, directionsService, directionsRenderer, onRouteCalculated]);
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
   return (
     <div className="w-full h-[400px] rounded-lg overflow-hidden relative">
