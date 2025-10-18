@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { useState, useEffect, useRef } from "react";
+=======
+import { useState, useEffect } from "react";
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,11 +14,15 @@ import { supabase } from "@/lib/supabase";
 import { RideRequest } from "@/types";
 import Navbar from "@/components/Navbar";
 import { v4 as uuidv4 } from "uuid";
+<<<<<<< HEAD
 import { MapPin, Navigation, Clock, Check, X as XIcon, RefreshCw } from "lucide-react";
 import DriverInfoCard from "@/components/DriverInfoCard";
 import { websocketService, RideUpdate } from "@/services/websocketService";
 import { rideService } from "@/services/rideService";
 import RatingComponent from "@/components/RatingComponent";
+=======
+import { MapPin, Navigation } from "lucide-react";
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
 const ALLOWED_ROLES = ['student', 'admin', 'assistant'];
 const GEO_FENCE_RADIUS = 5000; // 5km in meters
@@ -27,11 +35,16 @@ const RideBooking = () => {
   const [distance, setDistance] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
+<<<<<<< HEAD
+=======
+  const [nearbyRides, setNearbyRides] = useState<any[]>([]);
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isWithinGeofence, setIsWithinGeofence] = useState<boolean>(true);
   const [rideRequest, setRideRequest] = useState<RideRequest | null>(null);
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+<<<<<<< HEAD
   const [acceptedRide, setAcceptedRide] = useState<{ rideId: string; driverId: string } | null>(null);
   const [rideStatus, setRideStatus] = useState<string | null>(null);
   const [currentRide, setCurrentRide] = useState<RideRequest | null>(null);
@@ -39,6 +52,8 @@ const RideBooking = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const locationUpdateInterval = useRef<NodeJS.Timeout | null>(null);
   const [activeRideId, setActiveRideId] = useState<string | null>(null);
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
   useEffect(() => {
     // Check if geolocation is supported by the browser
@@ -60,6 +75,7 @@ const RideBooking = () => {
     }
   }, []);
 
+<<<<<<< HEAD
   useEffect(() => {
     if (!user?.id) return;
     // Subscribe to ride updates for this student
@@ -106,6 +122,8 @@ const RideBooking = () => {
     return () => clearInterval(interval);
   }, [acceptedRide?.rideId]);
 
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
   const requestLocationPermission = () => {
     if (!navigator.geolocation) {
       setError("Geolocation is not supported by your browser");
@@ -115,10 +133,19 @@ const RideBooking = () => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setLocationPermission('granted');
+<<<<<<< HEAD
         setUserLocation({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
           address: "Current Location"
+=======
+        // Convert coordinates to address using reverse geocoding
+        // This will be handled by the GoogleMap component
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          address: "Current Location" // This will be updated by reverse geocoding
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
         });
         toast({
           title: "Location access granted",
@@ -165,10 +192,13 @@ const RideBooking = () => {
 
   const handleFindDriver = async () => {
     try {
+<<<<<<< HEAD
       setIsLoading(true);
       setError(null);
       setSuccess(null);
 
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       if (!isWithinGeofence) {
         throw new Error('Pickup location is outside the allowed area (5km radius)');
       }
@@ -243,13 +273,18 @@ const RideBooking = () => {
 
       setRideRequest(rideRequest);
       setError(null);
+<<<<<<< HEAD
       setSuccess('Ride request submitted successfully! Looking for available drivers...');
+=======
+      setSuccess('Ride request created successfully! Finding nearby drivers...');
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       
       // Clear form
       setPickupLocation('');
       setDestination('');
       setEstimatedTime('');
       setDistance('');
+<<<<<<< HEAD
 
       SystemLogs.addLog(
         "Ride request created",
@@ -411,6 +446,18 @@ const RideBooking = () => {
       });
     }
   };
+=======
+    } catch (error) {
+      console.error('Error requesting ride:', error);
+      setError(error instanceof Error ? error.message : 'Failed to request ride');
+      setSuccess(null);
+    }
+  };
+
+  if (user?.role === "driver") {
+    return <DriverRides />;
+  }
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -540,6 +587,7 @@ const RideBooking = () => {
               </div>
             )}
 
+<<<<<<< HEAD
             {acceptedRide && (
               <>
                 <DriverInfoCard rideId={acceptedRide.rideId} driverId={acceptedRide.driverId} />
@@ -549,18 +597,25 @@ const RideBooking = () => {
               </>
             )}
 
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
             <div className="p-4">
               <Button
                 className="w-full"
                 onClick={handleFindDriver}
                 disabled={isLoading || !pickupLocation || !destination || !isWithinGeofence}
               >
+<<<<<<< HEAD
                 {isLoading ? "Submitting request..." : "Request Ride"}
+=======
+                {isLoading ? "Finding driver..." : "Find Driver"}
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
               </Button>
             </div>
           </div>
         </div>
       </div>
+<<<<<<< HEAD
       {user?.role === "driver" && (
         <div className="container mx-auto p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
@@ -649,6 +704,8 @@ const RideBooking = () => {
           </div>
         </div>
       )}
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
     </div>
   );
 };

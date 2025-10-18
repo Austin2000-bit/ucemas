@@ -121,6 +121,7 @@ const Complaint = () => {
       });
 
       form.reset();
+<<<<<<< HEAD
       
       // Redirect based on user role
       switch (user.role) {
@@ -139,6 +140,9 @@ const Complaint = () => {
         default:
           navigate("/login");
       }
+=======
+      navigate("/student");
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
     } catch (error) {
       console.error("Error submitting complaint:", error);
       toast({

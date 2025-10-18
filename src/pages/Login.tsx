@@ -10,11 +10,15 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+<<<<<<< HEAD
 import { Lock, Mail, Keyboard, Info, Eye, EyeOff } from "lucide-react";
 import FontSizeSelector from "@/components/font-size-selector";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+=======
+import { Lock, Mail } from "lucide-react";
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -25,6 +29,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
+<<<<<<< HEAD
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
@@ -32,6 +37,10 @@ const Login = () => {
   
   // Initialize keyboard shortcuts
   useKeyboardShortcuts();
+=======
+  const { login } = useAuth();
+  const navigate = useNavigate();
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -79,6 +88,7 @@ const Login = () => {
       <Navbar />
       
       <main className="flex-grow flex items-center justify-center p-4">
+<<<<<<< HEAD
         <div className="max-w-md w-full">
           {/* Font Size Selector */}
           <div className="mb-4 flex justify-end">
@@ -124,11 +134,53 @@ const Login = () => {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Password</FormLabel>
+=======
+        <div className="max-w-md w-full bg-card rounded-lg shadow-md overflow-hidden">
+          <div className="p-6">
+            <div className="text-center mb-6">
+              <h1 className="text-2xl font-bold text-foreground">Welcome to UDSNMS</h1>
+              <p className="text-muted-foreground mt-2">University Disabled Students Need Management System</p>
+            </div>
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Mail className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="email"
+                            type="email"
+                            placeholder="m@example.com"
+                            className="pl-8"
+                            autoComplete="email"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                       <FormControl>
                         <div className="relative">
                           <Lock className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                           <Input
                             id="password"
+<<<<<<< HEAD
                             type={showPassword ? "text" : "password"}
                             placeholder="••••••••"
                             className="pl-8 pr-10"
@@ -210,6 +262,33 @@ const Login = () => {
               </div>
             </CardContent>
           </Card>
+=======
+                            type="password"
+                            placeholder="••••••••"
+                            className="pl-8"
+                            autoComplete="current-password"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={loading}
+                >
+                  {loading ? "Signing in..." : "Sign in"}
+                </Button>
+              </form>
+            </Form>
+
+            
+          </div>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
         </div>
       </main>
     </div>

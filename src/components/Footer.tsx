@@ -10,9 +10,15 @@ const Footer = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
+<<<<<<< HEAD
             <h3 className="text-xl font-bold mb-4 text-blue-600 dark:text-blue-400">UCEMAS</h3>
             <p className="text-muted-foreground">
               UDSM CDS Electronic Management System - Making mobility accessible for everyone.
+=======
+            <h3 className="text-xl font-bold mb-4 text-blue-600 dark:text-blue-400">USNMS</h3>
+            <p className="text-muted-foreground">
+              University Special Needs Management System - Making mobility accessible for everyone.
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
             </p>
             <div className="flex space-x-4 mt-4">
               <a href="#" className="text-muted-foreground hover:text-blue-500">
@@ -56,7 +62,11 @@ const Footer = () => {
               </div>
               <div className="flex items-center gap-2 mb-2">
                 <Mail size={16} />
+<<<<<<< HEAD
                 <span>contact@ucemas.edu</span>
+=======
+                <span>contact@usnms.edu</span>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
               </div>
               <div className="flex items-center gap-2">
                 <Phone size={16} />
@@ -67,7 +77,11 @@ const Footer = () => {
         </div>
         
         <div className="border-t border-border mt-8 pt-6 text-center text-muted-foreground">
+<<<<<<< HEAD
           <p>&copy; {currentYear} UDSM CDS Electronic Management System. All rights reserved.</p>
+=======
+          <p>&copy; {currentYear} University Special Needs Management System. All rights reserved.</p>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
         </div>
       </div>
     </footer>

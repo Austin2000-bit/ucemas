@@ -83,6 +83,7 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
         return;
       }
 
+<<<<<<< HEAD
       // Check for maximum 3 active assistants per student
       let activeAssignmentsCheck;
       if (values.period_type === "year") {
@@ -111,6 +112,8 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
         return;
       }
 
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       console.log("Creating assignment:", values);
 
       // Get the current authenticated session to ensure proper auth
@@ -198,11 +201,19 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
             name="helper_id"
             render={({ field }) => (
               <FormItem>
+<<<<<<< HEAD
                 <FormLabel>Assistant</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select assistant" />
+=======
+                <FormLabel>Helper</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select helper" />
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>

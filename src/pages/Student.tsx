@@ -9,7 +9,11 @@ import {
 } from "@/components/ui/input-otp";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+<<<<<<< HEAD
 import { Calendar, CheckCircle2, Clock, Eye, Star } from "lucide-react";
+=======
+import { Calendar, CheckCircle2, Clock } from "lucide-react";
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Link } from "react-router-dom";
@@ -19,6 +23,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { SystemLogs } from "@/utils/systemLogs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, StudentHelpConfirmation, StudentOtp } from "@/types";
+<<<<<<< HEAD
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -28,6 +33,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import RatingModal from "@/components/RatingModal";
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
 type ConfirmationWithHelper = StudentHelpConfirmation & { helperName?: string };
 
@@ -42,6 +49,7 @@ const Student = () => {
   const [assignedHelper, setAssignedHelper] = useState<User | null>(null);
   const [complaints, setComplaints] = useState<any[]>([]);
   const [userProfile, setUserProfile] = useState<any>(null);
+<<<<<<< HEAD
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
   const [isComplaintDialogOpen, setIsComplaintDialogOpen] = useState(false);
   const [isAllComplaintsModalOpen, setIsAllComplaintsModalOpen] = useState(false);
@@ -49,6 +57,8 @@ const Student = () => {
   const [ratingAssistantId, setRatingAssistantId] = useState<string>("");
   const [ratingAssistantName, setRatingAssistantName] = useState<string>("");
   const [ratingSessionId, setRatingSessionId] = useState<string>("");
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
   
   const form = useForm({
     defaultValues: {
@@ -101,6 +111,7 @@ const Student = () => {
       }
 
       // Load assigned helper
+<<<<<<< HEAD
       const { data, error } = await supabase
         .from('helper_student_assignments')
         .select('*, helper:helper_id(first_name, last_name)')
@@ -121,6 +132,14 @@ const Student = () => {
         });
       } else {
         setAssignedHelper(null);
+=======
+      const assignments = JSON.parse(localStorage.getItem("helperStudentAssignments") || "[]");
+      const users = JSON.parse(localStorage.getItem("users") || "[]");
+      const myAssignment = assignments.find((a: any) => a.student_id === studentId && a.status === "active");
+      if (myAssignment) {
+        const helper = users.find((u: any) => u.id === myAssignment.helper_id);
+        setAssignedHelper(helper || null);
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       }
       
       // Fetch user complaints
@@ -197,6 +216,7 @@ const Student = () => {
   }, [studentId, todayConfirmed, pendingOtp, form]);
   
   useEffect(() => {
+<<<<<<< HEAD
     // Fetch user profile from Supabase
     const fetchProfile = async () => {
       if (!user?.id) return;
@@ -209,6 +229,12 @@ const Student = () => {
       else setUserProfile(null);
     };
     fetchProfile();
+=======
+    // Load user profile
+    const users = JSON.parse(localStorage.getItem("users") || "[]");
+    const currentUser = users.find((u: any) => u.id === user?.id);
+    setUserProfile(currentUser);
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
   }, [user?.id]);
   
   const handleConfirm = async () => {
@@ -284,6 +310,7 @@ const Student = () => {
     
     toast({
       title: "Help confirmed",
+<<<<<<< HEAD
       description: "Thank you for confirming the Assistance provision.",
     });
     
@@ -293,12 +320,21 @@ const Student = () => {
     setRatingSessionId(otpToVerify.sessionId || "");
     setShowRatingModal(true);
     
+=======
+      description: "Thank you for confirming the help provision.",
+    });
+    
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
     form.reset();
     } catch (error) {
       console.error('Error confirming help:', error);
       toast({
         title: "Error",
+<<<<<<< HEAD
         description: "Failed to confirm Assistance. Please try again.",
+=======
+        description: "Failed to confirm help. Please try again.",
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
         variant: "destructive",
       });
       // Restore the OTP on error
@@ -323,7 +359,11 @@ const Student = () => {
       <div className="flex flex-col md:flex-row flex-grow">
         {/* Left Panel - Help Confirmation */}
         <div className="md:w-1/3 bg-gray-300 dark:bg-gray-800 p-6 flex flex-col">
+<<<<<<< HEAD
           <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-6">ASSISTANCE CONFIRMATION</h2>
+=======
+          <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-6">HELP CONFIRMATION</h2>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
           
           <div className="flex items-center gap-2 mb-4">
             <div className="w-4 h-4 rounded-full bg-blue-500"></div>
@@ -341,7 +381,11 @@ const Student = () => {
                         <CheckCircle2 className="h-5 w-5 text-green-500" />
                         <div>
                           <p className="font-medium text-sm">
+<<<<<<< HEAD
                             Confirmed on {conf.date}
+=======
+                            Confirmed on {new Date(conf.date).toLocaleDateString()}
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
                             Helper: {conf.helperName}
@@ -373,7 +417,11 @@ const Student = () => {
           {/* Assigned Helper Card */}
           <Card className="mt-6">
             <CardHeader>
+<<<<<<< HEAD
               <CardTitle>Your Assigned Assistant</CardTitle>
+=======
+              <CardTitle>Your Assigned Helper</CardTitle>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
             </CardHeader>
             <CardContent>
               {assignedHelper ? (
@@ -395,7 +443,11 @@ const Student = () => {
                   </div>
                 </div>
               ) : (
+<<<<<<< HEAD
                 <p className="text-muted-foreground">No assigned Assistant yet</p>
+=======
+                <p className="text-muted-foreground">No helper assigned yet</p>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
               )}
             </CardContent>
           </Card>
@@ -404,7 +456,11 @@ const Student = () => {
         {/* Right Panel - User Profile and OTP */}
         <div className="flex-1 p-6 dark:text-white">
           <div className="flex justify-between mb-8">
+<<<<<<< HEAD
             <h2 className="text-lg text-gray-500 dark:text-gray-400">confirm Assistance provision</h2>
+=======
+            <h2 className="text-lg text-gray-500 dark:text-gray-400">confirm help provision</h2>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
           </div>
           
           <div className="flex flex-col items-center">
@@ -419,11 +475,19 @@ const Student = () => {
             <p className="text-gray-500 dark:text-gray-400 mb-4">Any dishonesty will not be forgiven</p>
             
             <div className="flex items-center gap-2 mb-6">
+<<<<<<< HEAD
               <span className="font-medium">{currentDate}</span>
               <span className="text-gray-500 dark:text-gray-400">
                 {todayConfirmed 
                   ? "You've confirmed Assistance for today" 
                   : "confirm if your Assistant has assisted you today"}
+=======
+              <span className="font-medium">{new Date(currentDate).toLocaleDateString()}</span>
+              <span className="text-gray-500 dark:text-gray-400">
+                {todayConfirmed 
+                  ? "You've confirmed help for today" 
+                  : "confirm if your helper has assisted you today"}
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
               </span>
             </div>
             
@@ -432,6 +496,7 @@ const Student = () => {
                 <Clock className="h-4 w-4 text-blue-500" />
                 <AlertTitle className="text-blue-700 dark:text-blue-400">New OTP Received</AlertTitle>
                 <AlertDescription className="text-blue-600 dark:text-blue-300">
+<<<<<<< HEAD
                   Assistant {pendingOtp.helperName} has sent you a verification code at {formatTime(pendingOtp.timestamp)}. 
                   The code has been automatically filled in for you.
                 </AlertDescription>
@@ -445,6 +510,11 @@ const Student = () => {
                     </p>
                   </div>
                 )}
+=======
+                  Helper {pendingOtp.helperName} has sent you a verification code at {formatTime(pendingOtp.timestamp)}. 
+                  The code has been automatically filled in for you.
+                </AlertDescription>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
               </Alert>
             )}
             
@@ -452,7 +522,11 @@ const Student = () => {
               <div className="flex flex-col items-center justify-center mb-6 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg w-full max-w-xs">
                 <CheckCircle2 className="h-12 w-12 text-green-500 mb-2" />
                 <p className="text-center text-green-700 dark:text-green-400">
+<<<<<<< HEAD
                   Assistance confirmed for today
+=======
+                  Help confirmed for today
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                 </p>
               </div>
             ) : (
@@ -483,8 +557,13 @@ const Student = () => {
                 <div className="text-center mb-6">
                   <span className="text-blue-500 dark:text-blue-400">
                     {pendingOtp 
+<<<<<<< HEAD
                       ? "OTP automatically filled from Assistant" 
                       : "Enter OTP provided by Assistant"}
+=======
+                      ? "OTP automatically filled from helper" 
+                      : "Enter OTP provided by helper"}
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                   </span>
                 </div>
                 
@@ -492,7 +571,11 @@ const Student = () => {
                   className="w-full max-w-xs bg-blue-500 hover:bg-blue-600"
                   onClick={handleConfirm}
                 >
+<<<<<<< HEAD
                   Confirm Assistance
+=======
+                  Confirm Help
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                 </Button>
               </>
             )}
@@ -505,7 +588,11 @@ const Student = () => {
           {/* Complaints Summary Card */}
           <Card>
             <CardHeader>
+<<<<<<< HEAD
               <CardTitle>Your Recent Complaints</CardTitle>
+=======
+              <CardTitle>Your Complaints</CardTitle>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -527,6 +614,7 @@ const Student = () => {
                     <p className="text-sm text-muted-foreground">Resolved</p>
                   </div>
                 </div>
+<<<<<<< HEAD
                 
                 {/* Complaints List */}
                 {complaints.length > 0 && (
@@ -578,11 +666,14 @@ const Student = () => {
                     )}
                   </div>
                 )}
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+<<<<<<< HEAD
 
       {/* Complaint Detail Dialog */}
       {selectedComplaint && (
@@ -736,6 +827,8 @@ const Student = () => {
           refreshConfirmations();
         }}
       />
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
     </div>
   );
 };

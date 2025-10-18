@@ -165,7 +165,11 @@ const HelperStudentAssignment = () => {
   };
 
   const getStudents = () => {
+<<<<<<< HEAD
     return users.filter(user => user.role === 'student' || user.role === 'staff');
+=======
+    return users.filter(user => user.role === 'student');
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
   };
 
   const handleDeleteClick = (assignment: Assignment) => {
@@ -237,7 +241,11 @@ const HelperStudentAssignment = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
+<<<<<<< HEAD
         <h2 className="text-lg font-medium">Assistant-Student Assignments</h2>
+=======
+        <h2 className="text-lg font-medium">Helper-Student Assignments</h2>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
         <Button 
           onClick={() => setShowCreateForm(!showCreateForm)}
         >
@@ -258,10 +266,17 @@ const HelperStudentAssignment = () => {
           <div className="text-center py-8">Loading assignments...</div>
         ) : assignments.length > 0 ? (
           <Table>
+<<<<<<< HEAD
             <TableCaption>List of assistant-student assignments</TableCaption>
             <TableHeader>
               <TableRow>
                 <TableHead>Assistant</TableHead>
+=======
+            <TableCaption>List of helper-student assignments</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Helper</TableHead>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                 <TableHead>Student</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Period</TableHead>

@@ -67,7 +67,11 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 });
 
 // User types
+<<<<<<< HEAD
 export type UserRole = 'admin' | 'helper' | 'student' | 'driver' | 'staff';
+=======
+export type UserRole = 'admin' | 'helper' | 'student' | 'driver';
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
 // Helper function for delay with exponential backoff
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -309,11 +313,14 @@ export const signIn = async (email: string, password: string) => {
       return { success: false, error: new Error('No user data returned from auth') };
     }
 
+<<<<<<< HEAD
     // Check if email is confirmed
     if (!authData.user.email_confirmed_at && !authData.user.confirmed_at) {
       return { success: false, error: new Error('Please confirm your email before logging in.') };
     }
 
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
     // 2. Then, get the user's profile from the users table
     let { data: userData, error: userError } = await supabase
       .from('users')
@@ -856,11 +863,15 @@ export const verifyOTP = async (sessionId: string, otp: string) => {
       };
     }
 
+<<<<<<< HEAD
     // Use local date for confirmation
     const today = new Date();
     const localDateString = today.getFullYear() + '-' +
       String(today.getMonth() + 1).padStart(2, '0') + '-' +
       String(today.getDate()).padStart(2, '0');
+=======
+    // Create confirmation record
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
     const { error: confirmationError } = await supabase
       .from('student_help_confirmations')
       .insert({
@@ -868,7 +879,11 @@ export const verifyOTP = async (sessionId: string, otp: string) => {
         helper_id: session.helper_id,
         session_id: sessionId,
         description: session.description || '',
+<<<<<<< HEAD
         date: localDateString,
+=======
+        date: new Date().toISOString().split('T')[0],
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
         status: 'confirmed',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -967,8 +982,12 @@ export const getStudentOtp = async (studentId: string) => {
       helperId: session.helper_id,
       studentId: session.student_id,
       helperName: `${session.helper.first_name} ${session.helper.last_name}`,
+<<<<<<< HEAD
       timestamp: new Date(session.created_at).getTime(),
       description: session.description
+=======
+      timestamp: new Date(session.created_at).getTime()
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
     };
     
     console.log('Returning OTP data:', result);

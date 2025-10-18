@@ -1,5 +1,9 @@
 import { useAuth } from "@/hooks/useAuth";
+<<<<<<< HEAD
 import MessageSystem from "@/components/Messaging/MessageSystem";
+=======
+import MessageSystem from "@/components/MessageSystem";
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 import Navbar from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 

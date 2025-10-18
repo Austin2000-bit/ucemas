@@ -15,7 +15,11 @@ export interface Database {
           email: string
           first_name: string
           last_name: string
+<<<<<<< HEAD
           role: 'admin' | 'helper' | 'student' | 'driver' | 'staff'
+=======
+          role: 'admin' | 'helper' | 'student' | 'driver'
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
           phone: string | null
           disability_type: string | null
           bank_name: 'CRDB' | 'NBC' | null
@@ -33,7 +37,11 @@ export interface Database {
           email: string
           first_name: string
           last_name: string
+<<<<<<< HEAD
           role: 'admin' | 'helper' | 'student' | 'driver' | 'staff'
+=======
+          role: 'admin' | 'helper' | 'student' | 'driver'
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
           phone?: string | null
           disability_type?: string | null
           bank_name?: 'CRDB' | 'NBC' | null

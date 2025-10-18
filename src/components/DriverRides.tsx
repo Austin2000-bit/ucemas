@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { useState, useEffect, useRef } from "react";
+=======
+import { useState, useEffect } from "react";
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { MapPin, Clock, Check, X as XIcon, RefreshCw } from "lucide-react";
@@ -7,8 +11,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { SystemLogs } from "@/utils/systemLogs";
 import { rideService } from "@/services/rideService";
 import { RideRequest } from "@/types";
+<<<<<<< HEAD
 import { supabase } from "@/lib/supabase";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
 interface RideStats {
   totalRides: number;
@@ -29,12 +36,16 @@ const DriverRides = () => {
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { user } = useAuth();
+<<<<<<< HEAD
   const locationUpdateInterval = useRef<NodeJS.Timeout | null>(null);
   const [activeRideId, setActiveRideId] = useState<string | null>(null);
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
   const loadPendingRides = async () => {
     try {
       if (!user?.id) return;
+<<<<<<< HEAD
       // Fetch both pending rides (unassigned) and accepted rides assigned to this driver
       const { data: rides, error } = await supabase
         .from('ride_requests')
@@ -43,6 +54,11 @@ const DriverRides = () => {
         .or(`driver_id.is.null,driver_id.eq.${user.id}`);
       if (error) throw error;
       setPendingRides(rides || []);
+=======
+      const pending = await rideService.getPendingRides();
+      console.log("Loaded pending rides:", pending);
+      setPendingRides(pending);
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
     } catch (error) {
       console.error("Error loading pending rides:", error);
       toast({
@@ -93,6 +109,7 @@ const DriverRides = () => {
       return;
     }
 
+<<<<<<< HEAD
     // Get driver's current location
     navigator.geolocation.getCurrentPosition(async (position) => {
       const driverLocation = {
@@ -151,6 +168,37 @@ const DriverRides = () => {
         variant: "destructive",
       });
     });
+=======
+    try {
+      const success = await rideService.acceptRide(ride.id!, user.id);
+
+      if (success) {
+        setPendingRides(prev => prev.filter(r => r.id !== ride.id));
+        calculateStats();
+
+        SystemLogs.addLog(
+          "Ride accepted",
+          `Driver ${user.first_name} ${user.last_name} accepted ride from ${ride.pickup_location} to ${ride.destination}`,
+          user.id,
+          user.role
+        );
+
+        toast({
+          title: "Ride accepted!",
+          description: "You have accepted this ride request.",
+        });
+      } else {
+        throw new Error("Failed to accept ride");
+      }
+    } catch (error) {
+      console.error("Error accepting ride:", error);
+      toast({
+        title: "Error",
+        description: "Failed to accept ride. Please try again.",
+        variant: "destructive",
+      });
+    }
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
   };
 
   const handleRejectRide = async (ride: RideRequest) => {
@@ -181,12 +229,15 @@ const DriverRides = () => {
           title: "Ride rejected",
           description: "You have rejected this ride request.",
         });
+<<<<<<< HEAD
         // Clear location update interval if this was the active ride
         if (activeRideId === ride.id && locationUpdateInterval.current) {
           clearInterval(locationUpdateInterval.current);
           locationUpdateInterval.current = null;
           setActiveRideId(null);
         }
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       } else {
         throw new Error("Failed to reject ride");
       }
@@ -200,6 +251,7 @@ const DriverRides = () => {
     }
   };
 
+<<<<<<< HEAD
   const handleCompleteRide = async (ride: RideRequest) => {
     if (!user?.id) {
       toast({
@@ -252,6 +304,8 @@ const DriverRides = () => {
     }
   };
 
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
@@ -354,6 +408,7 @@ const DriverRides = () => {
                         <span className="text-sm font-bold">{ride.estimatedTime || "Calculating..."}</span>
                       </div>
                       
+<<<<<<< HEAD
                       {ride.status === 'pending' ? (
                         <div className="flex gap-4">
                           <Button 
@@ -383,6 +438,25 @@ const DriverRides = () => {
                           </Button>
                         </div>
                       ) : null}
+=======
+                      <div className="flex gap-4">
+                        <Button 
+                          className="flex-1" 
+                          variant="outline"
+                          onClick={() => handleRejectRide(ride)}
+                        >
+                          <XIcon className="mr-2 h-4 w-4" />
+                          Reject
+                        </Button>
+                        <Button 
+                          className="flex-1"
+                          onClick={() => handleAcceptRide(ride)}
+                        >
+                          <Check className="mr-2 h-4 w-4" />
+                          Accept
+                        </Button>
+                      </div>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                     </div>
                   </div>
                 ))}
@@ -390,6 +464,7 @@ const DriverRides = () => {
             )}
           </div>
         </div>
+<<<<<<< HEAD
 
         <Card>
           <CardHeader>
@@ -404,10 +479,15 @@ const DriverRides = () => {
             </div>
           </CardContent>
         </Card>
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       </div>
     </div>
   );
 };
 
 export default DriverRides;
+<<<<<<< HEAD
 
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136

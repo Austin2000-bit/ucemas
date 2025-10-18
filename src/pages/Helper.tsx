@@ -4,7 +4,11 @@ import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+<<<<<<< HEAD
 import { RefreshCw, Clipboard, CheckCircle, Eye } from "lucide-react";
+=======
+import { RefreshCw, Clipboard, CheckCircle } from "lucide-react";
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 import {
   Select,
   SelectContent,
@@ -23,13 +27,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+<<<<<<< HEAD
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 import { User, SignInRecord } from "@/types";
+<<<<<<< HEAD
 import { getComplaintsByUserId } from "@/lib/supabase";
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
 // Define the shape of the confirmation data with the nested student object
 interface HelpConfirmationWithStudent {
@@ -55,10 +65,13 @@ const Helper = () => {
   const [assignedStudents, setAssignedStudents] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
+<<<<<<< HEAD
   const [complaints, setComplaints] = useState<any[]>([]);
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
   const [isComplaintDialogOpen, setIsComplaintDialogOpen] = useState(false);
   const [isAllComplaintsModalOpen, setIsAllComplaintsModalOpen] = useState(false);
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
   const loadData = useCallback(async () => {
     if (!user?.id) return;
@@ -141,12 +154,15 @@ const Helper = () => {
     return () => clearInterval(interval);
   }, [loadData]);
 
+<<<<<<< HEAD
   useEffect(() => {
     if (!user?.id) return;
     // Fetch complaints for the assistant
     getComplaintsByUserId(user.id).then(setComplaints);
   }, [user?.id]);
 
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
   const generateOTP = async () => {
     if (!user?.id || !selectedStudent) return;
     
@@ -340,7 +356,11 @@ const Helper = () => {
 
       <div className="flex flex-col md:flex-row flex-grow">
         <div className="md:w-1/3 bg-gray-300 dark:bg-gray-800 p-6 flex flex-col">
+<<<<<<< HEAD
           <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-6">ASSISTANCE CONFIRMATION</h2>
+=======
+          <h2 className="text-2xl font-bold text-gray-700 dark:text-gray-200 mb-6">HELP CONFIRMATION</h2>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
           
           <div className="flex items-center gap-2 mb-4">
             <div className="w-4 h-4 rounded-full bg-blue-500"></div>
@@ -366,7 +386,11 @@ const Helper = () => {
                   disabled={assignedStudents.length === 1}
                 >
                   <SelectTrigger className="w-full">
+<<<<<<< HEAD
                     <SelectValue placeholder="Assigned student" />
+=======
+                    <SelectValue placeholder="Select assigned student" />
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                   </SelectTrigger>
                   <SelectContent>
                     {assignedStudents.map((student) => (
@@ -385,7 +409,11 @@ const Helper = () => {
               
               <div className="space-y-2">
                 <Textarea
+<<<<<<< HEAD
                   placeholder="Briefly describe Assistance provided..."
+=======
+                  placeholder="Briefly describe help provided..."
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
@@ -430,7 +458,11 @@ const Helper = () => {
                     </Button>
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+<<<<<<< HEAD
                     Share this OTP with the student to verify Assistance provision
+=======
+                    Share this OTP with the student to verify help provision
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                   </p>
                   <Button 
                     size="sm" 
@@ -448,13 +480,21 @@ const Helper = () => {
         </div>
 
         <div className="flex-1 p-6 flex flex-col dark:text-white overflow-y-auto">
+<<<<<<< HEAD
           <h1 className="text-xl font-medium mb-4 text-center">Recent Assistance Confirmations</h1>
+=======
+          <h1 className="text-xl font-medium mb-4 text-center">Recent Help Confirmations</h1>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
           
           <div className="w-full mt-6 max-w-4xl mx-auto">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
               <ScrollArea className="h-[calc(100vh-250px)]">
                 <Table>
+<<<<<<< HEAD
                   <TableCaption>A list of recent Assistance provisions</TableCaption>
+=======
+                  <TableCaption>A list of recent help provisions</TableCaption>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
@@ -494,6 +534,7 @@ const Helper = () => {
               </ScrollArea>
             </div>
           </div>
+<<<<<<< HEAD
 
           {/* Complaints Summary Card */}
           <div className="container mx-auto p-6 mt-6">
@@ -696,6 +737,10 @@ const Helper = () => {
           </DialogContent>
         </Dialog>
       )}
+=======
+        </div>
+      </div>
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
     </div>
   );
 };

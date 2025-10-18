@@ -20,7 +20,10 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import Navbar from "@/components/Navbar";
 import { supabase } from "@/lib/supabase";
+<<<<<<< HEAD
 import { websocketService, RideUpdate } from "@/services/websocketService";
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
 // Define a new type for the local storage ride requests
 interface LocalRideRequest {
@@ -39,7 +42,10 @@ interface LocalRideRequest {
 const Driver = () => {
   const { user } = useAuth();
   const [rideRequests, setRideRequests] = useState<LocalRideRequest[]>([]);
+<<<<<<< HEAD
   const [locationPermission, setLocationPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
   // Helper function to safely convert status string to the allowed literal types
   const validateStatus = (status: string): "pending" | "accepted" | "completed" | "declined" => {
@@ -52,6 +58,7 @@ const Driver = () => {
   // Load ride requests from Supabase only
   const loadRideRequests = async () => {
     try {
+<<<<<<< HEAD
       console.log('Loading ride requests for driver:', user?.id);
       
       // First, get available ride requests (not assigned to any driver)
@@ -108,17 +115,38 @@ const Driver = () => {
         id: dbReq.id,
           studentName: student ? `${student.first_name} ${student.last_name}` : 'Unknown Student',
           studentEmail: student?.email || 'No email',
+=======
+      const { data: dbRequests, error } = await supabase
+        .from('ride_requests')
+        .select('*')
+        .eq('driver_id', user?.id); // Only fetch rides for this driver
+
+      if (error) throw error;
+
+      // Convert DB requests to LocalRideRequest format
+      const formattedRequests: LocalRideRequest[] = (dbRequests || []).map(dbReq => ({
+        id: dbReq.id,
+        studentName: dbReq.student_id, // You may want to join with users table for real names
+        studentEmail: dbReq.student_id + "@example.com", // Placeholder
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
         pickupLocation: dbReq.pickup_location,
         destination: dbReq.destination,
         date: new Date(dbReq.created_at || Date.now()).toLocaleDateString(),
         time: new Date(dbReq.created_at || Date.now()).toLocaleTimeString(),
         status: validateStatus(dbReq.status),
+<<<<<<< HEAD
           disabilityType: student?.disability_type || "Not specified",
           additionalNotes: dbReq.driver_id ? "Assigned to you" : "Available for pickup"
         };
       });
 
       console.log('Formatted requests:', formattedRequests);
+=======
+        disabilityType: "Not specified", // Update if you have this info
+        additionalNotes: "From database"
+      }));
+
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       setRideRequests(formattedRequests);
     } catch (dbError) {
       console.error("Error loading ride requests from database:", dbError);
@@ -132,6 +160,7 @@ const Driver = () => {
     }
   }, [user?.id]);
 
+<<<<<<< HEAD
   // WebSocket subscription for real-time ride updates
   useEffect(() => {
     if (!user?.id) return;
@@ -274,6 +303,69 @@ const Driver = () => {
       toast({
         title: "Error",
         description: "Failed to create test ride request",
+=======
+  // Optionally, add real-time subscription for instant updates
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    let channel: any = null;
+    
+    try {
+      channel = supabase
+        .channel('public:ride_requests')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'ride_requests' },
+          payload => {
+            loadRideRequests();
+          }
+        )
+        .subscribe((status) => {
+          console.log('Ride requests subscription status:', status);
+        });
+    } catch (error) {
+      console.error('Error setting up ride requests subscription:', error);
+    }
+    
+    return () => {
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch (error) {
+          console.error('Error removing ride requests subscription:', error);
+        }
+      }
+    };
+  }, [user?.id]);
+
+  const handleRideAction = async (requestId: string, action: "accept" | "decline" | "complete") => {
+    // Update in Supabase
+    try {
+      const statusForDb = action === "decline" ? "rejected" : action === "accept" ? "accepted" : "completed";
+      const { error } = await supabase
+        .from('ride_requests')
+        .update({ 
+          status: statusForDb,
+          driver_id: user?.id || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      // Refetch from DB to update UI
+      await loadRideRequests();
+
+      toast({
+        title: "Ride Request Updated",
+        description: `Ride request has been ${action}ed.`,
+      });
+    } catch (error) {
+      console.error("Error updating ride request in database:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update ride request.",
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
         variant: "destructive"
       });
     }
@@ -281,6 +373,7 @@ const Driver = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+<<<<<<< HEAD
       {locationPermission !== 'granted' && (
         <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative mb-4 text-center">
           <b>Location access is required for live tracking.</b><br />
@@ -300,6 +393,8 @@ const Driver = () => {
           </button>
         </div>
       )}
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       <Navbar title="Driver Dashboard" />
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -353,7 +448,10 @@ const Driver = () => {
                 <Button variant="outline" className="w-full" onClick={loadRideRequests}>
                   Refresh Requests
                 </Button>
+<<<<<<< HEAD
               
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
               </div>
             </CardContent>
           </Card>
@@ -400,7 +498,10 @@ const Driver = () => {
                           </TableCell>
                           <TableCell>{request.disabilityType}</TableCell>
                           <TableCell>
+<<<<<<< HEAD
                             <div className="space-y-1">
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                             <Badge
                               variant={
                                 request.status === "accepted" ? "default" :
@@ -411,6 +512,7 @@ const Driver = () => {
                             >
                               {request.status}
                             </Badge>
+<<<<<<< HEAD
                               {request.status === "pending" && (
                                 <div className="text-xs text-blue-600 font-medium">
                                   Available for pickup
@@ -422,6 +524,8 @@ const Driver = () => {
                                 </div>
                               )}
                             </div>
+=======
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                           </TableCell>
                           <TableCell className="text-right space-x-2">
                             {request.status === "pending" && (
@@ -444,6 +548,7 @@ const Driver = () => {
                             {request.status === "accepted" && (
                               <Button
                                 size="sm"
+<<<<<<< HEAD
                                 variant="default"
                                 className="bg-green-600 hover:bg-green-700 text-white"
                                 onClick={() => {
@@ -453,6 +558,12 @@ const Driver = () => {
                                 }}
                               >
                                 Complete Ride
+=======
+                                variant="outline"
+                                onClick={() => handleRideAction(request.id, "complete")}
+                              >
+                                Complete
+>>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                               </Button>
                             )}
                           </TableCell>
