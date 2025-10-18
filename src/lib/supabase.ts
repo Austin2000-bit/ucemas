@@ -67,7 +67,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 });
 
 // User types
-export type UserRole = 'admin' | 'helper' | 'student' | 'driver';
+export type UserRole = 'admin' | 'helper' | 'student' | 'driver' | 'staff';
 
 // Helper function for delay with exponential backoff
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -967,7 +967,8 @@ export const getStudentOtp = async (studentId: string) => {
       helperId: session.helper_id,
       studentId: session.student_id,
       helperName: `${session.helper.first_name} ${session.helper.last_name}`,
-      timestamp: new Date(session.created_at).getTime()
+      timestamp: new Date(session.created_at).getTime(),
+      description: session.description
     };
     
     console.log('Returning OTP data:', result);

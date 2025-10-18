@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useRoutes } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
+import { FontSizeProvider } from "@/components/font-size-provider";
 import { AuthProvider } from "@/utils/auth";
 import { testSupabaseConnection } from '@/lib/supabase';
 import { initializeData } from "@/utils/initData";
@@ -36,22 +37,24 @@ const App = () => {
 
   return (
     <ThemeProvider defaultTheme="light">
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <AuthProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <div className="min-h-screen flex flex-col">
-                <AppRoutes />
-                <div className="hidden md:block">
-                <Footer />
+      <FontSizeProvider defaultFontSize="default">
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <AuthProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <div className="min-h-screen flex flex-col">
+                  <AppRoutes />
+                  <div className="hidden md:block">
+                  <Footer />
+                  </div>
                 </div>
-              </div>
-            </BrowserRouter>
-          </AuthProvider>
-        </TooltipProvider>
-      </QueryClientProvider>
+              </BrowserRouter>
+            </AuthProvider>
+          </TooltipProvider>
+        </QueryClientProvider>
+      </FontSizeProvider>
     </ThemeProvider>
   );
 };

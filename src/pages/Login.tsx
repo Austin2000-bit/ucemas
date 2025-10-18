@@ -10,7 +10,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Lock, Mail } from "lucide-react";
+import { Lock, Mail, Keyboard, Info, Eye, EyeOff } from "lucide-react";
+import FontSizeSelector from "@/components/font-size-selector";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -21,8 +25,13 @@ type FormValues = z.infer<typeof formSchema>;
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  
+  // Initialize keyboard shortcuts
+  useKeyboardShortcuts();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -70,75 +79,137 @@ const Login = () => {
       <Navbar />
       
       <main className="flex-grow flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-card rounded-lg shadow-md overflow-hidden">
-          <div className="p-6">
-            <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold text-foreground">Welcome to UDSNMS</h1>
-              <p className="text-muted-foreground mt-2">University Of Dar es Salaam Special Needs Management System</p>
-            </div>
+        <div className="max-w-md w-full">
+          {/* Font Size Selector */}
+          <div className="mb-4 flex justify-end">
+            <FontSizeSelector />
+          </div>
 
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Mail className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            id="email"
-                            type="email"
-                            placeholder="m@example.com"
-                            className="pl-8"
-                            autoComplete="email"
-                            {...field}
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+          <Card className="shadow-md">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl font-bold text-foreground">Welcome to UCEMAS</CardTitle>
+              <CardDescription>UDSM CDS Electronic Management System</CardDescription>
+            </CardHeader>
+            
+            <CardContent>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              id="email"
+                              type="email"
+                              placeholder="m@example.com"
+                              className="pl-8"
+                              autoComplete="email"
+                              {...field}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Lock className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                           <Input
                             id="password"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             placeholder="••••••••"
-                            className="pl-8"
+                            className="pl-8 pr-10"
                             autoComplete="current-password"
                             {...field}
                           />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowPassword(!showPassword)}
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </Button>
                         </div>
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <Button 
-                  type="submit" 
-                  className="w-full"
-                  disabled={loading}
-                >
-                  {loading ? "Signing in..." : "Sign in"}
-                </Button>
-              </form>
-            </Form>
+                  <Button 
+                    type="submit" 
+                    className="w-full"
+                    disabled={loading}
+                  >
+                    {loading ? "Signing in..." : "Sign in"}
+                  </Button>
+                </form>
+              </Form>
 
-            
-          </div>
+              {/* Keyboard Shortcuts Info */}
+              <div className="mt-6 pt-4 border-t">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Keyboard className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Keyboard Shortcuts</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowShortcuts(!showShortcuts)}
+                    className="h-6 px-2"
+                  >
+                    <Info className="h-3 w-3" />
+                  </Button>
+                </div>
+                
+                {showShortcuts && (
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Font Size:</span>
+                      <div className="flex gap-1">
+                        <Badge variant="outline" className="text-xs">Ctrl+1</Badge>
+                        <Badge variant="outline" className="text-xs">Ctrl+2</Badge>
+                        <Badge variant="outline" className="text-xs">Ctrl+3</Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Focus Email:</span>
+                      <Badge variant="outline" className="text-xs">Ctrl+K</Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Submit Form:</span>
+                      <Badge variant="outline" className="text-xs">Ctrl+Enter</Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Clear Focus:</span>
+                      <Badge variant="outline" className="text-xs">Esc</Badge>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>

@@ -165,7 +165,7 @@ const HelperStudentAssignment = () => {
   };
 
   const getStudents = () => {
-    return users.filter(user => user.role === 'student');
+    return users.filter(user => user.role === 'student' || user.role === 'staff');
   };
 
   const handleDeleteClick = (assignment: Assignment) => {

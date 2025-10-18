@@ -3,7 +3,7 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  role: 'admin' | 'helper' | 'student' | 'driver';
+  role: 'admin' | 'helper' | 'student' | 'driver' | 'staff';
   created_at: string;
   updated_at: string;
   photo?: string;
@@ -27,6 +27,7 @@ export interface StudentHelpConfirmation {
   student_id: string;
   helper_id: string;
   description?: string;
+  session_id?: string;
   date: string;
   status: 'pending' | 'confirmed' | 'rejected';
   created_at: string;
@@ -82,6 +83,7 @@ export interface StudentOtp {
   helperName: string;
   studentId: string;
   helperId: string;
+  description?: string;
 }
 
 export interface SystemLog {
@@ -91,6 +93,28 @@ export interface SystemLog {
   userId?: string;
   userRole?: string;
   timestamp: number;
+}
+
+export interface AssistantRating {
+  id?: string;
+  student_id: string;
+  assistant_id: string;
+  rating: number; // 1-5 scale
+  feedback?: string;
+  session_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RatingCategory {
+  id?: string;
+  name: string;
+  min_rating: number;
+  max_rating: number;
+  description?: string;
+  color?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // Types needed for other parts of the application

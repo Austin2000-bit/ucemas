@@ -22,6 +22,7 @@ const RideBooking = React.lazy(() => import("./pages/RideBooking"));
 const ConfirmationLogs = React.lazy(() => import("./pages/ConfirmationLogs"));
 const Messages = React.lazy(() => import("./pages/Messages"));
 const Driver = React.lazy(() => import("./pages/Driver"));
+const Staff = React.lazy(() => import("./pages/Staff"));
 
 export const routes: RouteObject[] = [
   {
@@ -58,6 +59,11 @@ export const routes: RouteObject[] = [
   {
     path: "/student",
     element: <ProtectedRoute requiredRoles={["student"]}><Student /></ProtectedRoute>
+  },
+  // Staff only routes
+  {
+    path: "/staff",
+    element: <ProtectedRoute requiredRoles={["staff"]}><Staff /></ProtectedRoute>
   },
   // Driver only routes
   {

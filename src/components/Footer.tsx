@@ -10,9 +10,9 @@ const Footer = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <h3 className="text-xl font-bold mb-4 text-blue-600 dark:text-blue-400">USNMS</h3>
+            <h3 className="text-xl font-bold mb-4 text-blue-600 dark:text-blue-400">UCEMAS</h3>
             <p className="text-muted-foreground">
-              University Special Needs Management System - Making mobility accessible for everyone.
+              UDSM CDS Electronic Management System - Making mobility accessible for everyone.
             </p>
             <div className="flex space-x-4 mt-4">
               <a href="#" className="text-muted-foreground hover:text-blue-500">
@@ -56,7 +56,7 @@ const Footer = () => {
               </div>
               <div className="flex items-center gap-2 mb-2">
                 <Mail size={16} />
-                <span>contact@usnms.edu</span>
+                <span>contact@ucemas.edu</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone size={16} />
@@ -67,7 +67,7 @@ const Footer = () => {
         </div>
         
         <div className="border-t border-border mt-8 pt-6 text-center text-muted-foreground">
-          <p>&copy; {currentYear} University Special Needs Management System. All rights reserved.</p>
+          <p>&copy; {currentYear} UDSM CDS Electronic Management System. All rights reserved.</p>
         </div>
       </div>
     </footer>

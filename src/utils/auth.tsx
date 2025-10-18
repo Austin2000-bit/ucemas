@@ -191,6 +191,9 @@ export const ProtectedRoute = ({
         case "student":
           redirectPath = "/student";
           break;
+        case "staff":
+          redirectPath = "/staff";
+          break;
         case "driver":
           redirectPath = "/driver";
           break;
@@ -218,6 +221,8 @@ export const PublicRoute = ({ children }: { children: ReactNode }) => {
         return <Navigate to="/helper" replace />;
       case "student":
         return <Navigate to="/student" replace />;
+      case "staff":
+        return <Navigate to="/staff" replace />;
       case "driver":
         return <Navigate to="/driver" replace />;
       default:

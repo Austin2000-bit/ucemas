@@ -83,6 +83,34 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
         return;
       }
 
+      // Check for maximum 3 active assistants per student
+      let activeAssignmentsCheck;
+      if (values.period_type === "year") {
+        activeAssignmentsCheck = await supabase
+          .from('helper_student_assignments')
+          .select('id')
+          .eq('student_id', values.student_id)
+          .eq('status', 'active')
+          .eq('academic_year', values.academic_year);
+      } else {
+        activeAssignmentsCheck = await supabase
+          .from('helper_student_assignments')
+          .select('id')
+          .eq('student_id', values.student_id)
+          .eq('status', 'active')
+          .eq('semester', values.semester);
+      }
+
+      if (activeAssignmentsCheck.data && activeAssignmentsCheck.data.length >= 3) {
+        toast({
+          title: "Maximum Assistants Reached",
+          description: "This student already has 3 active assistants. Please deactivate an existing assignment first.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       console.log("Creating assignment:", values);
 
       // Get the current authenticated session to ensure proper auth

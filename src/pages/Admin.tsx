@@ -32,7 +32,8 @@ import {
   BarChart,
   MonitorDot,
   Users,
-  Database
+  Database,
+  Star
 } from "lucide-react";
 import AdminGadgetLending from "@/components/Admin/AdminGadgetLending";
 import AdminUsers from "@/components/Admin/AdminUsers";
@@ -42,6 +43,7 @@ import HelperStudentAssignment from "@/components/Admin/HelperStudentAssignment"
 import HelperStatusTracking from "@/components/Admin/HelperStatusTracking";
 import SystemLogs from "@/components/Admin/SystemLogs";
 import DebugDatabase from "@/components/DebugDatabase";
+import AdminRatingsDashboard from "@/components/Admin/AdminRatingsDashboard";
 import { supabase } from "@/lib/supabase";
 import { Complaint } from "@/types";
 import AdminDashboard from "@/components/Admin/AdminDashboard";
@@ -103,6 +105,7 @@ const Admin: React.FC = () => {
     { icon: Laptop, label: "Gadget Lending", url: "gadgets", id: "gadgets", title: "Gadget Lending" },
     { icon: UserCog, label: "User Management", url: "user-management", id: "user-management", title: "User Management" },
     { icon: List, label: "Assistant Status Tracking", url: "helper-status", id: "helper-status", title: "Assistant Status Tracking" },
+    { icon: Star, label: "Assistant Ratings", url: "ratings", id: "ratings", title: "Assistant Ratings" },
     { icon: MonitorDot, label: "System Logs", url: "system-logs", id: "system-logs", title: "System Logs" }
   ];
   
@@ -325,7 +328,9 @@ const Admin: React.FC = () => {
       case "user-management":
         return <AdminUsers />;
       case "helper-status":
-        return <HelperStatusTracking assistantMode={true} />;
+        return <HelperStatusTracking />;
+      case "ratings":
+        return <AdminRatingsDashboard />;
       case "system-logs":
         return <SystemLogs />;
       default:
@@ -336,7 +341,7 @@ const Admin: React.FC = () => {
   if (!dashboardData) {
     return (
       <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-        <Navbar title="UDSNMS" />
+        <Navbar title="UCEMAS" />
         <div className="flex-1 flex items-center justify-center">
           <p>Loading...</p>
         </div>
@@ -346,7 +351,7 @@ const Admin: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-      <Navbar title="UDSNMS" />
+      <Navbar title="UCEMAS" />
       <div className="flex min-h-screen">
         {/* Sidebar */}
         <div className="w-64 bg-gray-200 dark:bg-gray-800 min-h-screen overflow-x-hidden overflow-hidden">

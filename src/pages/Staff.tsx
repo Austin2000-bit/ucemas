@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/input-otp";
 import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
-import { Calendar, CheckCircle2, Clock, Eye, Star } from "lucide-react";
+import { Calendar, CheckCircle2, Clock, Eye } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Link } from "react-router-dom";
@@ -27,13 +27,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import RatingModal from "@/components/RatingModal";
 
 type ConfirmationWithHelper = StudentHelpConfirmation & { helperName?: string };
 
-const Student = () => {
+const Staff = () => {
   const { user } = useAuth();
-  const studentId = user?.id || "";
+  const staffId = user?.id || "";
   const [currentDate] = useState(new Date().toISOString().split('T')[0]);
   
   const [todayConfirmed, setTodayConfirmed] = useState(false);
@@ -45,10 +44,6 @@ const Student = () => {
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
   const [isComplaintDialogOpen, setIsComplaintDialogOpen] = useState(false);
   const [isAllComplaintsModalOpen, setIsAllComplaintsModalOpen] = useState(false);
-  const [showRatingModal, setShowRatingModal] = useState(false);
-  const [ratingAssistantId, setRatingAssistantId] = useState<string>("");
-  const [ratingAssistantName, setRatingAssistantName] = useState<string>("");
-  const [ratingSessionId, setRatingSessionId] = useState<string>("");
   
   const form = useForm({
     defaultValues: {
@@ -58,20 +53,20 @@ const Student = () => {
 
   // Fetch initial data and set up subscriptions
   useEffect(() => {
-    if (!studentId) return;
+    if (!staffId) return;
 
     const loadData = async () => {
       // Debug authentication
-      console.log('=== STUDENT AUTH DEBUG ===');
-      console.log('Student ID:', studentId);
+      console.log('=== STAFF AUTH DEBUG ===');
+      console.log('Staff ID:', staffId);
       console.log('User object:', user);
       
       const { data: { session } } = await supabase.auth.getSession();
       console.log('Auth session:', session);
       console.log('Auth UID:', session?.user?.id);
-      console.log('=== END STUDENT AUTH DEBUG ===');
+      console.log('=== END STAFF AUTH DEBUG ===');
 
-      // Get student's confirmations
+      // Get staff's confirmations
       const { data: confirmationsData, error: confirmationsError } = await supabase
         .from('student_help_confirmations')
         .select(`
@@ -81,7 +76,7 @@ const Student = () => {
             last_name
           )
         `)
-        .eq('student_id', studentId)
+        .eq('student_id', staffId)
         .order('created_at', { ascending: false });
 
       if (confirmationsError) {
@@ -104,7 +99,7 @@ const Student = () => {
       const { data, error } = await supabase
         .from('helper_student_assignments')
         .select('*, helper:helper_id(first_name, last_name)')
-        .eq('student_id', studentId)
+        .eq('student_id', staffId)
         .eq('status', 'active')
         .single();
 
@@ -124,7 +119,7 @@ const Student = () => {
       }
       
       // Fetch user complaints
-      const userComplaints = await getComplaintsByUserId(studentId);
+      const userComplaints = await getComplaintsByUserId(staffId);
       setComplaints(userComplaints);
     };
     
@@ -135,13 +130,13 @@ const Student = () => {
     
     try {
       complaintSubscription = supabase
-        .channel(`public:complaints:user_id=eq.${studentId}`)
+        .channel(`public:complaints:user_id=eq.${staffId}`)
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'complaints', filter: `user_id=eq.${studentId}` },
+          { event: '*', schema: 'public', table: 'complaints', filter: `user_id=eq.${staffId}` },
           (payload) => {
             console.log('Complaint change received!', payload);
-            getComplaintsByUserId(studentId).then(setComplaints);
+            getComplaintsByUserId(staffId).then(setComplaints);
           }
         )
         .subscribe((status) => {
@@ -161,29 +156,29 @@ const Student = () => {
         }
       }
     };
-  }, [studentId, user]);
+  }, [staffId, user]);
 
   // Poll for new OTPs
   useEffect(() => {
     const pollOtp = async () => {
-      if (!studentId || todayConfirmed) return;
+      if (!staffId || todayConfirmed) return;
       
       console.log('=== OTP POLLING DEBUG ===');
-      console.log('Student ID:', studentId);
+      console.log('Staff ID:', staffId);
       console.log('Today confirmed:', todayConfirmed);
       console.log('Polling for new OTP...');
       
-      const studentOtp = await getStudentOtp(studentId);
-      console.log('Polled OTP result:', studentOtp);
+      const staffOtp = await getStudentOtp(staffId);
+      console.log('Polled OTP result:', staffOtp);
       
-      if (studentOtp && (!pendingOtp || studentOtp.timestamp !== pendingOtp.timestamp)) {
-        console.log('New OTP detected:', studentOtp);
-        setPendingOtp(studentOtp);
-        form.setValue("otp", studentOtp.otp);
+      if (staffOtp && (!pendingOtp || staffOtp.timestamp !== pendingOtp.timestamp)) {
+        console.log('New OTP detected:', staffOtp);
+        setPendingOtp(staffOtp);
+        form.setValue("otp", staffOtp.otp);
         
         toast({
           title: "New OTP Received",
-          description: `Helper ${studentOtp.helperName} has sent you a verification code.`,
+          description: `Helper ${staffOtp.helperName} has sent you a verification code.`,
         });
       } else {
         console.log('No new OTP found or OTP already pending');
@@ -194,7 +189,7 @@ const Student = () => {
     const interval = setInterval(pollOtp, 10000);
     
     return () => clearInterval(interval);
-  }, [studentId, todayConfirmed, pendingOtp, form]);
+  }, [staffId, todayConfirmed, pendingOtp, form]);
   
   useEffect(() => {
     // Fetch user profile from Supabase
@@ -263,7 +258,7 @@ const Student = () => {
             last_name
           )
         `)
-        .eq('student_id', studentId)
+        .eq('student_id', staffId)
         .order('created_at', { ascending: false });
         
       if (!confirmationsError && confirmationsData) {
@@ -277,21 +272,15 @@ const Student = () => {
     // Log the confirmation
     SystemLogs.addLog(
       "Help confirmed",
-        `Student ${user?.first_name} ${user?.last_name} confirmed help from helper ${otpToVerify.helperName}`,
-      studentId,
-      "student"
+        `Staff ${user?.first_name} ${user?.last_name} confirmed help from helper ${otpToVerify.helperName}`,
+      staffId,
+      "staff"
     );
     
     toast({
       title: "Help confirmed",
       description: "Thank you for confirming the Assistance provision.",
     });
-    
-    // Show rating modal after successful confirmation
-    setRatingAssistantId(otpToVerify.helperId);
-    setRatingAssistantName(otpToVerify.helperName);
-    setRatingSessionId(otpToVerify.sessionId || "");
-    setShowRatingModal(true);
     
     form.reset();
     } catch (error) {
@@ -702,42 +691,8 @@ const Student = () => {
           </DialogContent>
         </Dialog>
       )}
-
-      {/* Rating Modal */}
-      <RatingModal
-        isOpen={showRatingModal}
-        onClose={() => setShowRatingModal(false)}
-        assistantId={ratingAssistantId}
-        assistantName={ratingAssistantName}
-        sessionId={ratingSessionId}
-        onRatingSubmitted={() => {
-          // Refresh confirmations to show updated data
-          const refreshConfirmations = async () => {
-            const { data: confirmationsData, error: confirmationsError } = await supabase
-              .from('student_help_confirmations')
-              .select(`
-                *,
-                helper:helper_id (
-                  first_name,
-                  last_name
-                )
-              `)
-              .eq('student_id', studentId)
-              .order('created_at', { ascending: false });
-              
-            if (!confirmationsError && confirmationsData) {
-              const confirmations = confirmationsData.map(c => ({
-                ...c,
-                helperName: c.helper ? `${c.helper.first_name} ${c.helper.last_name}` : 'Unknown Helper'
-              }));
-              setRecentConfirmations(confirmations);
-            }
-          };
-          refreshConfirmations();
-        }}
-      />
     </div>
   );
 };
 
-export default Student;
+export default Staff;

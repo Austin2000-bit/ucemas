@@ -10,7 +10,7 @@ type NavbarProps = {
   title?: string
 }
 
-const Navbar = ({ title = "USNMS" }: NavbarProps) => {
+const Navbar = ({ title = "UCEMAS" }: NavbarProps) => {
   const location = useLocation();
   const { user, logout, hasRole } = useAuth();
   const navigate = useNavigate();
@@ -152,7 +152,7 @@ const Navbar = ({ title = "USNMS" }: NavbarProps) => {
         )}
       </div>
       {/* Title bar (optional) */}
-      {title !== "USNMS" && (
+      {title !== "UCEMAS" && (
         <div className="bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-200">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-between h-12">

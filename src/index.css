@@ -99,4 +99,39 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Font size classes */
+  .font-default {
+    font-size: 18px;
+  }
+
+  .font-medium {
+    font-size: 20px;
+  }
+
+  .font-large {
+    font-size: 24px;
+  }
+
+  /* Responsive font sizes for different elements */
+  .font-default h1 { font-size: 2rem; }
+  .font-default h2 { font-size: 1.5rem; }
+  .font-default h3 { font-size: 1.25rem; }
+  .font-default p { font-size: 18px; }
+  .font-default button { font-size: 18px; }
+  .font-default input { font-size: 18px; }
+
+  .font-medium h1 { font-size: 2.25rem; }
+  .font-medium h2 { font-size: 1.75rem; }
+  .font-medium h3 { font-size: 1.5rem; }
+  .font-medium p { font-size: 20px; }
+  .font-medium button { font-size: 20px; }
+  .font-medium input { font-size: 20px; }
+
+  .font-large h1 { font-size: 2.5rem; }
+  .font-large h2 { font-size: 2rem; }
+  .font-large h3 { font-size: 1.75rem; }
+  .font-large p { font-size: 24px; }
+  .font-large button { font-size: 24px; }
+  .font-large input { font-size: 24px; }
 }
