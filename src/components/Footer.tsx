@@ -1,4 +1,3 @@
-
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from "lucide-react"
 import { Link } from "react-router-dom"
 
@@ -49,16 +48,20 @@ const Footer = () => {
           
           <div>
             <h4 className="text-lg font-semibold mb-4">Contact Us</h4>
-            <address className="not-italic text-muted-foreground">
-              <div className="flex items-center gap-2 mb-2">
+            <address className="not-italic text-muted-foreground space-y-2">
+              <div className="flex items-center gap-2">
                 <MapPin size={16} />
                 <span>123 University Avenue</span>
               </div>
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2">
                 <Mail size={16} />
                 <span>contact@ucemas.edu</span>
               </div>
+              <div className="flex items-center gap-2">
                 <Phone size={16} />
+                <span>+255 123 456 789</span>
+              </div>
+            </address>
           </div>
         </div>
         
