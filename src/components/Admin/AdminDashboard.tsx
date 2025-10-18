@@ -3,19 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, AlertTriangle, Car, CheckSquare } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import RecentActivity from './RecentActivity';
-<<<<<<< HEAD
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, LineChart, Line, CartesianGrid } from 'recharts';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#a4de6c", "#d0ed57", "#8dd1e1", "#d88884"];
-=======
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
 const AdminDashboard = () => {
   const { stats, loading, error } = useDashboardStats();
 
-<<<<<<< HEAD
   // --- Complaints by Category ---
   const [complaintsByCategory, setComplaintsByCategory] = useState<any[]>([]);
   // --- User Growth Over Time ---
@@ -156,8 +152,6 @@ const AdminDashboard = () => {
     fetchHelpConfirmationCounts();
   }, []);
 
-=======
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
   const formatUserBreakdown = (breakdown: Record<string, number>) => {
     return Object.entries(breakdown)
       .map(([role, count]) => `${count} ${role}${count > 1 ? 's' : ''}`)
@@ -217,11 +211,7 @@ const AdminDashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{stats?.totalComplaints}</div>
             <p className="text-xs text-muted-foreground">
-<<<<<<< HEAD
               {complaintStatusCounts.pending} pending, {complaintStatusCounts.in_progress} in progress, {complaintStatusCounts.resolved} resolved
-=======
-              0 pending, 0 resolved
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
             </p>
           </CardContent>
         </Card>
@@ -239,7 +229,6 @@ const AdminDashboard = () => {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-<<<<<<< HEAD
             <CardTitle className="text-sm font-medium">Assistance Confirmation</CardTitle>
             <CheckSquare className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -247,20 +236,10 @@ const AdminDashboard = () => {
             <div className="text-2xl font-bold">{helpConfirmationCounts.pending + helpConfirmationCounts.confirmed}</div>
             <p className="text-xs text-muted-foreground">
               {helpConfirmationCounts.pending} pending, {helpConfirmationCounts.confirmed} completed
-=======
-            <CardTitle className="text-sm font-medium">Help Confirmations</CardTitle>
-            <CheckSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalHelpConfirmations}</div>
-            <p className="text-xs text-muted-foreground">
-              0 verified
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
             </p>
           </CardContent>
         </Card>
       </div>
-<<<<<<< HEAD
       {/* Charts & Statistics Section */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Remove User Role Distribution Pie Chart */}
@@ -352,10 +331,6 @@ const AdminDashboard = () => {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-=======
-      <div className="mt-6">
-          <RecentActivity />
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       </div>
     </div>
   );

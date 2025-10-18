@@ -8,125 +8,6 @@ export interface RideRequestWithDetails extends RideRequest {
   driver_name?: string;
 }
 
-<<<<<<< HEAD
-=======
-// Interface for nearby rides
-export interface NearbyRide {
-  id: string;
-  driver_id: string;
-  driver_name: string;
-  location: {
-    lat: number;
-    lng: number;
-  };
-  vehicle_type: string;
-  status: 'available' | 'busy';
-  last_updated: string;
-}
-
-// Function to get nearby rides within a radius (in kilometers)
-export const getNearbyRides = async (
-  userLat: number,
-  userLng: number,
-  radiusKm: number = 5
-): Promise<NearbyRide[]> => {
-  try {
-    // First, get all available drivers
-    const { data: drivers, error: driversError } = await supabase
-      .from('users')
-      .select('id, first_name, last_name, current_location, vehicle_type, status')
-      .eq('role', 'driver')
-      .eq('status', 'available');
-
-    if (driversError) {
-      throw new Error(driversError.message);
-    }
-
-    // Filter drivers by distance
-    const nearbyRides = drivers
-      .filter(driver => {
-        if (!driver.current_location) return false;
-        
-        const driverLat = driver.current_location.lat;
-        const driverLng = driver.current_location.lng;
-        
-        // Calculate distance using Haversine formula
-        const distance = calculateDistance(
-          userLat,
-          userLng,
-          driverLat,
-          driverLng
-        );
-        
-        return distance <= radiusKm;
-      })
-      .map(driver => ({
-        id: driver.id,
-        driver_id: driver.id,
-        driver_name: `${driver.first_name} ${driver.last_name}`,
-        location: driver.current_location,
-        vehicle_type: driver.vehicle_type || 'Bajaj',
-        status: driver.status as 'available' | 'busy',
-        last_updated: new Date().toISOString()
-      }));
-
-    return nearbyRides;
-  } catch (error) {
-    console.error('Error getting nearby rides:', error);
-    throw error;
-  }
-};
-
-// Function to update driver's location
-export const updateDriverLocation = async (
-  driverId: string,
-  lat: number,
-  lng: number
-): Promise<boolean> => {
-  try {
-    const { error } = await supabase
-      .from('users')
-      .update({
-        current_location: { lat, lng },
-        location_updated_at: new Date().toISOString()
-      })
-      .eq('id', driverId);
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Error updating driver location:', error);
-    return false;
-  }
-};
-
-// Helper function to calculate distance between two points using Haversine formula
-const calculateDistance = (
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number => {
-  const R = 6371; // Earth's radius in kilometers
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
-
-// Helper function to convert degrees to radians
-const toRad = (degrees: number): number => {
-  return degrees * (Math.PI / 180);
-};
-
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 // Function to create a new ride request
 export const createRideRequest = async (
   student_id: string, 
@@ -426,7 +307,6 @@ export const getRideStats = async (driverId: string): Promise<{
 };
 
 // Function to accept a ride
-<<<<<<< HEAD
 export const acceptRide = async (
   rideId: string,
   driverId: string,
@@ -447,17 +327,6 @@ export const acceptRide = async (
     const { error } = await supabase
       .from('ride_requests')
       .update(updateObj)
-=======
-export const acceptRide = async (rideId: string, driverId: string): Promise<boolean> => {
-  try {
-    const { error } = await supabase
-      .from('ride_requests')
-      .update({
-        driver_id: driverId,
-        status: 'accepted',
-        updated_at: new Date().toISOString()
-      })
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       .eq('id', rideId)
       .eq('status', 'pending');
 
@@ -472,7 +341,6 @@ export const acceptRide = async (rideId: string, driverId: string): Promise<bool
   }
 };
 
-<<<<<<< HEAD
 // Function to get driver information for a ride
 export const getDriverInfo = async (driverId: string): Promise<{
   id: string;
@@ -549,8 +417,6 @@ export const getRideRequestWithDriver = async (rideId: string): Promise<RideRequ
   }
 };
 
-=======
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 // Function to reject a ride
 export const rejectRide = async (rideId: string, driverId: string): Promise<boolean> => {
   try {
@@ -585,11 +451,7 @@ export const rideService = {
   getPendingRides,
   getRideStats,
   acceptRide,
-<<<<<<< HEAD
   rejectRide,
   getDriverInfo,
   getRideRequestWithDriver
-=======
-  rejectRide
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 };

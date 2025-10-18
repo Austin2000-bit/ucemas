@@ -3,11 +3,7 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-<<<<<<< HEAD
   role: 'admin' | 'helper' | 'student' | 'driver' | 'staff';
-=======
-  role: 'admin' | 'helper' | 'student' | 'driver';
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
   created_at: string;
   updated_at: string;
   photo?: string;
@@ -31,10 +27,7 @@ export interface StudentHelpConfirmation {
   student_id: string;
   helper_id: string;
   description?: string;
-<<<<<<< HEAD
   session_id?: string;
-=======
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
   date: string;
   status: 'pending' | 'confirmed' | 'rejected';
   created_at: string;
@@ -90,10 +83,7 @@ export interface StudentOtp {
   helperName: string;
   studentId: string;
   helperId: string;
-<<<<<<< HEAD
   description?: string;
-=======
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 }
 
 export interface SystemLog {
@@ -105,7 +95,6 @@ export interface SystemLog {
   timestamp: number;
 }
 
-<<<<<<< HEAD
 export interface AssistantRating {
   id?: string;
   student_id: string;
@@ -128,8 +117,6 @@ export interface RatingCategory {
   updated_at: string;
 }
 
-=======
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 // Types needed for other parts of the application
 export interface SignInRecord {
   id?: string;

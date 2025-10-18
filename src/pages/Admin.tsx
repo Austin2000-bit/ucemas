@@ -32,12 +32,8 @@ import {
   BarChart,
   MonitorDot,
   Users,
-<<<<<<< HEAD
   Database,
   Star
-=======
-  Database
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 } from "lucide-react";
 import AdminGadgetLending from "@/components/Admin/AdminGadgetLending";
 import AdminUsers from "@/components/Admin/AdminUsers";
@@ -47,10 +43,7 @@ import HelperStudentAssignment from "@/components/Admin/HelperStudentAssignment"
 import HelperStatusTracking from "@/components/Admin/HelperStatusTracking";
 import SystemLogs from "@/components/Admin/SystemLogs";
 import DebugDatabase from "@/components/DebugDatabase";
-<<<<<<< HEAD
 import AdminRatingsDashboard from "@/components/Admin/AdminRatingsDashboard";
-=======
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 import { supabase } from "@/lib/supabase";
 import { Complaint } from "@/types";
 import AdminDashboard from "@/components/Admin/AdminDashboard";
@@ -111,15 +104,9 @@ const Admin: React.FC = () => {
     { icon: Car, label: "Ride Requests", url: "ride-requests", id: "ride-requests", title: "Ride Requests" },
     { icon: Laptop, label: "Gadget Lending", url: "gadgets", id: "gadgets", title: "Gadget Lending" },
     { icon: UserCog, label: "User Management", url: "user-management", id: "user-management", title: "User Management" },
-<<<<<<< HEAD
     { icon: List, label: "Assistant Status Tracking", url: "helper-status", id: "helper-status", title: "Assistant Status Tracking" },
     { icon: Star, label: "Assistant Ratings", url: "ratings", id: "ratings", title: "Assistant Ratings" },
     { icon: MonitorDot, label: "System Logs", url: "system-logs", id: "system-logs", title: "System Logs" }
-=======
-    { icon: List, label: "Helper Status", url: "helper-status", id: "helper-status", title: "Helper Status Tracking" },
-    { icon: MonitorDot, label: "System Logs", url: "system-logs", id: "system-logs", title: "System Logs" },
-    { icon: Database, label: "Debug Database", url: "debug-database", id: "debug-database", title: "Debug Database" }
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
   ];
   
   // Load complaints from database
@@ -342,17 +329,10 @@ const Admin: React.FC = () => {
         return <AdminUsers />;
       case "helper-status":
         return <HelperStatusTracking />;
-<<<<<<< HEAD
       case "ratings":
         return <AdminRatingsDashboard />;
       case "system-logs":
         return <SystemLogs />;
-=======
-      case "system-logs":
-        return <SystemLogs />;
-      case "debug-database":
-        return <DebugDatabase />;
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       default:
         return <AdminDashboard />;
     }
@@ -361,11 +341,7 @@ const Admin: React.FC = () => {
   if (!dashboardData) {
     return (
       <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-<<<<<<< HEAD
         <Navbar title="UCEMAS" />
-=======
-        <Navbar title="Admin Control Center" />
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
         <div className="flex-1 flex items-center justify-center">
           <p>Loading...</p>
         </div>
@@ -374,7 +350,6 @@ const Admin: React.FC = () => {
   }
 
   return (
-<<<<<<< HEAD
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       <Navbar title="UCEMAS" />
       <div className="flex min-h-screen">
@@ -385,61 +360,31 @@ const Admin: React.FC = () => {
               <div className="h-4 w-4 rounded-full bg-gradient-to-r from-purple-500 to-blue-500" />
               <h2 className="font-medium text-lg dark:text-white">Control center</h2>
             </div>
-=======
-    <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-      <Navbar title="UDSNMS Admin Control Center" />
-      <div className="flex flex-grow relative">
-        {/* Sidebar */}
-        <div className="w-64 bg-gray-200 dark:bg-gray-800 min-h-[calc(100vh-6rem)]">
-          <div className="p-4">
-            <div className="flex items-center gap-2 mb-8">
-              <div className="h-4 w-4 rounded-full bg-gradient-to-r from-purple-500 to-blue-500" />
-              <h2 className="font-medium text-lg dark:text-white">Control center</h2>
-            </div>
-            
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
             <nav className="space-y-1">
               <button 
                 key="dashboard" 
                 onClick={() => setActiveSection("dashboard")}
-<<<<<<< HEAD
                 className={`flex items-center gap-3 px-6 py-4 w-full text-left rounded-md transition-colors
-=======
-                className={`flex items-center gap-3 px-4 py-2.5 w-full text-left rounded-md transition-colors
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                   ${activeSection === "dashboard" 
                     ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" 
                     : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/30"}`
                 }
               >
                 <UserCog className="h-5 w-5" />
-<<<<<<< HEAD
                 <span className="truncate">Dashboard</span>
-=======
-                <span>Dashboard</span>
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
               </button>
               {sidebarItems.map((item) => (
                 <button 
                   key={item.id} 
                   onClick={() => setActiveSection(item.id)}
-<<<<<<< HEAD
                   className={`flex items-center gap-3 px-6 py-4 w-full text-left rounded-md transition-colors
-=======
-                  className={`flex items-center gap-3 px-4 py-2.5 w-full text-left rounded-md transition-colors
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                     ${activeSection === item.id 
                       ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" 
                       : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700/30"}`
                   }
                 >
-<<<<<<< HEAD
                   {item.icon && <item.icon className="h-5 w-5" />}
                   <span className="truncate">{item.label}</span>
-=======
-                  <item.icon className="h-5 w-5" />
-                  <span>{item.title}</span>
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
                 </button>
               ))}
             </nav>
@@ -447,11 +392,7 @@ const Admin: React.FC = () => {
         </div>
 
         {/* Main content */}
-<<<<<<< HEAD
         <div className="flex-1 p-6" style={{ maxWidth: 'calc(100vw - 16rem)', minWidth: 0 }}>
-=======
-        <div className="flex-1 p-6">
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold dark:text-white">
               {activeSection === "dashboard" ? "Admin Dashboard" : 
@@ -462,7 +403,6 @@ const Admin: React.FC = () => {
                activeSection === "gadgets" ? "Gadget Lending" :
                activeSection === "users" ? "Users" :
                activeSection === "user-management" ? "User Management" :
-<<<<<<< HEAD
                activeSection === "helper-status" ? "Assistant Status Tracking" : 
                activeSection === "system-logs" ? "System Logs" :
                "Reports"}
@@ -471,19 +411,6 @@ const Admin: React.FC = () => {
           {renderContent()}
         </div>
       </div>
-=======
-               activeSection === "helper-status" ? "Helper Status Tracking" : 
-               activeSection === "system-logs" ? "System Logs" :
-               activeSection === "debug-database" ? "Debug Database" :
-               "Reports"}
-            </h1>
-          </div>
-          
-          {renderContent()}
-        </div>
-      </div>
-
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       {/* Complaint Review Dialog */}
       {selectedComplaint && (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

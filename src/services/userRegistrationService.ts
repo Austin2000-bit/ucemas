@@ -146,7 +146,6 @@ export class UserRegistrationService {
    */
   private static async ensureUserProfile(userId: string, data: RegistrationData): Promise<RegistrationResult> {
     try {
-<<<<<<< HEAD
       // Wait and retry profile check up to 3 times
       let userProfile = null;
       let profileError = null;
@@ -163,22 +162,6 @@ export class UserRegistrationService {
 
       // If profile doesn't exist, create it manually
       if (!userProfile) {
-=======
-      // Wait a moment for the trigger to execute
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Check if user profile was created by trigger
-      let { data: userProfile, error: profileError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      console.log('Profile check result:', { userProfile, profileError });
-
-      // If profile doesn't exist, create it manually
-      if (profileError || !userProfile) {
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
         console.log('User profile not found, creating manually...');
         console.log('Attempting to insert user with data:', {
           id: userId,
@@ -223,24 +206,17 @@ export class UserRegistrationService {
         console.log('Manual insert result:', { newProfile, insertError });
 
         if (insertError) {
-<<<<<<< HEAD
           // If error is unique violation, treat as success (profile was created by trigger)
           if (insertError.code === '23505' || (insertError.message && insertError.message.includes('duplicate key'))) {
             console.warn('Profile already exists, treating as success.');
             return { success: true, user: { id: userId } };
           }
-=======
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
           console.error('Manual profile creation error details:', {
             message: insertError.message,
             details: insertError.details,
             hint: insertError.hint,
             code: insertError.code
           });
-<<<<<<< HEAD
-=======
-          
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
           // Try a minimal insert to see if the issue is with specific fields
           console.log('Attempting minimal insert...');
           const { data: minimalProfile, error: minimalError } = await supabase
@@ -260,19 +236,15 @@ export class UserRegistrationService {
             .single();
 
           console.log('Minimal insert result:', { minimalProfile, minimalError });
-<<<<<<< HEAD
           if (minimalError && (minimalError.code === '23505' || (minimalError.message && minimalError.message.includes('duplicate key')))) {
             console.warn('Minimal profile already exists, treating as success.');
             return { success: true, user: { id: userId } };
           }
-=======
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
 
           if (minimalError) {
             return {
               success: false,
               error: {
-<<<<<<< HEAD
                 message: minimalError.message || 'Failed to create user profile',
                 details: minimalError
               }
@@ -288,53 +260,16 @@ export class UserRegistrationService {
           user: newProfile
         };
       }
-=======
-                message: `Failed to create user profile: ${insertError.message}`,
-                details: {
-                  fullError: insertError,
-                  minimalError: minimalError,
-                  attemptedData: {
-                    id: userId,
-                    email: data.email,
-                    first_name: data.first_name,
-                    last_name: data.last_name,
-                    role: data.role,
-                    phone: data.phone,
-                  }
-                }
-              }
-            };
-          }
-
-          userProfile = minimalProfile;
-          console.log('User profile created with minimal data');
-        } else {
-          userProfile = newProfile;
-          console.log('User profile created manually with full data');
-        }
-      } else {
-        console.log('User profile found (created by trigger)');
-      }
-
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
       return {
         success: true,
         user: userProfile
       };
-<<<<<<< HEAD
-=======
-
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
     } catch (error: any) {
       console.error('Profile creation error:', error);
       return {
         success: false,
         error: {
-<<<<<<< HEAD
           message: error.message || 'Failed to ensure user profile',
-=======
-          message: error.message || 'Failed to create user profile',
->>>>>>> 025a36dbea7ac5ef0c5b9029702ea9a58bb18136
           details: error
         }
       };
