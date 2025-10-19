@@ -1,339 +1,263 @@
-import { useDashboardStats } from '@/hooks/useDashboardStats';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, AlertTriangle, Car, CheckSquare } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import RecentActivity from './RecentActivity';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, LineChart, Line, CartesianGrid } from 'recharts';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useState, useEffect } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "@/hooks/use-toast";
+import { SystemLogs } from "@/utils/systemLogs";
+import MessageSystem from "@/components/Messaging/MessageSystem";
+import { supabase } from "@/lib/supabase";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Download, Search, UserPlus, MessageSquare, Trash2, Eye } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import HelperStudentAssignment from "./HelperStudentAssignment";
 
-const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#a4de6c", "#d0ed57", "#8dd1e1", "#d88884"];
+interface User {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: string;
+  phone?: string;
+  disability_type?: string;
+  services_needed?: string[];
+  bank_account?: string;
+  bank_account_number?: string;
+  assistant_type?: string;
+  assistant_specialization?: string;
+  assistant_level?: string;
+  profile_picture?: string;
+  application_letter?: string;
+  created_at?: string;
+  last_login?: string;
+}
 
-const AdminDashboard = () => {
-  const { stats, loading, error } = useDashboardStats();
+interface Assignment {
+  id: string;
+  student_id: string;
+  helper_id: string;
+  status: string;
+  created_at: string;
+  student?: User;
+  helper?: User;
+}
 
-  // --- Complaints by Category ---
-  const [complaintsByCategory, setComplaintsByCategory] = useState<any[]>([]);
-  // --- User Growth Over Time ---
-  const [userGrowth, setUserGrowth] = useState<any[]>([]);
-  // --- Helpers/Drivers Performance ---
-  const [helpersPerformance, setHelpersPerformance] = useState<any[]>([]);
-  const [driversPerformance, setDriversPerformance] = useState<any[]>([]);
-  const [complaintStatusCounts, setComplaintStatusCounts] = useState({ pending: 0, in_progress: 0, resolved: 0 });
-  const [helpConfirmationCounts, setHelpConfirmationCounts] = useState({ pending: 0, confirmed: 0 });
+// Map disability types to services
+const disabilityServices: Record<string, string[]> = {
+  "Total Blind": ["reading", "mobility services", "Transcription"],
+  "Low Vision": ["Reading", "mobility for complicated infrastructure and Large prints"],
+  "Total Deaf": ["Note taking service", "Interpretation"],
+  "Hard of hearing": ["Note taking service"],
+  "Deafblind": ["Mobility", "note taking"],
+  "Physical Disability": ["Mobility"],
+  "Chronic health Disease": ["Mobility", "health care"]
+};
+
+const AdminUsers = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
+  const [selectedUserForMessage, setSelectedUserForMessage] = useState<User | null>(null);
 
   useEffect(() => {
-    // Complaints by Category
-    const fetchComplaintsByCategory = async () => {
-      const { data, error } = await supabase
-        .from('complaints')
-        .select('title');
-      if (!error && data) {
-        const counts: Record<string, number> = {};
-        data.forEach((c: any) => {
-          counts[c.title] = (counts[c.title] || 0) + 1;
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const { data: usersData, error: usersError } = await supabase.from("users").select("*");
+        if (usersError) throw usersError;
+
+        const { data: assignmentsData, error: assignmentsError } = await supabase.from("helper_student_assignments").select("*");
+        if (assignmentsError) throw assignmentsError;
+
+        const populatedAssignments = (assignmentsData || []).map((assignment) => {
+          const student = usersData?.find((u) => u.id === assignment.student_id);
+          const helper = usersData?.find((u) => u.id === assignment.helper_id);
+          return { ...assignment, student, helper };
         });
-        setComplaintsByCategory(Object.entries(counts).map(([name, value]) => ({ name, value })));
+
+        setUsers(usersData || []);
+        setAssignments(populatedAssignments);
+      } catch (error) {
+        console.error("Error loading data:", error);
+        toast({ title: "Error", description: "Failed to load data", variant: "destructive" });
+      } finally {
+        setLoading(false);
       }
     };
-    // User Growth Over Time
-    const fetchUserGrowth = async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('created_at');
-      if (!error && data) {
-        // Group by date (YYYY-MM-DD)
-        const counts: Record<string, number> = {};
-        data.forEach((u: any) => {
-          const date = u.created_at?.split('T')[0];
-          if (date) counts[date] = (counts[date] || 0) + 1;
-        });
-        // Sort by date
-        const sorted = Object.entries(counts).sort(([a], [b]) => a.localeCompare(b));
-        // Cumulative sum for growth
-        let total = 0;
-        const growth = sorted.map(([date, value]) => {
-          total += value;
-          return { date, total };
-        });
-        setUserGrowth(growth);
-      }
-    };
-    // Helpers Performance
-    const fetchHelpersPerformance = async () => {
-      // Count help confirmations per helper
-      const { data, error } = await supabase
-        .from('student_help_confirmations')
-        .select('helper_id');
-      if (!error && data) {
-        const counts: Record<string, number> = {};
-        data.forEach((c: any) => {
-          counts[c.helper_id] = (counts[c.helper_id] || 0) + 1;
-        });
-        // Get helper names
-        const helperIds = Object.keys(counts);
-        if (helperIds.length > 0) {
-          const { data: helpers } = await supabase
-            .from('users')
-            .select('id, first_name, last_name')
-            .in('id', helperIds);
-          setHelpersPerformance(
-            helperIds.map(id => ({
-              name: helpers?.find((h: any) => h.id === id) ? `${helpers.find((h: any) => h.id === id).first_name} ${helpers.find((h: any) => h.id === id).last_name}` : id,
-              value: counts[id]
-            }))
-          );
-        }
-      }
-    };
-    // Drivers Performance
-    const fetchDriversPerformance = async () => {
-      // Count completed rides per driver
-      const { data, error } = await supabase
-        .from('ride_requests')
-        .select('driver_id, status');
-      if (!error && data) {
-        const counts: Record<string, number> = {};
-        data.forEach((r: any) => {
-          if (r.status === 'completed' && r.driver_id) {
-            counts[r.driver_id] = (counts[r.driver_id] || 0) + 1;
-          }
-        });
-        // Get driver names
-        const driverIds = Object.keys(counts);
-        if (driverIds.length > 0) {
-          const { data: drivers } = await supabase
-            .from('users')
-            .select('id, first_name, last_name')
-            .in('id', driverIds);
-          setDriversPerformance(
-            driverIds.map(id => ({
-              name: drivers?.find((d: any) => d.id === id) ? `${drivers.find((d: any) => d.id === id).first_name} ${drivers.find((d: any) => d.id === id).last_name}` : id,
-              value: counts[id]
-            }))
-          );
-        }
-      }
-    };
-    // Fetch complaint status counts for the card
-    const fetchComplaintStatusCounts = async () => {
-      const { data, error } = await supabase
-        .from('complaints')
-        .select('status');
-      if (!error && data) {
-        const counts = { pending: 0, in_progress: 0, resolved: 0 };
-        data.forEach((c: any) => {
-          if (c.status === 'pending') counts.pending++;
-          else if (c.status === 'in_progress') counts.in_progress++;
-          else if (c.status === 'resolved') counts.resolved++;
-        });
-        setComplaintStatusCounts(counts);
-      }
-    };
-    // Fetch help confirmation status counts for the card
-    const fetchHelpConfirmationCounts = async () => {
-      const { data, error } = await supabase
-        .from('student_help_confirmations')
-        .select('status');
-      if (!error && data) {
-        const counts = { pending: 0, confirmed: 0 };
-        data.forEach((c: any) => {
-          if (c.status === 'pending') counts.pending++;
-          else if (c.status === 'confirmed') counts.confirmed++;
-        });
-        setHelpConfirmationCounts(counts);
-      }
-    };
-    fetchComplaintsByCategory();
-    fetchUserGrowth();
-    fetchHelpersPerformance();
-    fetchDriversPerformance();
-    fetchComplaintStatusCounts();
-    fetchHelpConfirmationCounts();
+    loadData();
   }, []);
 
-  const formatUserBreakdown = (breakdown: Record<string, number>) => {
-    return Object.entries(breakdown)
-      .map(([role, count]) => `${count} ${role}${count > 1 ? 's' : ''}`)
-      .join(', ');
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      user.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.phone?.toLowerCase().includes(searchQuery.toLowerCase());
+    if (activeTab === "all") return matchesSearch;
+    if (activeTab === "assistants") return user.role === "helper" && matchesSearch;
+    if (activeTab === "students") return user.role === "student" && matchesSearch;
+    if (activeTab === "drivers") return user.role === "driver" && matchesSearch;
+    return matchesSearch;
+  });
+
+  const handleView = (user: User) => {
+    setSelectedUser(user);
+    setIsViewDialogOpen(true);
   };
 
-  if (loading) {
-    return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[...Array(4)].map((_, i) => (
-          <Card key={i}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse" />
-            </CardHeader>
-            <CardContent>
-              <div className="h-8 bg-gray-300 rounded w-1/4 animate-pulse mb-1" />
-              <div className="h-3 bg-gray-200 rounded w-3/4 animate-pulse" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
+  const handleDelete = (user: User) => {
+    setSelectedUser(user);
+    setIsDeleteDialogOpen(true);
+  };
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>
-          Failed to load dashboard data: {error}
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  const handleMessage = (user: User) => {
+    setSelectedUserForMessage(user);
+    setIsMessageDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedUser) return;
+    try {
+      const { error } = await supabase.from("users").delete().eq("id", selectedUser.id);
+      if (error) throw error;
+      setUsers(users.filter((u) => u.id !== selectedUser.id));
+      setIsDeleteDialogOpen(false);
+      SystemLogs.addLog("User Deletion", `User ${selectedUser.first_name} ${selectedUser.last_name} deleted`, "admin", "admin");
+      toast({ title: "User Deleted", description: `User ${selectedUser.first_name} deleted` });
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Error", description: "Failed to delete user", variant: "destructive" });
+    }
+  };
+
+  const renderUserTable = (data: User[]) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead>Email</TableHead>
+          <TableHead>Role</TableHead>
+          <TableHead>Phone</TableHead>
+          <TableHead>Services Needed</TableHead>
+          <TableHead>Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {data.map((user) => (
+          <TableRow key={user.id}>
+            <TableCell>{user.first_name} {user.last_name}</TableCell>
+            <TableCell>{user.email}</TableCell>
+            <TableCell>{user.role}</TableCell>
+            <TableCell>{user.phone}</TableCell>
+            <TableCell>
+              {user.role === "student"
+                ? user.services_needed?.length
+                    ? user.services_needed.join(", ")
+                    : (user.disability_type && disabilityServices[user.disability_type]?.join(", ")) || "-"
+                : "-"}
+            </TableCell>
+            <TableCell className="flex gap-2">
+              <Button variant="ghost" size="icon" onClick={() => handleView(user)}>
+                <Eye />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => handleMessage(user)}>
+                <MessageSquare />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => handleDelete(user)}>
+                <Trash2 />
+              </Button>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+
+  if (loading) return <div className="text-center py-4">Loading users...</div>;
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalUsers}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats ? formatUserBreakdown(stats.userBreakdown) : '...'}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Complaints</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalComplaints}</div>
-            <p className="text-xs text-muted-foreground">
-              {complaintStatusCounts.pending} pending, {complaintStatusCounts.in_progress} in progress, {complaintStatusCounts.resolved} resolved
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ride Requests</CardTitle>
-            <Car className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalRideRequests}</div>
-            <p className="text-xs text-muted-foreground">
-              0 pending, 0 completed
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Assistance Confirmation</CardTitle>
-            <CheckSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{helpConfirmationCounts.pending + helpConfirmationCounts.confirmed}</div>
-            <p className="text-xs text-muted-foreground">
-              {helpConfirmationCounts.pending} pending, {helpConfirmationCounts.confirmed} completed
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-      {/* Charts & Statistics Section */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Remove User Role Distribution Pie Chart */}
-        {/* Complaints by Category Pie Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Complaints by Category</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={complaintsByCategory}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  fill="#ff8042"
-                  label
-                >
-                  {complaintsByCategory.map((entry, idx) => (
-                    <Cell key={entry.name} fill={COLORS[idx % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        {/* User Growth Over Time Line Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>User Growth Over Time</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={userGrowth} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="total" stroke="#8884d8" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        {/* Helpers Performance Bar Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Assistants Performance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={helpersPerformance} layout="vertical" margin={{ left: 40 }}>
-                <XAxis type="number" allowDecimals={false} />
-                <YAxis dataKey="name" type="category" width={120} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="value" fill="#82ca9d">
-                  {helpersPerformance.map((entry, idx) => (
-                    <Cell key={entry.name} fill={COLORS[idx % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        {/* Drivers Performance Bar Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Drivers Performance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={driversPerformance} layout="vertical" margin={{ left: 40 }}>
-                <XAxis type="number" allowDecimals={false} />
-                <YAxis dataKey="name" type="category" width={120} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="value" fill="#ffc658">
-                  {driversPerformance.map((entry, idx) => (
-                    <Cell key={entry.name} fill={COLORS[idx % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="all">All Users</TabsTrigger>
+          <TabsTrigger value="assistants">Assistants</TabsTrigger>
+          <TabsTrigger value="students">Students</TabsTrigger>
+          <TabsTrigger value="drivers">Drivers</TabsTrigger>
+          <TabsTrigger value="assignments">Assignments</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="all">{renderUserTable(filteredUsers)}</TabsContent>
+        <TabsContent value="assistants">{renderUserTable(filteredUsers.filter(u => u.role === "helper"))}</TabsContent>
+        <TabsContent value="students">{renderUserTable(filteredUsers.filter(u => u.role === "student"))}</TabsContent>
+        <TabsContent value="drivers">{renderUserTable(filteredUsers.filter(u => u.role === "driver"))}</TabsContent>
+        <TabsContent value="assignments"><HelperStudentAssignment /></TabsContent>
+      </Tabs>
+
+      {/* View, Delete, Message dialogs */}
+      {isViewDialogOpen && selectedUser && (
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>View User</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <p><b>Name:</b> {selectedUser.first_name} {selectedUser.last_name}</p>
+              <p><b>Email:</b> {selectedUser.email}</p>
+              <p><b>Role:</b> {selectedUser.role}</p>
+              <p><b>Phone:</b> {selectedUser.phone}</p>
+              {selectedUser.role === "student" && selectedUser.services_needed && (
+                <p><b>Services Needed:</b> {selectedUser.services_needed.join(", ")}</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {isDeleteDialogOpen && selectedUser && (
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Delete</DialogTitle>
+            </DialogHeader>
+            <p>Are you sure you want to delete {selectedUser.first_name} {selectedUser.last_name}?</p>
+            <DialogFooter>
+              <Button variant="destructive" onClick={confirmDelete}>Delete</Button>
+              <Button onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {isMessageDialogOpen && selectedUserForMessage && (
+        <MessageSystem 
+          user={selectedUserForMessage} 
+          onClose={() => setIsMessageDialogOpen(false)} 
+        />
+      )}
     </div>
   );
 };
 
-export default AdminDashboard; 
+export default AdminUsers;
