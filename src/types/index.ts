@@ -7,10 +7,19 @@ export interface User {
   created_at: string;
   updated_at: string;
   photo?: string;
+  profile_picture_url?: string;
+  application_letter_url?: string;
+  disability_video_url?: string;
   phone?: string;
   disability_type?: string;
   time_period?: 'full_year' | 'semester' | 'half_semester';
   status?: 'active' | 'completed' | 'inactive';
+  services_needed?: string[];
+  bank_account?: string;
+  bank_account_number?: string;
+  assistant_type?: string;
+  assistant_specialization?: string;
+  assistant_level?: string;
 }
 
 export interface HelperStudentAssignment {

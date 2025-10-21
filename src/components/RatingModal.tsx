@@ -77,11 +77,19 @@ const RatingModal = ({
       if (onRatingSubmitted) {
         onRatingSubmitted();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error:", error);
+      let errorMessage = "Failed to submit rating. Please try again.";
+      
+      if (error?.code === '42P01') {
+        errorMessage = "Rating system is not yet set up. Please contact an administrator.";
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to submit rating. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

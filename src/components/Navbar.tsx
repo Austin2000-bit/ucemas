@@ -79,7 +79,22 @@ const Navbar = ({ title = "UCEMAS" }: NavbarProps) => {
             <div className="items-center space-x-2 hidden md:flex">
               {user ? (
                 <>
-                  <span className="text-sm">{user.first_name} {user.last_name}</span>
+                  <div className="flex items-center gap-2">
+                    {user.profile_picture_url ? (
+                      <img 
+                        src={user.profile_picture_url} 
+                        alt={`${user.first_name} ${user.last_name}`}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                        <span className="text-sm font-medium text-white">
+                          {user.first_name.charAt(0)}{user.last_name.charAt(0)}
+                        </span>
+                      </div>
+                    )}
+                    <span className="text-sm">{user.first_name} {user.last_name}</span>
+                  </div>
                   {user.id && <AdminMessages userId={user.id} />}
                   <Link to="/messages">
                     <Button variant="ghost" size="sm" className="relative text-white hover:bg-blue-600 dark:hover:bg-blue-800">
@@ -123,7 +138,22 @@ const Navbar = ({ title = "UCEMAS" }: NavbarProps) => {
               <div className="flex flex-col items-center w-full mt-2">
                 {user ? (
                   <>
-                    <span className="text-sm mb-2">{user.first_name} {user.last_name}</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      {user.profile_picture_url ? (
+                        <img 
+                          src={user.profile_picture_url} 
+                          alt={`${user.first_name} ${user.last_name}`}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                          <span className="text-sm font-medium text-white">
+                            {user.first_name.charAt(0)}{user.last_name.charAt(0)}
+                          </span>
+                        </div>
+                      )}
+                      <span className="text-sm">{user.first_name} {user.last_name}</span>
+                    </div>
                     {user.id && <AdminMessages userId={user.id} />}
                     <Link to="/messages" className="w-full">
                       <Button variant="ghost" size="sm" className="w-full text-white hover:bg-blue-700 dark:hover:bg-blue-900">

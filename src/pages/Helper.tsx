@@ -453,7 +453,8 @@ const Helper = () => {
           <div className="w-full mt-6 max-w-4xl mx-auto">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
               <ScrollArea className="h-[calc(100vh-250px)]">
-                <Table>
+                <div className="overflow-x-auto">
+                  <Table className="min-w-[600px]">
                   <TableCaption>A list of recent Assistance provisions</TableCaption>
                   <TableHeader>
                     <TableRow>
@@ -490,7 +491,8 @@ const Helper = () => {
                       </TableRow>
                     )}
                   </TableBody>
-                </Table>
+                  </Table>
+                </div>
               </ScrollArea>
             </div>
           </div>
