@@ -1,25 +1,26 @@
 import { supabase } from '@/lib/supabase';
+import { SESSION_CONFIG } from '@/config/sessionConfig';
 
 // Session timeout configuration (in milliseconds)
-const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
-const WARNING_TIME = 5 * 60 * 1000; // 5 minutes before expiry
-const CHECK_INTERVAL = 60 * 1000; // Check every minute
+const SESSION_TIMEOUT = SESSION_CONFIG.SESSION_TIMEOUT; // 5 minutes - strict timeout
+const WARNING_TIME = SESSION_CONFIG.WARNING_TIME; // 1 minute before expiry
+const CHECK_INTERVAL = SESSION_CONFIG.CHECK_INTERVAL; // Check every 30 seconds
+const TAB_SWITCH_TIMEOUT = SESSION_CONFIG.TAB_SWITCH_TIMEOUT; // 2 minutes for tab switching
 
 // Session state
 let sessionTimeoutId: NodeJS.Timeout | null = null;
 let warningTimeoutId: NodeJS.Timeout | null = null;
 let checkIntervalId: NodeJS.Timeout | null = null;
+let tabSwitchTimeoutId: NodeJS.Timeout | null = null;
 let lastActivity: number = Date.now();
+let isTabVisible: boolean = true;
+let lastTabSwitch: number = Date.now();
 
 // Event listeners for user activity
-const activityEvents = [
-  'mousedown',
-  'mousemove',
-  'keypress',
-  'scroll',
-  'touchstart',
-  'click'
-];
+const activityEvents = SESSION_CONFIG.ACTIVITY_EVENTS;
+
+// Tab visibility and focus events
+const visibilityEvents = SESSION_CONFIG.VISIBILITY_EVENTS;
 
 // Session management class
 class SessionManager {
@@ -52,12 +53,46 @@ class SessionManager {
     activityEvents.forEach(event => {
       document.addEventListener(event, this.handleUserActivity.bind(this), true);
     });
+    
+    // Setup visibility and focus listeners
+    visibilityEvents.forEach(event => {
+      if (event === 'visibilitychange') {
+        document.addEventListener(event, this.handleVisibilityChange.bind(this), true);
+      } else {
+        window.addEventListener(event, this.handleVisibilityChange.bind(this), true);
+      }
+    });
   }
 
   // Handle user activity - reset session timer
   private handleUserActivity() {
     lastActivity = Date.now();
     this.resetSessionTimer();
+  }
+
+  // Handle visibility change and focus/blur events
+  private handleVisibilityChange(event: Event) {
+    const now = Date.now();
+    
+    if (event.type === 'visibilitychange') {
+      isTabVisible = !document.hidden;
+    } else if (event.type === 'blur' || event.type === 'pagehide') {
+      isTabVisible = false;
+      lastTabSwitch = now;
+      this.startTabSwitchTimer();
+    } else if (event.type === 'focus' || event.type === 'pageshow') {
+      isTabVisible = true;
+      const timeAway = now - lastTabSwitch;
+      
+      // If user was away for more than TAB_SWITCH_TIMEOUT, force logout
+      if (timeAway > TAB_SWITCH_TIMEOUT) {
+        this.handleSessionExpiry();
+        return;
+      }
+      
+      // Reset timers when returning to tab
+      this.resetSessionTimer();
+    }
   }
 
   // Start the session timer
@@ -73,6 +108,17 @@ class SessionManager {
     sessionTimeoutId = setTimeout(() => {
       this.handleSessionExpiry();
     }, SESSION_TIMEOUT);
+  }
+
+  // Start tab switch timer
+  private startTabSwitchTimer() {
+    if (tabSwitchTimeoutId) {
+      clearTimeout(tabSwitchTimeoutId);
+    }
+    
+    tabSwitchTimeoutId = setTimeout(() => {
+      this.handleSessionExpiry();
+    }, TAB_SWITCH_TIMEOUT);
   }
 
   // Reset session timer on user activity
@@ -115,6 +161,15 @@ class SessionManager {
         this.handleSessionExpiry();
         return;
       }
+
+      // Check if tab has been hidden for too long
+      if (!isTabVisible) {
+        const timeSinceTabSwitch = now - lastTabSwitch;
+        if (timeSinceTabSwitch >= TAB_SWITCH_TIMEOUT) {
+          this.handleSessionExpiry();
+          return;
+        }
+      }
     } catch (error) {
       console.error('Error checking session validity:', error);
       this.handleSessionExpiry();
@@ -156,7 +211,7 @@ class SessionManager {
     warningContent.innerHTML = `
       <h3 style="margin: 0 0 1rem 0; color: #f59e0b;">Session Expiring Soon</h3>
       <p style="margin: 0 0 1.5rem 0; color: #6b7280;">
-        Your session will expire in 5 minutes due to inactivity. 
+        Your session will expire in 1 minute due to inactivity or tab switching. 
         Click "Stay Logged In" to continue your session.
       </p>
       <div style="display: flex; gap: 1rem; justify-content: center;">
@@ -248,6 +303,10 @@ class SessionManager {
       clearInterval(checkIntervalId);
       checkIntervalId = null;
     }
+    if (tabSwitchTimeoutId) {
+      clearTimeout(tabSwitchTimeoutId);
+      tabSwitchTimeoutId = null;
+    }
   }
 
   // Manually extend session
@@ -280,6 +339,14 @@ class SessionManager {
     
     activityEvents.forEach(event => {
       document.removeEventListener(event, this.handleUserActivity.bind(this), true);
+    });
+    
+    visibilityEvents.forEach(event => {
+      if (event === 'visibilitychange') {
+        document.removeEventListener(event, this.handleVisibilityChange.bind(this), true);
+      } else {
+        window.removeEventListener(event, this.handleVisibilityChange.bind(this), true);
+      }
     });
   }
 }
