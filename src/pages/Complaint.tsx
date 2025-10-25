@@ -28,10 +28,10 @@ import { SystemLogs } from "@/utils/systemLogs";
 import { supabase } from "@/lib/supabase";
 
 const complaintCategories = [
-  "Safety Concern",
-  "Assistance Concern",
-  "Helper Concern",
+  "Client Concern",
+  "Assistant Concern", 
   "Driver Concern",
+  "Safety Concern",
 ];
 
 const formSchema = z.object({
@@ -127,11 +127,11 @@ const Complaint = () => {
         case "admin":
           navigate("/admin");
           break;
-        case "helper":
-          navigate("/helper");
+        case "assistant":
+          navigate("/assistant");
           break;
-        case "student":
-      navigate("/student");
+        case "client":
+          navigate("/client");
           break;
         case "driver":
           navigate("/driver");

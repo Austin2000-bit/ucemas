@@ -15,7 +15,7 @@ export interface Database {
           email: string
           first_name: string
           last_name: string
-          role: 'admin' | 'helper' | 'student' | 'driver' | 'staff'
+          role: 'admin' | 'assistant' | 'client' | 'driver' | 'staff'
           phone: string | null
           disability_type: string | null
           bank_name: 'CRDB' | 'NBC' | null
@@ -33,7 +33,7 @@ export interface Database {
           email: string
           first_name: string
           last_name: string
-          role: 'admin' | 'helper' | 'student' | 'driver' | 'staff'
+          role: 'admin' | 'assistant' | 'client' | 'driver' | 'staff'
           phone?: string | null
           disability_type?: string | null
           bank_name?: 'CRDB' | 'NBC' | null

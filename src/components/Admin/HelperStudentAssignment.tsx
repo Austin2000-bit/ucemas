@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { User, HelperStudentAssignment as Assignment } from "@/types";
+import { User, AssistantClientAssignment as Assignment } from "@/types";
 import { SystemLogs } from "@/utils/systemLogs";
 import CreateAssignment from "@/components/Admin/CreateAssignment";
 import {
@@ -65,7 +65,7 @@ const HelperStudentAssignment = () => {
 
       // Fetch assignments
       const { data: assignmentsData, error: assignmentsError } = await supabase
-        .from('helper_student_assignments')
+        .from('assistant_client_assignments')
         .select('*');
 
       if (assignmentsError) {
@@ -108,7 +108,7 @@ const HelperStudentAssignment = () => {
       }
       
       const { error } = await supabase
-        .from('helper_student_assignments')
+        .from('assistant_client_assignments')
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', assignmentId);
 
@@ -130,12 +130,12 @@ const HelperStudentAssignment = () => {
       // Log the action
       const assignment = assignments.find(a => a.id === assignmentId);
       if (assignment) {
-        const helperName = getUserName(assignment.helper_id);
-        const studentName = getUserName(assignment.student_id);
+        const assistantName = getUserName(assignment.assistant_id);
+        const clientName = getUserName(assignment.client_id);
         
         SystemLogs.addLog(
           "Assignment updated",
-          `Assignment for helper ${helperName} and student ${studentName} status changed to ${newStatus}`,
+          `Assignment for assistant ${assistantName} and client ${clientName} status changed to ${newStatus}`,
           "admin",
           "admin"
         );
@@ -160,12 +160,12 @@ const HelperStudentAssignment = () => {
     fetchData();
   };
 
-  const getHelpers = () => {
-    return users.filter(user => user.role === 'helper');
+  const getAssistants = () => {
+    return users.filter(user => user.role === 'assistant');
   };
 
-  const getStudents = () => {
-    return users.filter(user => user.role === 'student' || user.role === 'staff');
+  const getClients = () => {
+    return users.filter(user => user.role === 'client' || user.role === 'staff');
   };
 
   const handleDeleteClick = (assignment: Assignment) => {
@@ -189,7 +189,7 @@ const HelperStudentAssignment = () => {
       }
 
       const { error } = await supabase
-        .from('helper_student_assignments')
+        .from('assistant_client_assignments')
         .delete()
         .eq('id', assignmentToDelete.id);
 
@@ -207,12 +207,12 @@ const HelperStudentAssignment = () => {
       );
 
       // Log the action
-      const helperName = getUserName(assignmentToDelete.helper_id);
-      const studentName = getUserName(assignmentToDelete.student_id);
+      const assistantName = getUserName(assignmentToDelete.assistant_id);
+      const clientName = getUserName(assignmentToDelete.client_id);
       
       SystemLogs.addLog(
         "Assignment deleted",
-        `Assignment for helper ${helperName} and student ${studentName} has been deleted`,
+        `Assignment for assistant ${assistantName} and client ${clientName} has been deleted`,
         "admin",
         "admin"
       );
@@ -248,8 +248,8 @@ const HelperStudentAssignment = () => {
       {showCreateForm && (
         <CreateAssignment 
           onSuccess={handleCreateSuccess} 
-          helpers={getHelpers()}
-          students={getStudents()}
+          helpers={getAssistants()}
+          students={getClients()}
         />
       )}
 
@@ -258,11 +258,11 @@ const HelperStudentAssignment = () => {
           <div className="text-center py-8">Loading assignments...</div>
         ) : assignments.length > 0 ? (
           <Table>
-            <TableCaption>List of assistant-student assignments</TableCaption>
+            <TableCaption>List of assistant-client assignments</TableCaption>
             <TableHeader>
               <TableRow>
                 <TableHead>Assistant</TableHead>
-                <TableHead>Student</TableHead>
+                <TableHead>Client</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Period</TableHead>
                 <TableHead>Created</TableHead>
@@ -272,8 +272,8 @@ const HelperStudentAssignment = () => {
             <TableBody>
               {assignments.map(assignment => (
                 <TableRow key={assignment.id}>
-                  <TableCell>{getUserName(assignment.helper_id)}</TableCell>
-                  <TableCell>{getUserName(assignment.student_id)}</TableCell>
+                  <TableCell>{getUserName(assignment.assistant_id)}</TableCell>
+                  <TableCell>{getUserName(assignment.client_id)}</TableCell>
                   <TableCell>
                     <Badge 
                       variant={assignment.status === "active" ? "default" : "secondary"}
@@ -282,11 +282,7 @@ const HelperStudentAssignment = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {assignment.academic_year
-                      ? assignment.academic_year
-                      : assignment.semester
-                        ? assignment.semester
-                        : "-"}
+                    {assignment.status === 'active' ? 'Current' : 'Inactive'}
                   </TableCell>
                   <TableCell>
                     {assignment.created_at 
@@ -330,8 +326,8 @@ const HelperStudentAssignment = () => {
               Are you sure you want to delete this assignment? This action cannot be undone.
               {assignmentToDelete && (
                 <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                  <p><strong>Helper:</strong> {getUserName(assignmentToDelete.helper_id)}</p>
-                  <p><strong>Student:</strong> {getUserName(assignmentToDelete.student_id)}</p>
+                  <p><strong>Assistant:</strong> {getUserName(assignmentToDelete.assistant_id)}</p>
+                  <p><strong>Client:</strong> {getUserName(assignmentToDelete.client_id)}</p>
                   <p><strong>Status:</strong> {assignmentToDelete.status}</p>
                 </div>
               )}

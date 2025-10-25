@@ -50,15 +50,15 @@ export const routes: RouteObject[] = [
     path: "/complaint/list",
     element: <ProtectedRoute requiredRoles={["admin"]}><ComplaintList /></ProtectedRoute>
   },
-  // Helper only routes
+  // Assistant only routes
   {
-    path: "/helper",
-    element: <ProtectedRoute requiredRoles={["helper"]}><Helper /></ProtectedRoute>
+    path: "/assistant",
+    element: <ProtectedRoute requiredRoles={["assistant"]}><Helper /></ProtectedRoute>
   },
-  // Student only routes
+  // Client only routes
   {
-    path: "/student",
-    element: <ProtectedRoute requiredRoles={["student"]}><Student /></ProtectedRoute>
+    path: "/client",
+    element: <ProtectedRoute requiredRoles={["client"]}><Student /></ProtectedRoute>
   },
   // Staff only routes
   {
@@ -70,10 +70,10 @@ export const routes: RouteObject[] = [
     path: "/driver",
     element: <ProtectedRoute requiredRoles={["driver"]}><Driver /></ProtectedRoute>
   },
-  // Shared routes
+  // Shared routes (excluding admin)
   {
     path: "/complaint",
-    element: <ProtectedRoute><Complaint /></ProtectedRoute>
+    element: <ProtectedRoute requiredRoles={["assistant", "client", "driver", "staff"]}><Complaint /></ProtectedRoute>
   },
   {
     path: "/book-ride",

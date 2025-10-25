@@ -20,12 +20,12 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { HelperStudentAssignment, User } from "@/types";
+import { AssistantClientAssignment, User } from "@/types";
 import { SystemLogs } from "@/utils/systemLogs";
 
 const formSchema = z.object({
-  helper_id: z.string().min(1, { message: "Helper is required" }),
-  student_id: z.string().min(1, { message: "Student is required" }),
+  assistant_id: z.string().min(1, { message: "Assistant is required" }),
+  client_id: z.string().min(1, { message: "Client is required" }),
   status: z.enum(["active", "inactive"]),
   period_type: z.enum(["year", "semester"]),
   academic_year: z.string().optional(),
@@ -44,8 +44,8 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      helper_id: "",
-      student_id: "",
+      assistant_id: "",
+      client_id: "",
       status: "active",
       period_type: "year",
       academic_year: "",
@@ -60,17 +60,17 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
       let duplicateCheck;
       if (values.period_type === "year") {
         duplicateCheck = await supabase
-          .from('helper_student_assignments')
+          .from('assistant_client_assignments')
           .select('id')
-          .eq('student_id', values.student_id)
-          .eq('helper_id', values.helper_id)
+          .eq('client_id', values.client_id)
+          .eq('assistant_id', values.assistant_id)
           .eq('academic_year', values.academic_year);
       } else {
         duplicateCheck = await supabase
-          .from('helper_student_assignments')
+          .from('assistant_client_assignments')
           .select('id')
-          .eq('student_id', values.student_id)
-          .eq('helper_id', values.helper_id)
+          .eq('client_id', values.client_id)
+          .eq('assistant_id', values.assistant_id)
           .eq('semester', values.semester);
       }
       if (duplicateCheck.data && duplicateCheck.data.length > 0) {
@@ -87,16 +87,16 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
       let activeAssignmentsCheck;
       if (values.period_type === "year") {
         activeAssignmentsCheck = await supabase
-          .from('helper_student_assignments')
+          .from('assistant_client_assignments')
           .select('id')
-          .eq('student_id', values.student_id)
+          .eq('client_id', values.client_id)
           .eq('status', 'active')
           .eq('academic_year', values.academic_year);
       } else {
         activeAssignmentsCheck = await supabase
-          .from('helper_student_assignments')
+          .from('assistant_client_assignments')
           .select('id')
-          .eq('student_id', values.student_id)
+          .eq('client_id', values.client_id)
           .eq('status', 'active')
           .eq('semester', values.semester);
       }
@@ -121,8 +121,8 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
 
       // Create the new assignment
       const newAssignment = {
-        helper_id: values.helper_id,
-        student_id: values.student_id,
+        assistant_id: values.assistant_id,
+        client_id: values.client_id,
         status: values.status,
         academic_year: values.period_type === "year" ? values.academic_year : null,
         semester: values.period_type === "semester" ? values.semester : null,
@@ -132,7 +132,7 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
 
       // Save to Supabase
       const { data, error } = await supabase
-        .from('helper_student_assignments')
+        .from('assistant_client_assignments')
         .insert([newAssignment])
         .select();
 
@@ -147,19 +147,19 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
       console.log("Assignment created successfully:", data);
 
       // Log the action
-      const helper = helpers.find(h => h.id === values.helper_id);
-      const student = students.find(s => s.id === values.student_id);
+      const assistant = helpers.find(h => h.id === values.assistant_id);
+      const client = students.find(s => s.id === values.client_id);
       
       SystemLogs.addLog(
         "Assignment created",
-        `Helper ${helper?.first_name || ""} ${helper?.last_name || ""} assigned to student ${student?.first_name || ""} ${student?.last_name || ""}`,
+        `Assistant ${assistant?.first_name || ""} ${assistant?.last_name || ""} assigned to client ${client?.first_name || ""} ${client?.last_name || ""}`,
         "admin",
         "admin"
       );
 
       toast({
         title: "Assignment created",
-        description: "The helper-student assignment has been created successfully.",
+        description: "The assistant-client assignment has been created successfully.",
       });
 
       form.reset();
@@ -195,7 +195,7 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
             control={form.control}
-            name="helper_id"
+            name="assistant_id"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Assistant</FormLabel>
@@ -220,14 +220,14 @@ const CreateAssignment = ({ onSuccess, helpers, students }: CreateAssignmentProp
           
           <FormField
             control={form.control}
-            name="student_id"
+            name="client_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Student</FormLabel>
+                <FormLabel>Client</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select student" />
+                      <SelectValue placeholder="Select client" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>

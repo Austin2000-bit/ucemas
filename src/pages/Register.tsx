@@ -8,6 +8,7 @@ import { UserRole } from "@/lib/supabase";
 import { UserRegistrationService, RegistrationData } from "@/services/userRegistrationService";
 import { Info } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import { toast } from "@/hooks/use-toast";
 
 // Services for each disability type
 const disabilityServices = {
@@ -66,7 +67,11 @@ const Register = () => {
 
     if (isVideo) {
       if (file.size > maxVideoSize) {
-        alert("Video must be less than 100MB");
+        toast({
+          title: "File Size Error",
+          description: "Video must be less than 100MB",
+          variant: "destructive",
+        });
         e.target.value = "";
         return;
       }
@@ -75,7 +80,11 @@ const Register = () => {
       const img = new Image();
       img.onload = () => {
         if (file.size > maxSize || img.width > 1024 || img.height > 1024) {
-          alert("Image must be less than 2MB and within 1024x1024");
+          toast({
+            title: "Image Size Error",
+            description: "Image must be less than 2MB and within 1024x1024",
+            variant: "destructive",
+          });
           e.target.value = "";
         } else {
           setFormData(prev => ({ ...prev, profilePicture: file }));
@@ -84,7 +93,11 @@ const Register = () => {
       img.src = URL.createObjectURL(file);
     } else if (isPDF) {
       if (file.size > maxSize) {
-        alert("PDF must be less than 2MB");
+        toast({
+          title: "File Size Error",
+          description: "PDF must be less than 2MB",
+          variant: "destructive",
+        });
         e.target.value = "";
         return;
       }
@@ -97,29 +110,49 @@ const Register = () => {
     if (!formData.firstname || !formData.lastname || !formData.email || 
         !formData.password || !formData.confirmPassword || !formData.role || 
         !formData.phone || !formData.profilePicture) {
-      alert("Please fill in all required fields");
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match");
+      toast({
+        title: "Password Mismatch",
+        description: "Passwords do not match",
+        variant: "destructive",
+      });
       return;
     }
 
     if (formData.password.length < 6) {
-      alert("Password must be at least 6 characters long");
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      });
       return;
     }
 
-    if (formData.role === "helper" && 
+    if (formData.role === "assistant" && 
         (!formData.assistant_type || !formData.assistant_specialization || 
          !formData.time_period || !formData.bankName || !formData.bankAccountNumber || !formData.applicationLetter)) {
-      alert("Please fill in all helper-specific fields and upload an application letter");
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all assistant-specific fields and upload an application letter",
+        variant: "destructive",
+      });
       return;
     }
 
-    if (formData.role === "student" && !formData.disabilityType) {
-      alert("Please select a disability type");
+    if (formData.role === "client" && !formData.disabilityType) {
+      toast({
+        title: "Missing Information",
+        description: "Please select a disability type",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -131,31 +164,42 @@ const Register = () => {
         last_name: formData.lastname,
         role: formData.role as UserRole,
         phone: formData.phone,
-        disability_type: formData.role === "student" ? formData.disabilityType : undefined,
-        services_needed: formData.role === "student" && formData.disabilityType
+        disability_type: formData.role === "client" ? formData.disabilityType : undefined,
+        services_needed: formData.role === "client" && formData.disabilityType
           ? disabilityServices[formData.disabilityType as keyof typeof disabilityServices]
           : undefined,
-        bank_name: formData.role === "helper" ? formData.bankName : undefined,
-        bank_account_number: formData.role === "helper" ? formData.bankAccountNumber : undefined,
-        assistant_type: formData.role === "helper" ? formData.assistant_type : undefined,
-        assistant_specialization: formData.role === "helper" ? formData.assistant_specialization : undefined,
-        time_period: formData.role === "helper" ? formData.time_period : undefined,
+        bank_name: formData.role === "assistant" ? formData.bankName : undefined,
+        bank_account_number: formData.role === "assistant" ? formData.bankAccountNumber : undefined,
+        assistant_type: formData.role === "assistant" ? formData.assistant_type : undefined,
+        assistant_specialization: formData.role === "assistant" ? formData.assistant_specialization : undefined,
+        time_period: formData.role === "assistant" ? formData.time_period : undefined,
         profile_picture: formData.profilePicture,
-        application_letter: formData.role === "helper" ? formData.applicationLetter : undefined,
-        disability_video: formData.role === "student" ? formData.disabilityVideo : undefined
+        application_letter: formData.role === "assistant" ? formData.applicationLetter : undefined,
+        disability_video: formData.role === "client" ? formData.disabilityVideo : undefined
       };
 
       const result = await UserRegistrationService.registerUser(registrationData);
 
       if (result.success) {
-        alert("Registration successful! Please check your email to confirm your account.");
+        toast({
+          title: "Registration Successful!",
+          description: "Your account has been created successfully. You can now log in.",
+        });
         navigate("/login");
       } else {
-        alert(result.error?.message || "Registration failed");
+        toast({
+          title: "Registration Failed",
+          description: result.error?.message || "An error occurred during registration. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Registration error:", error);
-      alert("An error occurred during registration");
+      toast({
+        title: "Registration Error",
+        description: "An unexpected error occurred during registration. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -186,8 +230,8 @@ const Register = () => {
             <Select onValueChange={(value) => handleSelectChange("role", value)} required>
               <SelectTrigger className="w-full"><SelectValue placeholder="Select Role *" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="student">Student</SelectItem>
-                <SelectItem value="helper">Assistant</SelectItem>
+                <SelectItem value="client">Client</SelectItem>
+                <SelectItem value="assistant">Assistant</SelectItem>
                 <SelectItem value="driver">Driver</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
@@ -195,7 +239,7 @@ const Register = () => {
 
             <Input type="tel" name="phone" placeholder="Phone Number *" value={formData.phone} onChange={handleChange} required />
 
-            {formData.role === "student" && (
+            {formData.role === "client" && (
               <>
                 <Select onValueChange={(value) => handleSelectChange("disabilityType", value)} required>
                   <SelectTrigger className="w-full"><SelectValue placeholder="Select Disability Type *" /></SelectTrigger>
@@ -228,7 +272,7 @@ const Register = () => {
               </>
             )}
 
-            {formData.role === "helper" && (
+            {formData.role === "assistant" && (
               <>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Application Letter <span className="text-red-500">*</span></label>
                 <Input type="file" name="applicationLetter" accept=".pdf" onChange={handleFileChange} required />

@@ -3,7 +3,7 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  role: 'admin' | 'helper' | 'student' | 'driver' | 'staff';
+  role: 'admin' | 'assistant' | 'client' | 'driver' | 'staff';
   created_at: string;
   updated_at: string;
   photo?: string;
@@ -22,19 +22,19 @@ export interface User {
   assistant_level?: string;
 }
 
-export interface HelperStudentAssignment {
+export interface AssistantClientAssignment {
   id?: string;
-  helper_id: string;
-  student_id: string;
+  assistant_id: string;
+  client_id: string;
   status: 'active' | 'inactive';
   created_at: string;
   updated_at: string;
 }
 
-export interface StudentHelpConfirmation {
+export interface ClientHelpConfirmation {
   id?: string;
-  student_id: string;
-  helper_id: string;
+  client_id: string;
+  assistant_id: string;
   description?: string;
   session_id?: string;
   date: string;
@@ -57,7 +57,7 @@ export interface Complaint {
 
 export interface RideRequest {
   id?: string;
-  student_id: string;
+  client_id: string;
   driver_id?: string | null;
   pickup_location: string;
   destination: string;
@@ -65,12 +65,12 @@ export interface RideRequest {
   created_at: string;
   updated_at: string;
   estimatedTime?: string | number;
-  student_name?: string;
+  client_name?: string;
   driver_name?: string;
 }
 
 export interface RideRequestWithDetails extends RideRequest {
-  student_name?: string;
+  client_name?: string;
   driver_name?: string;
 }
 
@@ -84,14 +84,14 @@ export interface Message {
   updated_at: string;
 }
 
-export interface StudentOtp {
+export interface ClientOtp {
   id?: string;
   sessionId?: string;
   otp: string;
   timestamp: number;
-  helperName: string;
-  studentId: string;
-  helperId: string;
+  assistantName: string;
+  clientId: string;
+  assistantId: string;
   description?: string;
 }
 
@@ -106,7 +106,7 @@ export interface SystemLog {
 
 export interface AssistantRating {
   id?: string;
-  student_id: string;
+  client_id: string;
   assistant_id: string;
   rating: number; // 1-5 scale
   feedback?: string;
@@ -145,7 +145,7 @@ export interface HelpConfirmation {
 
 export interface GadgetLoan {
   id: string;
-  student_id: string;
+  client_id: string;
   gadget_name: string;
   status: 'borrowed' | 'returned';
   borrowed_date: string;
@@ -172,7 +172,7 @@ export interface GadgetUsageLog {
 
 export interface HelperStatusLog {
   id?: string;
-  helper_id: string;
+  assistant_id: string;
   status: 'available' | 'busy' | 'offline';
   changed_at: string;
   changed_by?: string;

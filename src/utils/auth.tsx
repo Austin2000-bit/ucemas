@@ -2,7 +2,7 @@ import { ReactNode, createContext, useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { User, UserRole } from "@/types";
+import { User } from "@/types";
 import { signIn, signOut, getCurrentUser } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -154,7 +154,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 // Protected route component
 type ProtectedRouteProps = {
   children: ReactNode;
-  requiredRoles?: UserRole[];
+  requiredRoles?: ('admin' | 'assistant' | 'client' | 'driver' | 'staff')[];
   redirectTo?: string;
 };
 
@@ -185,11 +185,11 @@ export const ProtectedRoute = ({
         case "admin":
           redirectPath = "/admin";
           break;
-        case "helper":
-          redirectPath = "/helper";
+        case "assistant":
+          redirectPath = "/assistant";
           break;
-        case "student":
-          redirectPath = "/student";
+        case "client":
+          redirectPath = "/client";
           break;
         case "staff":
           redirectPath = "/staff";
@@ -217,10 +217,10 @@ export const PublicRoute = ({ children }: { children: ReactNode }) => {
     switch(user.role) {
       case "admin":
         return <Navigate to="/admin" replace />;
-      case "helper":
-        return <Navigate to="/helper" replace />;
-      case "student":
-        return <Navigate to="/student" replace />;
+      case "assistant":
+        return <Navigate to="/assistant" replace />;
+      case "client":
+        return <Navigate to="/client" replace />;
       case "staff":
         return <Navigate to="/staff" replace />;
       case "driver":

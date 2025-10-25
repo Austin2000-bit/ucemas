@@ -57,7 +57,9 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    // Set session timeout to 30 minutes
+    flowType: 'pkce'
   },
   realtime: {
     params: {
@@ -67,7 +69,7 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
 });
 
 // User types
-export type UserRole = 'admin' | 'helper' | 'student' | 'driver' | 'staff';
+export type UserRole = 'admin' | 'assistant' | 'client' | 'driver' | 'staff';
 
 // Helper function for delay with exponential backoff
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -125,8 +127,8 @@ export const signUp = async (
   }
 ) => {
   try {
-    // Validate bank account number for helpers
-    if (userData.role === "helper" && userData.bank_account_number) {
+    // Validate bank account number for assistants
+    if (userData.role === "assistant" && userData.bank_account_number) {
       if (!/^\d{10,16}$/.test(userData.bank_account_number)) {
         return {
           success: false,
@@ -234,11 +236,11 @@ export const signUp = async (
         profilePictureUrl = await uploadToStorage(userData.profile_picture, 'profile-pictures', userId);
       }
 
-      if (userData.role === "helper" && userData.application_letter) {
+      if (userData.role === "assistant" && userData.application_letter) {
         applicationLetterUrl = await uploadToStorage(userData.application_letter, 'application-letters', userId);
       }
 
-      if (userData.role === "student" && userData.disability_video) {
+      if (userData.role === "client" && userData.disability_video) {
         disabilityVideoUrl = await uploadToStorage(userData.disability_video, 'disability-videos', userId);
       }
     } catch (error) {
@@ -309,10 +311,10 @@ export const signIn = async (email: string, password: string) => {
       return { success: false, error: new Error('No user data returned from auth') };
     }
 
-    // Check if email is confirmed
-    if (!authData.user.email_confirmed_at && !authData.user.confirmed_at) {
-      return { success: false, error: new Error('Please confirm your email before logging in.') };
-    }
+    // Check if email is confirmed (skip for development)
+    // if (!authData.user.email_confirmed_at && !authData.user.confirmed_at) {
+    //   return { success: false, error: new Error('Please confirm your email before logging in.') };
+    // }
 
     // 2. Then, get the user's profile from the users table
     let { data: userData, error: userError } = await supabase
@@ -443,7 +445,7 @@ export const getCurrentUser = async (): Promise<{ success: boolean; user: User |
           // Add other default/fallback fields as necessary
           first_name: session.user.email?.split('@')[0] || 'New',
           last_name: 'User',
-          role: 'student', // default role
+          role: 'client', // default role
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }

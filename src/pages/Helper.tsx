@@ -31,28 +31,28 @@ import { supabase } from "@/lib/supabase";
 import { User, SignInRecord } from "@/types";
 import { getComplaintsByUserId } from "@/lib/supabase";
 
-// Define the shape of the confirmation data with the nested student object
-interface HelpConfirmationWithStudent {
+// Define the shape of the confirmation data with the nested client object
+interface HelpConfirmationWithClient {
   id: string;
   date: string;
   description: string;
   status: string;
-  student_id: string;
-  student: {
+  client_id: string;
+  client: {
     first_name: string;
     last_name: string;
-  } | null; // Student can be null if the record is missing or RLS prevents access
+  } | null; // Client can be null if the record is missing or RLS prevents access
 }
 
 const Helper = () => {
-  const [selectedStudent, setSelectedStudent] = useState<string>("");
+  const [selectedClient, setSelectedClient] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [otp, setOtp] = useState<string>("");
   const [isSigned, setIsSigned] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
   const [signInHistory, setSignInHistory] = useState<SignInRecord[]>([]);
-  const [confirmations, setConfirmations] = useState<HelpConfirmationWithStudent[]>([]);
-  const [assignedStudents, setAssignedStudents] = useState<User[]>([]);
+  const [confirmations, setConfirmations] = useState<HelpConfirmationWithClient[]>([]);
+  const [assignedClients, setAssignedClients] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
   const [complaints, setComplaints] = useState<any[]>([]);
@@ -67,11 +67,11 @@ const Helper = () => {
     console.log(`[Helper] Loading data for helper: ${user.id}`);
 
     try {
-      // Fetch assigned students' details
-      const { data: assignedStudentsData, error: assignmentsError } = await supabase
-            .from('helper_student_assignments')
+      // Fetch assigned clients' details
+      const { data: assignedClientsData, error: assignmentsError } = await supabase
+            .from('assistant_client_assignments')
             .select(`
-              student:student_id (
+              client:client_id (
                 id,
                 first_name,
                 last_name,
@@ -79,41 +79,41 @@ const Helper = () => {
             role
               )
             `)
-            .eq('helper_id', user.id)
+            .eq('assistant_id', user.id)
         .eq('status', 'active');
       
-      console.log("[Helper] Assigned students query result:", { data: assignedStudentsData, error: assignmentsError });
+      console.log("[Helper] Assigned clients query result:", { data: assignedClientsData, error: assignmentsError });
       if (assignmentsError) throw assignmentsError;
         
-      // The 'student' property can be null if the related student record is not found or RLS blocks it.
-      const myStudents: User[] = (assignedStudentsData || [])
-        .map((a: any) => a.student)
-        .filter((student: any): student is User => student !== null);
+      // The 'client' property can be null if the related client record is not found or RLS blocks it.
+      const myClients: User[] = (assignedClientsData || [])
+        .map((a: any) => a.client)
+        .filter((client: any): client is User => client !== null);
 
-          setAssignedStudents(myStudents);
-      console.log("[Helper] Parsed assigned students:", myStudents);
+          setAssignedClients(myClients);
+      console.log("[Helper] Parsed assigned clients:", myClients);
           
-      // Auto-select the student if only one is assigned
-      if (myStudents.length === 1 && !selectedStudent) {
-            setSelectedStudent(myStudents[0].id);
-        console.log(`[Helper] Auto-selecting student: ${myStudents[0].id}`);
+      // Auto-select the client if only one is assigned
+      if (myClients.length === 1 && !selectedClient) {
+            setSelectedClient(myClients[0].id);
+        console.log(`[Helper] Auto-selecting client: ${myClients[0].id}`);
       }
 
-      // Fetch recent help confirmations with student details
+      // Fetch recent help confirmations with client details
       const { data: confirmationsData, error: confirmationsError } = await supabase
-        .from('student_help_confirmations')
+        .from('client_help_confirmations')
         .select(`
           id,
           date,
           description,
           status,
-          student_id,
-          student:student_id (
+          client_id,
+          client:client_id (
             first_name,
             last_name
           )
         `)
-        .eq('helper_id', user.id)
+        .eq('assistant_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
       
@@ -132,7 +132,7 @@ const Helper = () => {
       } finally {
           setIsLoading(false);
         }
-  }, [user?.id, selectedStudent]);
+  }, [user?.id, selectedClient]);
 
   useEffect(() => {
     const POLL_INTERVAL = 30000; // 30 seconds
@@ -148,15 +148,15 @@ const Helper = () => {
   }, [user?.id]);
 
   const generateOTP = async () => {
-    if (!user?.id || !selectedStudent) return;
+    if (!user?.id || !selectedClient) return;
     
     try {
       // First create a session
       const { data: session, error: sessionError } = await supabase
         .from('sessions')
         .insert([{
-          helper_id: user.id,
-          student_id: selectedStudent,
+          assistant_id: user.id,
+          client_id: selectedClient,
           status: 'pending_confirmation',
           created_at: new Date().toISOString()
         }])
@@ -177,12 +177,12 @@ const Helper = () => {
       // Set the OTP in state for display
       setOtp(data.otp);
       
-      // Get the selected student's name for the toast
-      const selectedStudentData = assignedStudents.find(s => s.id === selectedStudent);
-      if (selectedStudentData) {
+      // Get the selected client's name for the toast
+      const selectedClientData = assignedClients.find(s => s.id === selectedClient);
+      if (selectedClientData) {
         toast({
           title: "OTP Generated",
-          description: `OTP has been sent to ${selectedStudentData.first_name} ${selectedStudentData.last_name}`,
+          description: `OTP has been sent to ${selectedClientData.first_name} ${selectedClientData.last_name}`,
         });
       }
 
@@ -205,9 +205,9 @@ const Helper = () => {
       
       // Check if already signed in
       const { data: existingSignIn } = await supabase
-        .from('helper_sign_ins')
+        .from('assistant_sign_ins')
         .select('*')
-        .eq('helper_id', user.id)
+        .eq('assistant_id', user.id)
         .eq('date', today)
         .single();
 
@@ -221,9 +221,9 @@ const Helper = () => {
 
       // Create new sign in record
       const { error: signInError } = await supabase
-        .from('helper_sign_ins')
+        .from('assistant_sign_ins')
         .insert([{
-          helper_id: user.id,
+          assistant_id: user.id,
           date: today
         }]);
 
@@ -247,7 +247,7 @@ const Helper = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedStudent || !description.trim() || !user?.id) {
+    if (!selectedClient || !description.trim() || !user?.id) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
@@ -258,8 +258,8 @@ const Helper = () => {
 
     try {
       console.log('=== HELPER OTP GENERATION DEBUG ===');
-      console.log('Helper ID:', user.id);
-      console.log('Selected Student:', selectedStudent);
+      console.log('Assistant ID:', user.id);
+      console.log('Selected Client:', selectedClient);
       console.log('Description:', description.trim());
       
       // Generate a simple 6-digit OTP
@@ -270,8 +270,8 @@ const Helper = () => {
       const { data: sessionData, error: sessionError } = await supabase
         .from('sessions')
         .insert({
-          helper_id: user.id,
-          student_id: selectedStudent,
+          assistant_id: user.id,
+          client_id: selectedClient,
           otp: otp,
           description: description.trim(),
           otp_expiry: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 minutes from now
@@ -291,11 +291,11 @@ const Helper = () => {
       // Set the OTP in state for display on the helper's UI
       setOtp(otp);
       
-      const selectedStudentData = assignedStudents.find(s => s.id === selectedStudent);
-      if (selectedStudentData) {
+      const selectedClientData = assignedClients.find(s => s.id === selectedClient);
+      if (selectedClientData) {
         toast({
           title: "OTP Generated",
-          description: `OTP has been generated for ${selectedStudentData.first_name} ${selectedStudentData.last_name}. The student will receive it automatically.`,
+          description: `OTP has been generated for ${selectedClientData.first_name} ${selectedClientData.last_name}. The client will receive it automatically.`,
         });
       }
 
@@ -315,19 +315,19 @@ const Helper = () => {
     }
   };
 
-  const getStudentName = (studentId: string) => {
-    const student = assignedStudents.find(s => s.id === studentId);
-    if (student) {
-      return `${student.first_name} ${student.last_name}`;
+  const getClientName = (clientId: string) => {
+    const client = assignedClients.find(s => s.id === clientId);
+    if (client) {
+      return `${client.first_name} ${client.last_name}`;
     }
     
-    // Fallback for confirmations if student is not in the assigned list (e.g., old assignment)
-    const confirmationStudent = confirmations.find(c => c.student_id === studentId)?.student;
-    if (confirmationStudent) {
-      return `${confirmationStudent.first_name} ${confirmationStudent.last_name}`;
+    // Fallback for confirmations if client is not in the assigned list (e.g., old assignment)
+    const confirmationClient = confirmations.find(c => c.client_id === clientId)?.client;
+    if (confirmationClient) {
+      return `${confirmationClient.first_name} ${confirmationClient.last_name}`;
     }
 
-    return 'Unknown Student';
+    return 'Unknown Client';
   };
 
   const formatDate = (dateString: string) => {
@@ -361,24 +361,24 @@ const Helper = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Select 
-                  value={selectedStudent} 
-                  onValueChange={setSelectedStudent}
-                  disabled={assignedStudents.length === 1}
+                  value={selectedClient} 
+                  onValueChange={setSelectedClient}
+                  disabled={assignedClients.length === 1}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Assigned student" />
+                    <SelectValue placeholder="Assigned client" />
                   </SelectTrigger>
                   <SelectContent>
-                    {assignedStudents.map((student) => (
-                      <SelectItem key={student.id} value={student.id}>
-                        {student.first_name} {student.last_name}
+                    {assignedClients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.first_name} {client.last_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {assignedStudents.length === 0 && (
+                {assignedClients.length === 0 && (
                   <p className="text-sm text-amber-500">
-                    No students assigned to you yet. Please contact an administrator.
+                    No clients assigned to you yet. Please contact an administrator.
                   </p>
                 )}
               </div>
@@ -396,7 +396,7 @@ const Helper = () => {
               <Button 
                 type="submit" 
                 className="w-full bg-blue-500 hover:bg-blue-600"
-                disabled={assignedStudents.length === 0}
+                disabled={assignedClients.length === 0}
               >
                 Sign & Generate OTP
               </Button>
@@ -406,7 +406,7 @@ const Helper = () => {
               <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                 <div className="flex flex-col items-center">
                   <h3 className="font-medium mb-2">
-                    OTP for {getStudentName(selectedStudent)}
+                    OTP for {getClientName(selectedClient)}
                   </h3>
                   <div className="flex items-center gap-3 my-2">
                     <Badge variant="outline" className="text-2xl py-3 px-6 font-mono">
@@ -430,7 +430,7 @@ const Helper = () => {
                     </Button>
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    Share this OTP with the student to verify Assistance provision
+                    Share this OTP with the client to verify Assistance provision
                   </p>
                   <Button 
                     size="sm" 
@@ -459,7 +459,7 @@ const Helper = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Date</TableHead>
-                      <TableHead>Student</TableHead>
+                      <TableHead>Client</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
@@ -470,7 +470,7 @@ const Helper = () => {
                         <TableRow key={conf.id}>
                           <TableCell>{formatDate(conf.date)}</TableCell>
                           <TableCell>
-                            {conf.student ? `${conf.student.first_name} ${conf.student.last_name}` : getStudentName(conf.student_id)}
+                            {conf.client ? `${conf.client.first_name} ${conf.client.last_name}` : getClientName(conf.client_id)}
                           </TableCell>
                           <TableCell className="max-w-xs truncate">{conf.description}</TableCell>
                           <TableCell>

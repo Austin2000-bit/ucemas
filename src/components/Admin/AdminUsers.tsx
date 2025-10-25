@@ -31,8 +31,8 @@ import { User } from "@/types";
 
 interface Assignment {
   id: string;
-  student_id: string;
-  helper_id: string;
+  client_id: string;
+  assistant_id: string;
   status: string;
   created_at: string;
   student?: User;
@@ -76,13 +76,13 @@ const AdminUsers = () => {
           console.log("Application letter URL:", usersData[0].application_letter_url);
         }
 
-        const { data: assignmentsData, error: assignmentsError } = await supabase.from("helper_student_assignments").select("*");
+        const { data: assignmentsData, error: assignmentsError } = await supabase.from("assistant_client_assignments").select("*");
         if (assignmentsError) throw assignmentsError;
 
         const populatedAssignments = (assignmentsData || []).map((assignment) => {
-          const student = usersData?.find((u) => u.id === assignment.student_id);
-          const helper = usersData?.find((u) => u.id === assignment.helper_id);
-          return { ...assignment, student, helper };
+          const client = usersData?.find((u) => u.id === assignment.client_id);
+          const assistant = usersData?.find((u) => u.id === assignment.assistant_id);
+          return { ...assignment, student: client, helper: assistant };
         });
 
         setUsers(usersData || []);
@@ -104,8 +104,8 @@ const AdminUsers = () => {
       user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.phone?.toLowerCase().includes(searchQuery.toLowerCase());
     if (activeTab === "all") return matchesSearch;
-    if (activeTab === "assistants") return user.role === "helper" && matchesSearch;
-    if (activeTab === "students") return user.role === "student" && matchesSearch;
+    if (activeTab === "assistants") return user.role === "assistant" && matchesSearch;
+    if (activeTab === "clients") return user.role === "client" && matchesSearch;
     if (activeTab === "drivers") return user.role === "driver" && matchesSearch;
     return matchesSearch;
   });
@@ -157,15 +157,15 @@ const AdminUsers = () => {
             <p><span class="label">Created:</span> <span class="value">${new Date(user.created_at || '').toLocaleDateString()}</span></p>
           </div>
 
-          ${user.role === 'student' ? `
+          ${user.role === 'client' ? `
           <div class="section">
-            <h3>Student Information</h3>
+            <h3>Client Information</h3>
             <p><span class="label">Disability Type:</span> <span class="value">${user.disability_type || 'Not specified'}</span></p>
             <p><span class="label">Services Needed:</span> <span class="value">${user.services_needed?.join(', ') || 'Not specified'}</span></p>
           </div>
           ` : ''}
 
-          ${user.role === 'helper' ? `
+          ${user.role === 'assistant' ? `
           <div class="section">
             <h3>Assistant Information</h3>
             <p><span class="label">Assistant Type:</span> <span class="value">${user.assistant_type || 'Not specified'}</span></p>
@@ -180,8 +180,8 @@ const AdminUsers = () => {
           <div class="section">
             <h3>Documents</h3>
             <p><span class="label">Profile Picture:</span> <span class="value">${user.profile_picture_url ? 'Available' : 'Not uploaded'}</span></p>
-            ${user.role === 'helper' ? `<p><span class="label">Application Letter:</span> <span class="value">${user.application_letter_url ? 'Available' : 'Not uploaded'}</span></p>` : ''}
-            ${user.role === 'student' ? `<p><span class="label">Disability Video:</span> <span class="value">${user.disability_video_url ? 'Available' : 'Not uploaded'}</span></p>` : ''}
+            ${user.role === 'assistant' ? `<p><span class="label">Application Letter:</span> <span class="value">${user.application_letter_url ? 'Available' : 'Not uploaded'}</span></p>` : ''}
+            ${user.role === 'client' ? `<p><span class="label">Disability Video:</span> <span class="value">${user.disability_video_url ? 'Available' : 'Not uploaded'}</span></p>` : ''}
           </div>
         </body>
       </html>
@@ -244,8 +244,8 @@ const AdminUsers = () => {
                   <td>${user.status || 'Active'}</td>
                   <td>${new Date(user.created_at || '').toLocaleDateString()}</td>
                   <td>
-                    ${user.role === 'student' ? `Disability: ${user.disability_type || '-'}` : ''}
-                    ${user.role === 'helper' ? `Type: ${user.assistant_type || '-'}, Spec: ${user.assistant_specialization || '-'}` : ''}
+                    ${user.role === 'client' ? `Disability: ${user.disability_type || '-'}` : ''}
+                    ${user.role === 'assistant' ? `Type: ${user.assistant_type || '-'}, Spec: ${user.assistant_specialization || '-'}` : ''}
                     ${user.role === 'driver' ? 'Driver' : ''}
                     ${user.role === 'admin' ? 'Administrator' : ''}
                   </td>
@@ -320,7 +320,7 @@ const AdminUsers = () => {
             <TableCell>{user.role}</TableCell>
             <TableCell>{user.phone}</TableCell>
             <TableCell>
-              {user.role === "student"
+              {user.role === "client"
                 ? user.services_needed?.length
                     ? user.services_needed.join(", ")
                     : (user.disability_type && disabilityServices[user.disability_type]?.join(", ")) || "-"
@@ -328,7 +328,7 @@ const AdminUsers = () => {
             </TableCell>
             <TableCell>
               <div className="flex gap-2">
-                {user.role === "helper" && (
+                {user.role === "assistant" && (
                   <>
                     {user.application_letter_url ? (
                       <Button 
@@ -344,7 +344,7 @@ const AdminUsers = () => {
                     )}
                   </>
                 )}
-                {user.role === "student" && user.disability_video_url && (
+                {user.role === "client" && user.disability_video_url && (
                   <Button 
                     variant="outline" 
                     size="sm"
@@ -398,14 +398,14 @@ const AdminUsers = () => {
         <TabsList>
           <TabsTrigger value="all">All Users</TabsTrigger>
           <TabsTrigger value="assistants">Assistants</TabsTrigger>
-          <TabsTrigger value="students">Students</TabsTrigger>
+          <TabsTrigger value="clients">Clients</TabsTrigger>
           <TabsTrigger value="drivers">Drivers</TabsTrigger>
           <TabsTrigger value="assignments">Assignments</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all">{renderUserTable(filteredUsers)}</TabsContent>
-        <TabsContent value="assistants">{renderUserTable(filteredUsers.filter(u => u.role === "helper"))}</TabsContent>
-        <TabsContent value="students">{renderUserTable(filteredUsers.filter(u => u.role === "student"))}</TabsContent>
+        <TabsContent value="assistants">{renderUserTable(filteredUsers.filter(u => u.role === "assistant"))}</TabsContent>
+        <TabsContent value="clients">{renderUserTable(filteredUsers.filter(u => u.role === "client"))}</TabsContent>
         <TabsContent value="drivers">{renderUserTable(filteredUsers.filter(u => u.role === "driver"))}</TabsContent>
         <TabsContent value="assignments"><HelperStudentAssignment /></TabsContent>
       </Tabs>
@@ -441,10 +441,10 @@ const AdminUsers = () => {
               <div className="space-y-2">
                 <p><b>Role:</b> {selectedUser.role}</p>
                 <p><b>Phone:</b> {selectedUser.phone || "Not provided"}</p>
-                {selectedUser.role === "student" && selectedUser.services_needed && (
+                {selectedUser.role === "client" && selectedUser.services_needed && (
                   <p><b>Services Needed:</b> {selectedUser.services_needed.join(", ")}</p>
                 )}
-                {selectedUser.role === "helper" && selectedUser.application_letter_url && (
+                {selectedUser.role === "assistant" && selectedUser.application_letter_url && (
                   <div className="flex items-center gap-2">
                     <b>Application Letter:</b>
                     <Button 
@@ -457,7 +457,7 @@ const AdminUsers = () => {
                     </Button>
                   </div>
                 )}
-                {selectedUser.role === "student" && selectedUser.disability_video_url && (
+                {selectedUser.role === "client" && selectedUser.disability_video_url && (
                   <div className="flex items-center gap-2">
                     <b>Disability Video:</b>
                     <Button 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/theme-toggle";
 import AdminMessages from "@/components/AdminMessages"; // Ensure this file exists or update the path
+import SessionStatus from "@/components/SessionStatus";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogOut, MessageSquare, Menu, X } from "lucide-react";
@@ -28,16 +29,18 @@ const Navbar = ({ title = "UCEMAS" }: NavbarProps) => {
           { to: "/register", label: "Register" },
           { to: "/admin", label: "Admin" },
         ] : []),
-        ...(hasRole(["helper", "admin"]) ? [
-          { to: "/helper", label: "Assistant" },
+        ...(hasRole(["assistant", "admin"]) ? [
+          { to: "/assistant", label: "Assistant" },
         ] : []),
-        ...(hasRole(["student", "admin"]) ? [
-          { to: "/student", label: "Student" },
+        ...(hasRole(["client", "admin"]) ? [
+          { to: "/client", label: "Client" },
         ] : []),
         ...(hasRole(["driver"]) ? [] : [
           { to: "/book-ride", label: "Book ride" },
         ]),
-        { to: "/complaint", label: "Complaint" },
+        ...(hasRole(["assistant", "client", "driver", "staff"]) ? [
+          { to: "/complaint", label: "Complaint" },
+        ] : []),
       ]
     : [
         { to: "/register", label: "Register" },
@@ -49,7 +52,7 @@ const Navbar = ({ title = "UCEMAS" }: NavbarProps) => {
       {/* Menu navigation */}
       <div className="bg-blue-500 dark:bg-blue-700 text-white relative">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center h-16">
             {/* Hamburger for mobile (left) - always show */}
             <button
               className="md:hidden p-2 focus:outline-none"
@@ -59,26 +62,27 @@ const Navbar = ({ title = "UCEMAS" }: NavbarProps) => {
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
             {/* Title (desktop only) */}
-            <Link to="/" className="px-4 py-2 whitespace-nowrap font-poppins text-lg font-semibold hidden md:block">
+            <Link to="/" className="px-2 py-2 whitespace-nowrap font-poppins text-lg font-semibold hidden md:block">
               {title}
             </Link>
             {/* Desktop nav links */}
             {user && (
-              <div className="hidden md:flex items-center justify-center space-x-2 overflow-x-auto">
+              <div className="hidden md:flex items-center space-x-1 flex-1 justify-center">
                 {navLinks.map(link => (
                   <Link
                     key={link.to}
                     to={link.to}
-                    className="px-4 py-2 whitespace-nowrap font-poppins hover:bg-blue-600 dark:hover:bg-blue-800 rounded-md transition-colors"
+                    className="px-2 py-2 whitespace-nowrap font-poppins hover:bg-blue-600 dark:hover:bg-blue-800 rounded-md transition-colors text-sm"
                   >
                     {link.label}
                   </Link>
                 ))}
               </div>
             )}
-            <div className="items-center space-x-2 hidden md:flex">
+            <div className="items-center space-x-2 hidden md:flex ml-auto">
               {user ? (
                 <>
+                  <SessionStatus className="text-white" />
                   <div className="flex items-center gap-2">
                     {user.profile_picture_url ? (
                       <img 
@@ -138,6 +142,7 @@ const Navbar = ({ title = "UCEMAS" }: NavbarProps) => {
               <div className="flex flex-col items-center w-full mt-2">
                 {user ? (
                   <>
+                    <SessionStatus className="text-white mb-2" />
                     <div className="flex items-center gap-2 mb-2">
                       {user.profile_picture_url ? (
                         <img 

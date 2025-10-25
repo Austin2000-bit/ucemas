@@ -16,8 +16,8 @@ const AdminDashboard = () => {
   const [complaintsByCategory, setComplaintsByCategory] = useState<any[]>([]);
   // --- User Growth Over Time ---
   const [userGrowth, setUserGrowth] = useState<any[]>([]);
-  // --- Helpers/Drivers Performance ---
-  const [helpersPerformance, setHelpersPerformance] = useState<any[]>([]);
+  // --- Assistants/Drivers Performance ---
+  const [assistantsPerformance, setAssistantsPerformance] = useState<any[]>([]);
   const [driversPerformance, setDriversPerformance] = useState<any[]>([]);
   const [complaintStatusCounts, setComplaintStatusCounts] = useState({ pending: 0, in_progress: 0, resolved: 0 });
   const [helpConfirmationCounts, setHelpConfirmationCounts] = useState({ pending: 0, confirmed: 0 });
@@ -59,9 +59,9 @@ const AdminDashboard = () => {
         setUserGrowth(growth);
       }
     };
-    // Helpers Performance
-    const fetchHelpersPerformance = async () => {
-      // Count help confirmations per helper
+    // Assistants Performance
+    const fetchAssistantsPerformance = async () => {
+      // Count help confirmations per assistant
       const { data, error } = await supabase
         .from('student_help_confirmations')
         .select('helper_id');
@@ -70,16 +70,16 @@ const AdminDashboard = () => {
         data.forEach((c: any) => {
           counts[c.helper_id] = (counts[c.helper_id] || 0) + 1;
         });
-        // Get helper names
-        const helperIds = Object.keys(counts);
-        if (helperIds.length > 0) {
-          const { data: helpers } = await supabase
+        // Get assistant names
+        const assistantIds = Object.keys(counts);
+        if (assistantIds.length > 0) {
+          const { data: assistants } = await supabase
             .from('users')
             .select('id, first_name, last_name')
-            .in('id', helperIds);
-          setHelpersPerformance(
-            helperIds.map(id => ({
-              name: helpers?.find((h: any) => h.id === id) ? `${helpers.find((h: any) => h.id === id).first_name} ${helpers.find((h: any) => h.id === id).last_name}` : id,
+            .in('id', assistantIds);
+          setAssistantsPerformance(
+            assistantIds.map(id => ({
+              name: assistants?.find((h: any) => h.id === id) ? `${assistants.find((h: any) => h.id === id).first_name} ${assistants.find((h: any) => h.id === id).last_name}` : id,
               value: counts[id]
             }))
           );
@@ -146,15 +146,27 @@ const AdminDashboard = () => {
     };
     fetchComplaintsByCategory();
     fetchUserGrowth();
-    fetchHelpersPerformance();
+    fetchAssistantsPerformance();
     fetchDriversPerformance();
     fetchComplaintStatusCounts();
     fetchHelpConfirmationCounts();
   }, []);
 
   const formatUserBreakdown = (breakdown: Record<string, number>) => {
+    // Map old role names to new role names for display
+    const roleMapping: Record<string, string> = {
+      'helper': 'assistant',
+      'student': 'client',
+      'admin': 'admin',
+      'driver': 'driver',
+      'staff': 'staff'
+    };
+
     return Object.entries(breakdown)
-      .map(([role, count]) => `${count} ${role}${count > 1 ? 's' : ''}`)
+      .map(([role, count]) => {
+        const displayRole = roleMapping[role] || role;
+        return `${count} ${displayRole}${count > 1 ? 's' : ''}`;
+      })
       .join(', ');
   };
 
@@ -289,20 +301,20 @@ const AdminDashboard = () => {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        {/* Helpers Performance Bar Chart */}
+        {/* Assistants Performance Bar Chart */}
         <Card>
           <CardHeader>
             <CardTitle>Assistants Performance</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={helpersPerformance} layout="vertical" margin={{ left: 40 }}>
+              <BarChart data={assistantsPerformance} layout="vertical" margin={{ left: 40 }}>
                 <XAxis type="number" allowDecimals={false} />
                 <YAxis dataKey="name" type="category" width={120} />
                 <Tooltip />
                 <Legend />
                 <Bar dataKey="value" fill="#82ca9d">
-                  {helpersPerformance.map((entry, idx) => (
+                  {assistantsPerformance.map((entry, idx) => (
                     <Cell key={entry.name} fill={COLORS[idx % COLORS.length]} />
                   ))}
                 </Bar>

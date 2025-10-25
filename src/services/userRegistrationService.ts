@@ -9,6 +9,7 @@ export interface RegistrationData {
   role: UserRole;
   phone: string;
   disability_type?: string;
+  services_needed?: string[];
   bank_name?: string;
   bank_account_number?: string;
   assistant_type?: 'undergraduate' | 'postgraduate';

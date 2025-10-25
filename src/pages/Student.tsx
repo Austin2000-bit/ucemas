@@ -18,7 +18,7 @@ import { getStudentOtp, verifyOTP, getComplaintsByUserId, supabase } from "@/lib
 import { useAuth } from "@/hooks/useAuth";
 import { SystemLogs } from "@/utils/systemLogs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, StudentHelpConfirmation, StudentOtp } from "@/types";
+import { User, ClientHelpConfirmation, ClientOtp } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import RatingModal from "@/components/RatingModal";
 
-type ConfirmationWithHelper = StudentHelpConfirmation & { helperName?: string };
+type ConfirmationWithAssistant = ClientHelpConfirmation & { assistantName?: string };
 
 const Student = () => {
   const { user } = useAuth();
@@ -37,9 +37,9 @@ const Student = () => {
   const [currentDate] = useState(new Date().toISOString().split('T')[0]);
   
   const [todayConfirmed, setTodayConfirmed] = useState(false);
-  const [recentConfirmations, setRecentConfirmations] = useState<ConfirmationWithHelper[]>([]);
-  const [pendingOtp, setPendingOtp] = useState<StudentOtp | null>(null);
-  const [assignedHelper, setAssignedHelper] = useState<User | null>(null);
+  const [recentConfirmations, setRecentConfirmations] = useState<ConfirmationWithAssistant[]>([]);
+  const [pendingOtp, setPendingOtp] = useState<ClientOtp | null>(null);
+  const [assignedAssistant, setAssignedAssistant] = useState<User | null>(null);
   const [complaints, setComplaints] = useState<any[]>([]);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
@@ -90,7 +90,7 @@ const Student = () => {
       } else {
         const confirmations = (confirmationsData || []).map(c => ({
           ...c,
-          helperName: c.helper ? `${c.helper.first_name} ${c.helper.last_name}` : 'Unknown Helper'
+          assistantName: c.assistant ? `${c.assistant.first_name} ${c.assistant.last_name}` : 'Unknown Assistant'
         }));
       setRecentConfirmations(confirmations);
       
@@ -100,27 +100,27 @@ const Student = () => {
         setTodayConfirmed(!!todayConfirm);
       }
 
-      // Load assigned helper
+      // Load assigned assistant
       const { data, error } = await supabase
-        .from('helper_student_assignments')
-        .select('*, helper:helper_id(first_name, last_name)')
-        .eq('student_id', studentId)
+        .from('assistant_client_assignments')
+        .select('*, assistant:assistant_id(first_name, last_name)')
+        .eq('client_id', studentId)
         .eq('status', 'active')
         .single();
 
       if (data) {
-        setAssignedHelper({
-          id: data.helper_id,
-          first_name: data.helper.first_name,
-          last_name: data.helper.last_name,
-          email: data.helper.email,
-          photo: data.helper.photo,
-          role: 'helper' as const,
+        setAssignedAssistant({
+          id: data.assistant_id,
+          first_name: data.assistant.first_name,
+          last_name: data.assistant.last_name,
+          email: data.assistant.email,
+          photo: data.assistant.photo,
+          role: 'assistant' as const,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         });
       } else {
-        setAssignedHelper(null);
+        setAssignedAssistant(null);
       }
       
       // Fetch user complaints
@@ -183,7 +183,7 @@ const Student = () => {
         
         toast({
           title: "New OTP Received",
-          description: `Helper ${studentOtp.helperName} has sent you a verification code.`,
+          description: `Assistant ${studentOtp.assistantName} has sent you a verification code.`,
         });
       } else {
         console.log('No new OTP found or OTP already pending');
@@ -269,7 +269,7 @@ const Student = () => {
       if (!confirmationsError && confirmationsData) {
         const confirmations = confirmationsData.map(c => ({
           ...c,
-          helperName: c.helper ? `${c.helper.first_name} ${c.helper.last_name}` : 'Unknown Helper'
+          assistantName: c.assistant ? `${c.assistant.first_name} ${c.assistant.last_name}` : 'Unknown Assistant'
         }));
         setRecentConfirmations(confirmations);
       }
@@ -277,9 +277,9 @@ const Student = () => {
     // Log the confirmation
     SystemLogs.addLog(
       "Help confirmed",
-        `Student ${user?.first_name} ${user?.last_name} confirmed help from helper ${otpToVerify.helperName}`,
+        `Client ${user?.first_name} ${user?.last_name} confirmed help from assistant ${otpToVerify.assistantName}`,
       studentId,
-      "student"
+      "client"
     );
     
     toast({
@@ -288,8 +288,8 @@ const Student = () => {
     });
     
     // Show rating modal after successful confirmation
-    setRatingAssistantId(otpToVerify.helperId);
-    setRatingAssistantName(otpToVerify.helperName);
+    setRatingAssistantId(otpToVerify.assistantId);
+    setRatingAssistantName(otpToVerify.assistantName);
     setRatingSessionId(otpToVerify.sessionId || "");
     setShowRatingModal(true);
     
@@ -306,10 +306,10 @@ const Student = () => {
     }
   };
   
-  const getHelperName = (helperId: string) => {
+  const getAssistantName = (assistantId: string) => {
     const users = JSON.parse(localStorage.getItem("users") || "[]");
-    const helper = users.find((u: any) => u.id === helperId);
-    return helper ? `${helper.first_name} ${helper.last_name}` : 'Unknown Helper';
+    const assistant = users.find((u: any) => u.id === assistantId);
+    return assistant ? `${assistant.first_name} ${assistant.last_name}` : 'Unknown Assistant';
   };
   
   const formatTime = (timestamp: number) => {
@@ -344,7 +344,7 @@ const Student = () => {
                             Confirmed on {conf.date}
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400">
-                            Helper: {conf.helperName}
+                            Assistant: {conf.assistantName}
                           </p>
                     </div>
                   </div>
@@ -370,25 +370,25 @@ const Student = () => {
             </Link>
           </div>
 
-          {/* Assigned Helper Card */}
+          {/* Assigned Assistant Card */}
           <Card className="mt-6">
             <CardHeader>
               <CardTitle>Your Assigned Assistant</CardTitle>
             </CardHeader>
             <CardContent>
-              {assignedHelper ? (
+              {assignedAssistant ? (
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16">
-                    <AvatarImage src={assignedHelper.photo || "/default-avatar.png"} />
+                    <AvatarImage src={assignedAssistant.photo || "/default-avatar.png"} />
                     <AvatarFallback>
-                      {assignedHelper.first_name[0]}{assignedHelper.last_name[0]}
+                      {assignedAssistant.first_name[0]}{assignedAssistant.last_name[0]}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <h3 className="text-lg font-semibold">
-                      {assignedHelper.first_name} {assignedHelper.last_name}
+                      {assignedAssistant.first_name} {assignedAssistant.last_name}
                     </h3>
-                    <p className="text-muted-foreground">{assignedHelper.email}</p>
+                    <p className="text-muted-foreground">{assignedAssistant.email}</p>
                     <p className="text-sm text-muted-foreground mt-1">
                       Available for assistance during working hours
                     </p>
@@ -432,7 +432,7 @@ const Student = () => {
                 <Clock className="h-4 w-4 text-blue-500" />
                 <AlertTitle className="text-blue-700 dark:text-blue-400">New OTP Received</AlertTitle>
                 <AlertDescription className="text-blue-600 dark:text-blue-300">
-                  Assistant {pendingOtp.helperName} has sent you a verification code at {formatTime(pendingOtp.timestamp)}. 
+                  Assistant {pendingOtp.assistantName} has sent you a verification code at {formatTime(pendingOtp.timestamp)}. 
                   The code has been automatically filled in for you.
                 </AlertDescription>
                 {pendingOtp.description && (

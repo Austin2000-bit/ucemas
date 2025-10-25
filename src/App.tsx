@@ -9,6 +9,7 @@ import { FontSizeProvider } from "@/components/font-size-provider";
 import { AuthProvider } from "@/utils/auth";
 import { testSupabaseConnection } from '@/lib/supabase';
 import { initializeData } from "@/utils/initData";
+import { initializeSessionManager } from "@/utils/sessionManager";
 import Footer from "@/components/Footer";
 import { routes, LoadingSpinner } from './routes';
 
@@ -33,6 +34,19 @@ const App = () => {
   useEffect(() => {
     // Test Supabase connection on app load
     testSupabaseConnection();
+    
+    // Initialize session management
+    initializeSessionManager(
+      () => {
+        // Session expired callback
+        console.log('Session expired - redirecting to login');
+        window.location.href = '/login';
+      },
+      () => {
+        // Session warning callback
+        console.log('Session expiring soon - warning shown');
+      }
+    );
   }, []);
 
   return (
