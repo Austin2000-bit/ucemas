@@ -83,7 +83,7 @@ const Login = () => {
           {/* Font Size Selector */}
           <div className="mb-4 flex justify-end">
             <FontSizeSelector />
-          </div>
+            </div>
 
           <Card className="shadow-md">
             <CardHeader className="text-center">
@@ -92,38 +92,38 @@ const Login = () => {
             </CardHeader>
             
             <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Mail className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              id="email"
-                              type="email"
-                              placeholder="m@example.com"
-                              className="pl-8"
-                              autoComplete="email"
-                              {...field}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Mail className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="email"
+                            type="email"
+                            placeholder="m@example.com"
+                            className="pl-8"
+                            autoComplete="email"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Lock className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -151,20 +151,20 @@ const Login = () => {
                           </Button>
                         </div>
                       </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                  <Button 
-                    type="submit" 
-                    className="w-full"
-                    disabled={loading}
-                  >
-                    {loading ? "Signing in..." : "Sign in"}
-                  </Button>
-                </form>
-              </Form>
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={loading}
+                >
+                  {loading ? "Signing in..." : "Sign in"}
+                </Button>
+              </form>
+            </Form>
 
               {/* Keyboard Shortcuts Info */}
               <div className="mt-6 pt-4 border-t">
@@ -207,7 +207,7 @@ const Login = () => {
                     </div>
                   </div>
                 )}
-              </div>
+          </div>
             </CardContent>
           </Card>
         </div>

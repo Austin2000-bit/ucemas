@@ -21,7 +21,7 @@ import MessageSystem from "@/components/Messaging/MessageSystem";
 import { supabase } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Download, Search, UserPlus, MessageSquare, Trash2, Eye, FileText } from "lucide-react";
+import { Download, Search, UserPlus, MessageSquare, Trash2, Eye, FileText, Edit } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -59,8 +59,11 @@ const AdminUsers = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
   const [selectedUserForMessage, setSelectedUserForMessage] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editFormData, setEditFormData] = useState<Partial<User>>({});
 
   useEffect(() => {
     const loadData = async () => {
@@ -123,6 +126,95 @@ const AdminUsers = () => {
   const handleMessage = (user: User) => {
     setSelectedUserForMessage(user);
     setIsMessageDialogOpen(true);
+  };
+
+  const handleEdit = (user: User) => {
+    setEditingUser(user);
+    setEditFormData({
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      disability_type: user.disability_type,
+      services_needed: user.services_needed,
+      bank_account: user.bank_account,
+      bank_account_number: user.bank_account_number,
+      assistant_type: user.assistant_type,
+      assistant_specialization: user.assistant_specialization,
+      assistant_level: user.assistant_level,
+      time_period: user.time_period,
+      status: user.status
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditFormChange = (field: string, value: any) => {
+    setEditFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingUser) return;
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          first_name: editFormData.first_name,
+          last_name: editFormData.last_name,
+          email: editFormData.email,
+          phone: editFormData.phone,
+          role: editFormData.role,
+          disability_type: editFormData.disability_type,
+          services_needed: editFormData.services_needed,
+          bank_account: editFormData.bank_account,
+          bank_account_number: editFormData.bank_account_number,
+          assistant_type: editFormData.assistant_type,
+          assistant_specialization: editFormData.assistant_specialization,
+          assistant_level: editFormData.assistant_level,
+          time_period: editFormData.time_period,
+          status: editFormData.status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingUser.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user.id === editingUser.id 
+            ? { ...user, ...editFormData, updated_at: new Date().toISOString() }
+            : user
+        )
+      );
+
+      toast({
+        title: "User Updated",
+        description: `User ${editFormData.first_name} ${editFormData.last_name} has been updated successfully.`,
+      });
+
+      SystemLogs.addLog(
+        "User Updated",
+        `User ${editFormData.first_name} ${editFormData.last_name} information was updated`,
+        "admin",
+        "admin"
+      );
+
+      setIsEditDialogOpen(false);
+      setEditingUser(null);
+      setEditFormData({});
+    } catch (error) {
+      console.error("Error updating user:", error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update user information. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const downloadUserPDF = (user: User) => {
@@ -360,6 +452,9 @@ const AdminUsers = () => {
               <Button variant="ghost" size="icon" onClick={() => handleView(user)}>
                 <Eye />
               </Button>
+              <Button variant="ghost" size="icon" onClick={() => handleEdit(user)} title="Edit User">
+                <Edit />
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => downloadUserPDF(user)} title="Download User Info">
                 <FileText />
               </Button>
@@ -383,8 +478,8 @@ const AdminUsers = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">User Management</h2>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => downloadAllUsersPDF(filteredUsers)}
             className="flex items-center gap-2"
           >
@@ -438,12 +533,12 @@ const AdminUsers = () => {
                 </div>
               </div>
               
-              <div className="space-y-2">
-                <p><b>Role:</b> {selectedUser.role}</p>
+            <div className="space-y-2">
+              <p><b>Role:</b> {selectedUser.role}</p>
                 <p><b>Phone:</b> {selectedUser.phone || "Not provided"}</p>
                 {selectedUser.role === "client" && selectedUser.services_needed && (
-                  <p><b>Services Needed:</b> {selectedUser.services_needed.join(", ")}</p>
-                )}
+                <p><b>Services Needed:</b> {selectedUser.services_needed.join(", ")}</p>
+              )}
                 {selectedUser.role === "assistant" && selectedUser.application_letter_url && (
                   <div className="flex items-center gap-2">
                     <b>Application Letter:</b>
@@ -496,6 +591,209 @@ const AdminUsers = () => {
           recipient={selectedUserForMessage.email} 
           onClose={() => setIsMessageDialogOpen(false)} 
         />
+      )}
+
+      {/* Edit User Dialog */}
+      {isEditDialogOpen && editingUser && (
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit User: {editingUser.first_name} {editingUser.last_name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {/* Basic Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="first_name">First Name</Label>
+                  <Input
+                    id="first_name"
+                    value={editFormData.first_name || ''}
+                    onChange={(e) => handleEditFormChange('first_name', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="last_name">Last Name</Label>
+                  <Input
+                    id="last_name"
+                    value={editFormData.last_name || ''}
+                    onChange={(e) => handleEditFormChange('last_name', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={editFormData.email || ''}
+                    onChange={(e) => handleEditFormChange('email', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={editFormData.phone || ''}
+                    onChange={(e) => handleEditFormChange('phone', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="role">Role</Label>
+                  <Select value={editFormData.role || ''} onValueChange={(value) => handleEditFormChange('role', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="assistant">Assistant</SelectItem>
+                      <SelectItem value="client">Client</SelectItem>
+                      <SelectItem value="driver">Driver</SelectItem>
+                      <SelectItem value="staff">Staff</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={editFormData.status || 'active'} onValueChange={(value) => handleEditFormChange('status', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Client-specific fields */}
+              {editFormData.role === 'client' && (
+                <>
+                  <div>
+                    <Label htmlFor="disability_type">Disability Type</Label>
+                    <Select value={editFormData.disability_type || ''} onValueChange={(value) => handleEditFormChange('disability_type', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select disability type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Total Blind">Total Blind</SelectItem>
+                        <SelectItem value="Low Vision">Low Vision</SelectItem>
+                        <SelectItem value="Total Deaf">Total Deaf</SelectItem>
+                        <SelectItem value="Hard of hearing">Hard of hearing</SelectItem>
+                        <SelectItem value="Deafblind">Deafblind</SelectItem>
+                        <SelectItem value="Physical Disability">Physical Disability</SelectItem>
+                        <SelectItem value="Chronic health Disease">Chronic health Disease</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="services_needed">Services Needed</Label>
+                    <Input
+                      id="services_needed"
+                      value={editFormData.services_needed?.join(', ') || ''}
+                      onChange={(e) => handleEditFormChange('services_needed', e.target.value.split(', '))}
+                      placeholder="Enter services separated by commas"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Assistant-specific fields */}
+              {editFormData.role === 'assistant' && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="assistant_type">Assistant Type</Label>
+                      <Select value={editFormData.assistant_type || ''} onValueChange={(value) => handleEditFormChange('assistant_type', value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select assistant type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="undergraduate">Undergraduate</SelectItem>
+                          <SelectItem value="postgraduate">Postgraduate</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="assistant_specialization">Specialization</Label>
+                      <Select value={editFormData.assistant_specialization || ''} onValueChange={(value) => handleEditFormChange('assistant_specialization', value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select specialization" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="reader">Reader</SelectItem>
+                          <SelectItem value="note_taker">Note Taker</SelectItem>
+                          <SelectItem value="mobility_assistant">Mobility Assistant</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="time_period">Time Period</Label>
+                      <Select value={editFormData.time_period || ''} onValueChange={(value) => handleEditFormChange('time_period', value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select time period" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="full_year">Full Year</SelectItem>
+                          <SelectItem value="semester">Semester</SelectItem>
+                          <SelectItem value="half_semester">Half Semester</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="assistant_level">Assistant Level</Label>
+                      <Input
+                        id="assistant_level"
+                        value={editFormData.assistant_level || ''}
+                        onChange={(e) => handleEditFormChange('assistant_level', e.target.value)}
+                        placeholder="e.g., Level 1, Senior, etc."
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="bank_account">Bank Name</Label>
+                      <Select value={editFormData.bank_account || ''} onValueChange={(value) => handleEditFormChange('bank_account', value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select bank" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CRDB">CRDB</SelectItem>
+                          <SelectItem value="NBC">NBC</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="bank_account_number">Bank Account Number</Label>
+                      <Input
+                        id="bank_account_number"
+                        value={editFormData.bank_account_number || ''}
+                        onChange={(e) => handleEditFormChange('bank_account_number', e.target.value)}
+                        placeholder="Enter account number"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEdit}>
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
