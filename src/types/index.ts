@@ -74,6 +74,17 @@ export interface RideRequestWithDetails extends RideRequest {
   driver_name?: string;
 }
 
+export interface DriverRating {
+  id?: string;
+  rider_id: string;
+  driver_id: string;
+  ride_id: string;
+  rating: number; // 1-5 scale
+  feedback?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Message {
   id?: string;
   sender_id: string;

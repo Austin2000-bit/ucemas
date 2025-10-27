@@ -1,25 +1,26 @@
 import { supabase } from '@/lib/supabase';
-import { RideRequest, User } from '@/types';
+import { RideRequest, User, DriverRating } from '@/types';
 
 // Interface for ride requests with additional properties for UI
 export interface RideRequestWithDetails extends RideRequest {
   estimatedTime?: number;
-  student_name?: string;
+  client_name?: string;
+  rider_name?: string;
   driver_name?: string;
 }
 
 // Function to create a new ride request
 export const createRideRequest = async (
-  student_id: string, 
+  client_id: string, 
   pickup_location: string, 
   destination: string
 ): Promise<RideRequestWithDetails> => {
   try {
     const newRequest = {
-      student_id,
+      client_id,
       pickup_location,
       destination,
-      status: 'pending',
+      status: 'pending' as const,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -46,19 +47,19 @@ export const createRideRequest = async (
   }
 };
 
-// Function to get ride requests for a student
+// Function to get ride requests for a client/rider
 export const getStudentRideRequests = async (
-  student_id: string
+  client_id: string
 ): Promise<RideRequestWithDetails[]> => {
   try {
     const { data, error } = await supabase
       .from('ride_requests')
       .select('*')
-      .eq('student_id', student_id)
+      .eq('client_id', client_id)
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching student ride requests:', error);
+      console.error('Error fetching ride requests:', error);
       throw new Error(error.message);
     }
 
@@ -89,23 +90,23 @@ export const getAvailableRideRequests = async (): Promise<RideRequestWithDetails
       throw new Error(error.message);
     }
 
-    // Get all students to add names to requests
+    // Get all clients/riders to add names to requests
     const { data: users, error: usersError } = await supabase
       .from('users')
       .select('*')
-      .in('role', ['student']);
+      .in('role', ['client', 'assistant']);
 
     if (usersError) {
       console.error('Error fetching users:', usersError);
       throw new Error(usersError.message);
     }
 
-    // Add student names and estimated time to requests
+    // Add client names and estimated time to requests
     const requestsWithDetails = requests.map(request => {
-      const student = users.find((user: User) => user.id === request.student_id);
+      const client = users.find((user: User) => user.id === request.client_id);
       return {
         ...request,
-        student_name: student ? `${student.first_name} ${student.last_name}` : 'Unknown Student',
+        client_name: client ? `${client.first_name} ${client.last_name}` : 'Unknown Rider',
         estimatedTime: Math.floor(Math.random() * 20) + 5
       };
     });
@@ -454,4 +455,85 @@ export const rideService = {
   rejectRide,
   getDriverInfo,
   getRideRequestWithDriver
+};
+
+// Function to submit driver rating
+export const submitDriverRating = async (
+  rider_id: string,
+  driver_id: string,
+  ride_id: string,
+  rating: number,
+  feedback?: string
+): Promise<{ success: boolean; error?: any }> => {
+  try {
+    const { data, error } = await supabase
+      .from('driver_ratings')
+      .insert([{
+        rider_id,
+        driver_id,
+        ride_id,
+        rating,
+        feedback,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error submitting driver rating:', error);
+      return { success: false, error };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in submitDriverRating:', error);
+    return { success: false, error };
+  }
+};
+
+// Function to get driver rating for a specific ride
+export const getDriverRatingForRide = async (
+  ride_id: string
+): Promise<DriverRating | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('driver_ratings')
+      .select('*')
+      .eq('ride_id', ride_id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching driver rating:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in getDriverRatingForRide:', error);
+    return null;
+  }
+};
+
+// Function to get all ratings for a driver
+export const getDriverRatings = async (
+  driver_id: string
+): Promise<DriverRating[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('driver_ratings')
+      .select('*')
+      .eq('driver_id', driver_id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching driver ratings:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error in getDriverRatings:', error);
+    return [];
+  }
 };

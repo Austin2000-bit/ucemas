@@ -44,6 +44,7 @@ import HelperStatusTracking from "@/components/Admin/HelperStatusTracking";
 import SystemLogs from "@/components/Admin/SystemLogs";
 import DebugDatabase from "@/components/DebugDatabase";
 import AdminRatingsDashboard from "@/components/Admin/AdminRatingsDashboard";
+import AdminDriverRatings from "@/components/Admin/AdminDriverRatings";
 import { supabase } from "@/lib/supabase";
 import { Complaint } from "@/types";
 import AdminDashboard from "@/components/Admin/AdminDashboard";
@@ -102,6 +103,7 @@ const Admin: React.FC = () => {
   const sidebarItems: SidebarItem[] = [
     { icon: AlertTriangle, label: "Complaints", url: "complaints", id: "complaints", title: "Complaints" },
     { icon: Car, label: "Ride Requests", url: "ride-requests", id: "ride-requests", title: "Ride Requests" },
+    { icon: Star, label: "Driver Ratings", url: "driver-ratings", id: "driver-ratings", title: "Driver Ratings" },
     { icon: Laptop, label: "Gadget Lending", url: "gadgets", id: "gadgets", title: "Gadget Lending" },
     { icon: UserCog, label: "User Management", url: "user-management", id: "user-management", title: "User Management" },
     { icon: List, label: "Assistant Status Tracking", url: "helper-status", id: "helper-status", title: "Assistant Status Tracking" },
@@ -323,6 +325,8 @@ const Admin: React.FC = () => {
         );
       case "ride-requests":
         return <AdminRideRequests />;
+      case "driver-ratings":
+        return <AdminDriverRatings />;
       case "gadgets":
         return <AdminGadgetLending />;
       case "user-management":

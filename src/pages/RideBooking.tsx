@@ -16,7 +16,7 @@ import { websocketService, RideUpdate } from "@/services/websocketService";
 import { rideService } from "@/services/rideService";
 import RatingComponent from "@/components/RatingComponent";
 
-const ALLOWED_ROLES = ['student', 'admin', 'assistant'];
+const ALLOWED_ROLES = ['client', 'assistant', 'admin'];
 const GEO_FENCE_RADIUS = 5000; // 5km in meters
 
 const RideBooking = () => {
@@ -62,10 +62,10 @@ const RideBooking = () => {
 
   useEffect(() => {
     if (!user?.id) return;
-    // Subscribe to ride updates for this student
+    // Subscribe to ride updates for this rider
     const handleRideUpdate = (update: RideUpdate) => {
-      console.log("Student received ride update:", update);
-      if (update.type === 'ride_accepted' && update.data.student_id === user.id) {
+      console.log("Rider received ride update:", update);
+      if (update.type === 'ride_accepted' && update.data.client_id === user.id) {
         setAcceptedRide({ rideId: update.rideId, driverId: update.data.driver_id });
         toast({
           title: "Your ride has been accepted!",
@@ -73,11 +73,11 @@ const RideBooking = () => {
         });
       }
     };
-    websocketService.subscribeToRideUpdates(user.id, 'student', handleRideUpdate);
+    websocketService.subscribeToRideUpdates(user.id, user.role === 'client' ? 'client' : 'assistant', handleRideUpdate);
     return () => {
       websocketService.unsubscribeFromRideUpdates(user.id, handleRideUpdate);
     };
-  }, [user?.id]);
+  }, [user?.id, user?.role]);
 
   // On mount, check if the user has a ride in progress and show driver info if accepted
   useEffect(() => {
@@ -191,13 +191,13 @@ const RideBooking = () => {
     }
 
       if (!userProfile) {
-        // If no profile exists, create one with student role
+        // If no profile exists, create one with client role
         const { error: insertError } = await supabase
           .from('users')
           .insert([{
             id: session.user.id,
             email: session.user.email,
-            role: 'student',
+            role: 'client',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           }]);
@@ -221,10 +221,10 @@ const RideBooking = () => {
       // Create the ride request object
       const rideRequest = {
         id: rideId,
-        student_id: session.user.id,
+        client_id: session.user.id,
         pickup_location: pickupLocation,
         destination: destination,
-        status: 'pending',
+        status: 'pending' as const,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -253,9 +253,9 @@ const RideBooking = () => {
 
       SystemLogs.addLog(
         "Ride request created",
-        `Student requested ride from ${pickupLocation} to ${destination}`,
+        `Rider requested ride from ${pickupLocation} to ${destination}`,
         session.user.id,
-        'student'
+        userProfile.role
       );
     } catch (error) {
       console.error("Error in handleFindDriver:", error);
